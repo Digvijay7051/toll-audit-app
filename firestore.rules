@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each user's own document — only they can read/write it.
+    // auditLogs are stored as fields inside this same document,
+    // so no subcollection rules are needed.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Legacy audit_log collection — kept for backward compatibility
+    match /audit_log/{docId} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.uid;
+    }
+
+    // Shared pass list — any logged-in user can READ; only admin can WRITE
+    match /admin/passlist {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.email == "digvijaysingh705123@gmail.com";
+    }
+
+  }
+}

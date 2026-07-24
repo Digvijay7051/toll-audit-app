@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toll Audit Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUTH SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="authScreen" class="gate-screen">
+    <div class="gate-road-line"></div>
+    <div class="auth-card">
+
+        <div class="auth-brand">
+            <i class="bi bi-car-front-fill"></i>
+            <span>Toll Audit</span>
+        </div>
+        <p class="auth-tagline">Professional toll auditing, made simple</p>
+
+        <!-- LOGIN TAB SWITCHER -->
+        <div class="auth-tab-bar" id="authTabBar">
+            <button class="auth-tab active" id="tabEmailBtn" type="button">
+                <i class="bi bi-envelope-fill"></i> Email
+            </button>
+            <button class="auth-tab" id="tabPinBtn" type="button">
+                <i class="bi bi-grid-3x3-gap-fill"></i> Quick PIN
+            </button>
+        </div>
+
+        <!-- LOGIN BOX — Email/Password -->
+        <div id="loginBox">
+            <form id="loginForm" autocomplete="off">
+
+                <div class="mb-3">
+                    <label class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="loginUsername" placeholder="you@example.com" required>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+                </div>
+
+                <div id="loginError"   class="text-danger small mb-2" style="display:none;"></div>
+                <div id="loginSuccess" class="text-success small mb-2" style="display:none;"></div>
+
+                <button type="submit" class="btn-auth-primary">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </button>
+
+                <button type="button" id="forgotPasswordBtn" class="btn-forgot">
+                    <i class="bi bi-key"></i> Forgot Password?
+                </button>
+
+            </form>
+
+            <div class="auth-divider">or</div>
+
+            <p class="auth-switch">
+                New here?
+                <button type="button" id="showSignupBtn" class="btn-link-plain">Create a free account</button>
+            </p>
+        </div>
+
+        <!-- LOGIN BOX — Quick PIN -->
+        <div id="pinLoginBox" style="display:none;">
+            <p class="pin-login-sub" id="pinLoginUserLabel">Enter your 4-digit PIN</p>
+
+            <!-- PIN dot display -->
+            <div class="pin-dots" id="pinDots">
+                <span class="pin-dot" id="pd0"></span>
+                <span class="pin-dot" id="pd1"></span>
+                <span class="pin-dot" id="pd2"></span>
+                <span class="pin-dot" id="pd3"></span>
+            </div>
+
+            <div id="pinLoginError" class="text-danger small mb-2 text-center" style="display:none;"></div>
+
+            <!-- Numpad -->
+            <div class="pin-numpad">
+                <button class="pin-key" data-digit="1" type="button">1</button>
+                <button class="pin-key" data-digit="2" type="button">2</button>
+                <button class="pin-key" data-digit="3" type="button">3</button>
+                <button class="pin-key" data-digit="4" type="button">4</button>
+                <button class="pin-key" data-digit="5" type="button">5</button>
+                <button class="pin-key" data-digit="6" type="button">6</button>
+                <button class="pin-key" data-digit="7" type="button">7</button>
+                <button class="pin-key" data-digit="8" type="button">8</button>
+                <button class="pin-key" data-digit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="pinClearBtn" type="button">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+                <button class="pin-key" data-digit="0" type="button">0</button>
+                <button class="pin-key pin-key-del" id="pinDelBtn" type="button">
+                    <i class="bi bi-backspace-fill"></i>
+                </button>
+            </div>
+
+            <button type="button" id="pinUseEmailBtn" class="btn-forgot" style="margin-top:8px;">
+                <i class="bi bi-envelope"></i> Use email instead
+            </button>
+        </div>
+
+        <!-- SIGNUP BOX -->
+        <div id="signupBox" style="display:none;">
+            <form id="signupForm" autocomplete="off">
+
+                <div class="mb-3">
+                    <label class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="signupEmail" placeholder="you@example.com" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Choose a username</label>
+                    <input type="text" class="form-control" id="signupUsername" placeholder="e.g. Ravi Kumar" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" id="signupPassword" placeholder="min 6 characters" required>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Confirm password</label>
+                    <input type="password" class="form-control" id="signupConfirmPassword" placeholder="repeat password" required>
+                </div>
+
+                <div id="signupError"   class="text-danger small mb-2" style="display:none;"></div>
+                <div id="signupSuccess" class="text-success small mb-2" style="display:none;"></div>
+
+                <button type="submit" class="btn-auth-primary">
+                    <i class="bi bi-person-plus"></i> Create Account
+                </button>
+
+            </form>
+
+            <div class="auth-divider">or</div>
+
+            <p class="auth-switch">
+                Already have an account?
+                <button type="button" id="showLoginBtn" class="btn-link-plain">Sign in instead</button>
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     WELCOME SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="welcomeScreen" class="gate-screen" style="display:none;">
+    <div class="gate-road-line"></div>
+    <div class="welcome-card">
+        <button type="button" class="avatar-circle avatar-display" id="welcomeAvatar"
+                data-avatar-trigger title="Change your avatar">🧑‍💼</button>
+        <h2 id="greetingText">Good Morning</h2>
+        <p class="welcome-sub">Ready to audit? Let's go.</p>
+        <button id="startAuditingBtn" class="start-audit-btn">
+            <i class="bi bi-play-fill"></i> Start Auditing
+        </button>
+        <button id="logoutBtn" class="welcome-logout">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DATE SELECTION SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="dateScreen" class="gate-screen" style="display:none;">
+    <div class="gate-road-line"></div>
+    <div class="welcome-card">
+        <i class="bi bi-calendar-check welcome-icon"></i>
+        <h3 style="font-weight:800;margin-bottom:4px;">Select Audit Date</h3>
+        <p class="welcome-sub">Choose the date you want to audit</p>
+        <input type="date" id="auditDateInput" class="form-control form-control-lg text-center mb-3">
+        <button id="continueToAuditBtn" class="start-audit-btn">
+            <i class="bi bi-arrow-right-circle"></i> Continue
+        </button>
+        <button id="backToWelcomeBtn" class="welcome-logout">
+            <i class="bi bi-arrow-left"></i> Back
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN APPLICATION
+═══════════════════════════════════════════════════════════ -->
+<div id="mainApp" style="display:none;">
+<div class="container-fluid">
+<div class="row g-0">
+
+<!-- ─────────────────────────────
+     SIDEBAR
+───────────────────────────── -->
+<aside class="col-lg-2 sidebar">
+<div class="sidebar-inner">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+        <div class="sidebar-brand-icon"><i class="bi bi-car-front-fill"></i></div>
+        <div>
+            <div class="sidebar-brand-text">Toll Audit</div>
+            <div class="sidebar-brand-sub">ASSISTANT</div>
+        </div>
+    </div>
+
+    <!-- Date badge -->
+    <div class="audit-date-badge mb-3">
+        <i class="bi bi-calendar-event"></i>
+        <span id="activeAuditDate">--</span>
+        <button class="btn btn-sm btn-outline-light" id="changeDateBtn" title="Change audit date" style="padding:2px 7px;line-height:1;">
+            <i class="bi bi-pencil"></i>
+        </button>
+    </div>
+
+    <!-- Nav buttons -->
+    <div class="sb-nav">
+        <button class="sb-btn" id="setPinBtn">
+            <i class="bi bi-key"></i> Set Lock PIN
+        </button>
+        <button class="sb-btn sb-danger" id="lockNowBtn">
+            <i class="bi bi-lock-fill"></i> Lock Screen
+        </button>
+        <button class="sb-btn" id="managePassListBtn"
+                data-bs-toggle="modal" data-bs-target="#passListModal"
+                onclick="syncPassListFromFirestore().then(()=>applyPassListAdminMode())">
+            <i class="bi bi-card-list"></i> Monthly Pass List
+            <span class="badge bg-primary ms-auto" id="passListCountBadge">0</span>
+        </button>
+        <button class="sb-btn" id="openBackupBtn" data-bs-toggle="modal" data-bs-target="#backupModal">
+            <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
+        </button>
+        <button class="sb-btn sb-success" id="submitAuditLogBtn">
+            <i class="bi bi-cloud-upload-fill"></i> Save Audit Log
+        </button>
+        <button class="sb-btn" id="viewAuditHistoryBtn">
+            <i class="bi bi-clock-history"></i> View Audit History
+        </button>
+        <button class="sb-btn sb-matrix" id="openAuditMatrixBtn"
+                data-bs-toggle="modal" data-bs-target="#auditMatrixModal">
+            <i class="bi bi-grid-3x3"></i> Audit Matrix
+        </button>
+    </div>
+
+    <div class="sb-section-label">Audit Type</div>
+
+    <!-- Mode pills -->
+    <div class="mode-pills mb-1">
+        <label class="mode-pill active" id="modeViolationPill">
+            <input type="radio" name="auditMode" id="violation" value="Violation" checked>
+            Violation
+        </label>
+        <label class="mode-pill" id="modeExemptionPill">
+            <input type="radio" name="auditMode" id="exemption" value="Exemption">
+            Exemption
+        </label>
+    </div>
+
+    <div class="sb-section-label">Categories</div>
+    <div id="categoryList"></div>
+
+    <div class="sb-section-label">Report History</div>
+    <div id="historyDateList" style="display:flex;flex-direction:column;gap:4px;"></div>
+
+</div>
+</aside>
+
+<!-- ─────────────────────────────
+     MAIN CONTENT
+───────────────────────────── -->
+<main class="col-lg-10">
+<div class="main-inner">
+
+    <!-- ── Premium Topbar ── -->
+    <header class="topbar">
+
+        <!-- LEFT: Brand + Audit Date -->
+        <div class="topbar-left">
+            <div class="topbar-brand-icon">
+                <i class="bi bi-car-front-fill"></i>
+            </div>
+            <div class="topbar-title-block">
+                <span class="topbar-app-name">Toll Audit</span>
+                <span class="topbar-separator">·</span>
+                <span class="topbar-audit-date" id="topbarAuditDate">Dashboard</span>
+            </div>
+        </div>
+
+        <!-- RIGHT: Controls -->
+        <div class="topbar-right">
+
+            <!-- Night Mode: compact label + mini switch -->
+            <button class="theme-btn topbar-ctrl" id="themeToggleBtn" type="button" aria-label="Toggle night mode">
+                <span class="theme-ctrl-label" id="themeCtrlLabel">
+                    <i class="bi bi-sun-fill theme-ctrl-icon"></i>
+                    <span class="theme-ctrl-text">Day</span>
+                </span>
+                <span class="theme-mini-track" aria-hidden="true">
+                    <span class="theme-mini-knob"></span>
+                </span>
+            </button>
+
+            <!-- Profile chip + dropdown -->
+            <div class="dropdown topbar-ctrl">
+                <button class="topbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <span class="topbar-avatar-wrap avatar-display" id="topbarAvatar">🧑‍💼</span>
+                    <span class="topbar-profile-name" id="topbarUsername">User</span>
+                    <i class="bi bi-chevron-down topbar-chevron"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end topbar-dropdown">
+                    <li class="topbar-dd-header">
+                        <span id="topbarUsername2" class="topbar-dd-username"></span>
+                        <span id="topbarLoginTime" class="topbar-dd-login"></span>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button class="dropdown-item" data-avatar-trigger><i class="bi bi-emoji-smile me-2"></i>Change Avatar</button></li>
+                    <li><button class="dropdown-item" id="manageQuickPinBtn"><i class="bi bi-grid-3x3-gap-fill me-2"></i>Manage Quick PIN</button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button class="dropdown-item text-danger" id="signOutBtn"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- ── Premium Hero Section ── -->
+    <div class="dashboard-hero">
+        <div class="hero-content">
+            <div class="hero-left">
+                <div class="hero-title">
+                    <i class="bi bi-speedometer2"></i>
+                    Toll Audit Dashboard
+                </div>
+                <div class="hero-sub" id="heroSubLine">Ready to audit — select a category and start recording.</div>
+            </div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-val" id="heroTotalTxn">0</div>
+                    <div class="hero-stat-lbl">Total Txns</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-val" id="heroChecked">0</div>
+                    <div class="hero-stat-lbl">Checked</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-val" id="heroRemaining">0</div>
+                    <div class="hero-stat-lbl">Remaining</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-val" id="heroProgress">0%</div>
+                    <div class="hero-stat-lbl">Progress</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Audit Banner -->
+    <div id="pendingAuditBanner" class="pending-audit-banner" style="display:none;">
+        <div class="pending-audit-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div class="pending-audit-text">
+            <strong id="pendingAuditTitle">Audit pending</strong>
+            <span id="pendingAuditSub"></span>
+        </div>
+        <div class="pending-audit-actions">
+            <button class="btn btn-sm btn-light" id="pendingAuditGoToBtn">
+                <i class="bi bi-arrow-right-circle-fill"></i> Go To
+            </button>
+            <button class="btn btn-sm btn-outline-light" id="pendingAuditCompletedBtn">
+                <i class="bi bi-check2-circle"></i> Already Completed
+            </button>
+            <button class="btn btn-sm btn-outline-light" id="pendingAuditSkipBtn">
+                <i class="bi bi-skip-forward-fill"></i> Skip
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Report Setup ── -->
+    <div class="card shadow-sm mb-4">
+        <!-- Header row: toggle + Actions always visible -->
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <button class="btn btn-sm btn-link text-decoration-none p-0 report-setup-toggle"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#reportSetupBody">
+                <i class="bi bi-chevron-right toggle-caret"></i>
+                <strong><i class="bi bi-table"></i> Report Setup</strong>
+            </button>
+            <!-- Actions always visible — not inside collapse -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-sliders"></i> Actions
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><button class="dropdown-item" id="resetReportBtn"><i class="bi bi-arrow-counterclockwise"></i> Reset Report Count</button></li>
+                    <li><button class="dropdown-item text-danger" id="resetTransactionBtn"><i class="bi bi-trash"></i> Reset Transaction History</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" id="resetModeBtn"><i class="bi bi-x-octagon"></i> Reset Current Mode</button></li>
+                </ul>
+            </div>
+        </div>
+        <div class="collapse" id="reportSetupBody">
+        <div class="card-body">
+            <table class="table table-bordered align-middle">
+                <thead>
+                    <tr><th width="70%">Category</th><th>Report Count</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Car</td><td><input type="number" class="form-control" id="reportCar" min="0" value="0"></td></tr>
+                    <tr><td>LCV</td><td><input type="number" class="form-control" id="reportLCV" min="0" value="0"></td></tr>
+                    <tr><td>Bus 2 Axle</td><td><input type="number" class="form-control" id="reportBus2Axle" min="0" value="0"></td></tr>
+                    <tr><td>Truck 2 Axle</td><td><input type="number" class="form-control" id="reportTruck2" min="0" value="0"></td></tr>
+                    <tr><td>Truck 3 Axle</td><td><input type="number" class="form-control" id="reportTruck3" min="0" value="0"></td></tr>
+                    <tr><td>MAV</td><td><input type="number" class="form-control" id="reportMAV" min="0" value="0"></td></tr>
+                    <tr><td>Tractor</td><td><input type="number" class="form-control" id="reportTractor" min="0" value="0"></td></tr>
+                    <tr><td>Auto</td><td><input type="number" class="form-control" id="reportAuto" min="0" value="0"></td></tr>
+                    <tr class="report-total-row">
+                        <td><strong><i class="bi bi-calculator-fill me-1"></i>Total</strong></td>
+                        <td><strong id="reportTotalCount" class="report-total-val">0</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="btn w-100 mt-3 save-report-btn-premium" id="saveReportBtnVisible">
+                <i class="bi bi-floppy2-fill"></i>
+                <span>Save All Report Counts</span>
+                <i class="bi bi-arrow-right-short save-btn-arrow"></i>
+            </button>
+        </div>
+        </div>
+    </div>
+
+    <!-- ── Stat Cards ── -->
+    <div class="stat-cards mb-4">
+        <div class="stat-card">
+            <div class="stat-card-label">Current Category</div>
+            <div class="stat-card-value blue" id="currentCategory">Car</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-label">Report Count</div>
+            <div class="stat-card-value" id="reportCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-label">Checked</div>
+            <div class="stat-card-value green" id="checkedCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-label">Remaining</div>
+            <div class="stat-card-value red" id="remainingCount">0</div>
+        </div>
+    </div>
+
+    <!-- ── Progress ── -->
+    <div class="progress mb-3">
+        <div class="progress-bar" id="progressBar" style="width:0%;">0%</div>
+    </div>
+
+    <!-- ── Next Category ── -->
+    <button id="nextCategoryBtn" style="display:none;">
+        <i class="bi bi-skip-forward-fill"></i> Next Category
+        <span class="next-cat-name" id="nextCatNameLabel"></span>
+    </button>
+
+    <!-- ── Vehicle Tiles ── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <strong><i class="bi bi-car-front-fill"></i> Tap a Vehicle Class to Record</strong>
+            <!-- Premium search bar -->
+            <div class="pass-search-bar-wrap">
+                <div class="pass-search-icon">
+                    <i class="bi bi-search"></i>
+                </div>
+                <input type="text" id="passCheckInput" class="pass-search-input"
+                       placeholder="Enter Vehicle Number…" autocomplete="off" spellcheck="false">
+                <button class="pass-search-btn" id="passCheckBtn" type="button">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <div id="passCheckResult" class="pass-check-result"></div>
+
+        <div class="card-body pt-3">
+            <div id="vehicleButtons" class="veh-grid">
+
+                <button class="vehicle-btn" data-vehicle="Car">
+                    <i class="bi bi-car-front-fill veh-icon"></i><span>Car</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="LCV">
+                    <i class="bi bi-truck veh-icon"></i><span>LCV</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Bus 2 Axle">
+                    <i class="bi bi-bus-front-fill veh-icon"></i><span>Bus 2 Axle</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Minibus">
+                    <i class="bi bi-bus-front veh-icon"></i><span>Minibus</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Truck 2 Axle">
+                    <i class="bi bi-truck-front-fill veh-icon"></i><span>Truck 2 Axle</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Truck 3 Axle">
+                    <i class="bi bi-truck-front veh-icon"></i><span>Truck 3 Axle</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="MAV">
+                    <i class="bi bi-boxes veh-icon"></i><span>MAV</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Oversized Vehicle">
+                    <i class="bi bi-arrows-fullscreen veh-icon"></i><span>Oversized</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Tractor">
+                    <i class="bi bi-tractor veh-icon"></i><span>Tractor</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="JCB">
+                    <i class="bi bi-cone-striped veh-icon"></i><span>JCB</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Auto">
+                    <svg class="veh-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width:25px;height:25px;display:block;">
+                        <!-- cabin roof -->
+                        <path d="M4 8.5C4 7.4 4.9 6.5 6 6.5h8.5l2.8 3H4V8.5Z"/>
+                        <!-- windshield strut -->
+                        <rect x="14" y="6.5" width="1.2" height="3" rx="0.4"/>
+                        <!-- body -->
+                        <rect x="4" y="9.5" width="13.5" height="5" rx="1.2"/>
+                        <!-- engine/nose -->
+                        <path d="M17.5 11h3c.8 0 1 .6.8 1.2l-.6 2.3H17.5V11Z"/>
+                        <!-- rear wheel -->
+                        <circle cx="7" cy="16.5" r="2"/>
+                        <circle cx="7" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
+                        <!-- front wheel -->
+                        <circle cx="19.5" cy="16.5" r="2"/>
+                        <circle cx="19.5" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
+                        <!-- seat detail -->
+                        <rect x="5.5" y="10" width="4" height="1.2" rx="0.5" fill="rgba(255,255,255,.25)"/>
+                    </svg>
+                    <span>Auto</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Bike">
+                    <i class="bi bi-bicycle veh-icon"></i><span>Bike</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Ambulance">
+                    <i class="bi bi-heart-pulse-fill veh-icon"></i><span>Ambulance</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Government Vehicle">
+                    <i class="bi bi-building-fill veh-icon"></i><span>Govt Vehicle</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Army Vehicle">
+                    <i class="bi bi-shield-fill veh-icon"></i><span>Army Vehicle</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Police">
+                    <i class="bi bi-shield-fill-check veh-icon"></i><span>Police</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Has Pass">
+                    <i class="bi bi-check-circle-fill veh-icon"></i><span>Has Pass</span>
+                </button>
+                <!-- Paid — opens payment modal -->
+                <button class="vehicle-btn veh-paid" id="paidBtn" type="button">
+                    <i class="bi bi-currency-rupee veh-icon"></i><span>Paid</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Forcefully">
+                    <i class="bi bi-x-octagon-fill veh-icon"></i><span>Forcefully</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Fake Exemption">
+                    <i class="bi bi-exclamation-diamond-fill veh-icon"></i><span>Fake Exemption</span>
+                </button>
+                <button class="vehicle-btn" data-vehicle="Fake Violation">
+                    <i class="bi bi-exclamation-triangle-fill veh-icon"></i><span>Fake Violation</span>
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Counts + History ── -->
+    <div class="counts-history-grid">
+
+        <!-- ── Actual Vehicle Counts ── -->
+        <div class="vc-panel">
+            <div class="vc-panel-header">
+                <div class="vc-panel-title">
+                    <i class="bi bi-bar-chart-fill"></i>
+                    Actual Vehicle Counts
+                </div>
+                <span class="vc-total-chip" id="vcTotalChip">0 total</span>
+            </div>
+            <div class="vc-list" id="vehicleCountTable"></div>
+        </div>
+
+        <!-- ── Transaction History ── -->
+        <div class="th-panel">
+            <div class="th-panel-header">
+                <div class="th-panel-title">
+                    <i class="bi bi-clock-history"></i>
+                    Transaction History
+                </div>
+                <div class="th-export-btns">
+                    <button class="th-export-btn" id="exportCurrentCsvBtn" title="Export Category CSV">
+                        <i class="bi bi-download"></i><span>Category</span>
+                    </button>
+                    <button class="th-export-btn th-export-btn--full" id="exportFullCsvBtn" title="Export Full Audit CSV">
+                        <i class="bi bi-file-earmark-spreadsheet"></i><span>Full CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search + Filter bar -->
+            <div class="th-filter-bar">
+                <div class="th-search-wrap">
+                    <i class="bi bi-search th-search-icon"></i>
+                    <input type="text" id="historySearchInput" class="th-search-input"
+                           placeholder="Search vehicle, comment, txn no…" autocomplete="off">
+                </div>
+                <select id="historyVehicleFilter" class="th-filter-select">
+                    <option value="">All Vehicles</option>
+                </select>
+            </div>
+
+            <!-- Feed -->
+            <div id="transactionHistory" class="th-feed">
+                <div class="th-empty"><i class="bi bi-inbox"></i><span>No Transactions</span></div>
+            </div>
+        </div>
+
+    </div>
+
+</div><!-- /main-inner -->
+</main>
+
+</div>
+</div>
+</div><!-- /#mainApp -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOCK OVERLAY
+═══════════════════════════════════════════════════════════ -->
+<!-- LOCK OVERLAY -->
+<div id="lockOverlay" class="lock-overlay">
+    <div class="lock-box">
+
+        <!-- Default: Enter PIN -->
+        <div id="lockBoxMain">
+            <i class="bi bi-lock-fill lock-icon"></i>
+            <h4 style="font-weight:800;margin-bottom:4px;">Screen Locked</h4>
+            <p class="text-muted mb-3" style="font-size:13px;">Enter your PIN to continue</p>
+
+            <!-- PIN dots -->
+            <div class="pin-dots mb-3" id="unlockDots">
+                <span class="pin-dot" id="upd0"></span>
+                <span class="pin-dot" id="upd1"></span>
+                <span class="pin-dot" id="upd2"></span>
+                <span class="pin-dot" id="upd3"></span>
+            </div>
+
+            <div id="unlockError" class="text-danger small mb-2" style="display:none;">Incorrect PIN. Try again.</div>
+
+            <!-- Numpad -->
+            <div class="pin-numpad" id="unlockNumpad">
+                <button class="pin-key" data-udigit="1" type="button">1</button>
+                <button class="pin-key" data-udigit="2" type="button">2</button>
+                <button class="pin-key" data-udigit="3" type="button">3</button>
+                <button class="pin-key" data-udigit="4" type="button">4</button>
+                <button class="pin-key" data-udigit="5" type="button">5</button>
+                <button class="pin-key" data-udigit="6" type="button">6</button>
+                <button class="pin-key" data-udigit="7" type="button">7</button>
+                <button class="pin-key" data-udigit="8" type="button">8</button>
+                <button class="pin-key" data-udigit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="unlockClearBtn" type="button"><i class="bi bi-x-circle"></i></button>
+                <button class="pin-key" data-udigit="0" type="button">0</button>
+                <button class="pin-key pin-key-del"   id="unlockDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
+            </div>
+
+            <button class="btn-forgot" id="forgotLockPinBtn" style="margin-top:10px;">
+                <i class="bi bi-question-circle"></i> Forgot PIN?
+            </button>
+        </div>
+
+        <!-- Forget PIN: verify via Quick-login PIN -->
+        <div id="lockBoxForgot" style="display:none;">
+            <i class="bi bi-shield-lock-fill lock-icon" style="color:#f59e0b;"></i>
+            <h4 style="font-weight:800;margin-bottom:4px;">Verify Identity</h4>
+            <p class="text-muted mb-3" style="font-size:13px;">Enter your <strong>Quick Login PIN</strong> to reset screen lock PIN</p>
+
+            <div class="pin-dots mb-3" id="forgotVerifyDots">
+                <span class="pin-dot" id="fvd0"></span>
+                <span class="pin-dot" id="fvd1"></span>
+                <span class="pin-dot" id="fvd2"></span>
+                <span class="pin-dot" id="fvd3"></span>
+            </div>
+            <div id="forgotVerifyError" class="text-danger small mb-2" style="display:none;">Wrong Quick PIN. Try again.</div>
+
+            <div class="pin-numpad">
+                <button class="pin-key" data-fdigit="1" type="button">1</button>
+                <button class="pin-key" data-fdigit="2" type="button">2</button>
+                <button class="pin-key" data-fdigit="3" type="button">3</button>
+                <button class="pin-key" data-fdigit="4" type="button">4</button>
+                <button class="pin-key" data-fdigit="5" type="button">5</button>
+                <button class="pin-key" data-fdigit="6" type="button">6</button>
+                <button class="pin-key" data-fdigit="7" type="button">7</button>
+                <button class="pin-key" data-fdigit="8" type="button">8</button>
+                <button class="pin-key" data-fdigit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="forgotClearBtn" type="button"><i class="bi bi-x-circle"></i></button>
+                <button class="pin-key" data-fdigit="0" type="button">0</button>
+                <button class="pin-key pin-key-del"   id="forgotDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
+            </div>
+
+            <button class="btn-forgot" id="forgotBackBtn" style="margin-top:10px;">
+                <i class="bi bi-arrow-left"></i> Back
+            </button>
+        </div>
+
+        <!-- Set new lock PIN after identity verified -->
+        <div id="lockBoxSetNew" style="display:none;">
+            <i class="bi bi-pencil-square lock-icon" style="font-size:36px;color:#5b5ef6;"></i>
+            <h4 style="font-weight:800;margin-bottom:4px;" id="setNewPinTitle">Set New Lock PIN</h4>
+            <p class="text-muted mb-1" style="font-size:13px;" id="setNewPinSub">Enter a new 4-digit PIN</p>
+            <div class="pin-setup-step mb-2" id="setNewPinStep">STEP 1 — ENTER NEW PIN</div>
+
+            <div class="pin-dots mb-3" id="setNewDots">
+                <span class="pin-dot" id="snd0"></span>
+                <span class="pin-dot" id="snd1"></span>
+                <span class="pin-dot" id="snd2"></span>
+                <span class="pin-dot" id="snd3"></span>
+            </div>
+            <div id="setNewPinError" class="text-danger small mb-2" style="display:none;"></div>
+
+            <div class="pin-numpad">
+                <button class="pin-key" data-ndigit="1" type="button">1</button>
+                <button class="pin-key" data-ndigit="2" type="button">2</button>
+                <button class="pin-key" data-ndigit="3" type="button">3</button>
+                <button class="pin-key" data-ndigit="4" type="button">4</button>
+                <button class="pin-key" data-ndigit="5" type="button">5</button>
+                <button class="pin-key" data-ndigit="6" type="button">6</button>
+                <button class="pin-key" data-ndigit="7" type="button">7</button>
+                <button class="pin-key" data-ndigit="8" type="button">8</button>
+                <button class="pin-key" data-ndigit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="setNewClearBtn" type="button"><i class="bi bi-x-circle"></i></button>
+                <button class="pin-key" data-ndigit="0" type="button">0</button>
+                <button class="pin-key pin-key-del"   id="setNewDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- SET LOCK PIN MODAL (sidebar button) -->
+<div id="setPinModal" class="pin-setup-overlay">
+    <div class="pin-setup-card">
+        <div class="pin-setup-icon">🔒</div>
+        <div class="pin-setup-title" id="setPinModalTitle">Set Screen Lock PIN</div>
+        <div class="pin-setup-sub" id="setPinModalSub">Tap 4 digits · you'll confirm them once</div>
+        <div class="pin-setup-step" id="setPinModalStep">STEP 1 — ENTER NEW PIN</div>
+        <div class="pin-setup-dots">
+            <span class="pin-dot" id="mpd0"></span>
+            <span class="pin-dot" id="mpd1"></span>
+            <span class="pin-dot" id="mpd2"></span>
+            <span class="pin-dot" id="mpd3"></span>
+        </div>
+        <div id="setPinModalError" class="text-danger small mb-1 text-center" style="display:none;"></div>
+        <div class="pin-setup-numpad" id="setPinModalNumpad">
+            <button class="pin-key" data-mpdigit="1" type="button">1</button>
+            <button class="pin-key" data-mpdigit="2" type="button">2</button>
+            <button class="pin-key" data-mpdigit="3" type="button">3</button>
+            <button class="pin-key" data-mpdigit="4" type="button">4</button>
+            <button class="pin-key" data-mpdigit="5" type="button">5</button>
+            <button class="pin-key" data-mpdigit="6" type="button">6</button>
+            <button class="pin-key" data-mpdigit="7" type="button">7</button>
+            <button class="pin-key" data-mpdigit="8" type="button">8</button>
+            <button class="pin-key" data-mpdigit="9" type="button">9</button>
+            <button class="pin-key pin-key-clear" id="setPinModalClear" type="button"><i class="bi bi-x-circle"></i></button>
+            <button class="pin-key" data-mpdigit="0" type="button">0</button>
+            <button class="pin-key pin-key-del"   id="setPinModalDel"   type="button"><i class="bi bi-backspace-fill"></i></button>
+        </div>
+        <button type="button" id="setPinModalClose" class="btn-forgot" style="margin-top:8px;">Cancel</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HISTORY SNAPSHOT MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> Saved Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="historyModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MONTHLY PASS LIST MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="passListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-card-list"></i> Monthly Pass List</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Read-only notice for non-admins -->
+                <div id="passListReadonlyNotice"
+                     class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-3"
+                     style="display:none!important;font-size:13px;">
+                    <i class="bi bi-shield-lock-fill mt-1"></i>
+                    <div><strong>View-only access.</strong> This pass list is managed by your admin. You can check any vehicle number but cannot upload or edit.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Currently loaded</label>
+                    <div><span class="badge bg-primary" id="passListModalCount">0</span> vehicle numbers</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Breakdown by Vehicle Class <span class="text-muted">(duplicates merged)</span></label>
+                    <table class="pass-detail-table" id="passListBreakdownTable">
+                        <tbody id="passListBreakdownBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- ADMIN ONLY: Upload / Paste -->
+                <div class="pass-admin-only">
+                    <hr>
+                    <h6 class="mb-2"><i class="bi bi-upload"></i> Upload / Paste Pass List
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:10px;">Admin only</span>
+                    </h6>
+                    <div class="mb-3">
+                        <label class="form-label">Upload Excel / CSV file</label>
+                        <input type="file" class="form-control" id="passListFileInput" accept=".xlsx,.xls,.csv">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Or paste rows</label>
+                        <textarea class="form-control" id="passListTextarea" rows="5"
+                                  placeholder="One per line: Vehicle Reg No, Class, Mode of Payment, Issued Date, Valid Date, Amount, Mobile No, UTR"></textarea>
+                    </div>
+                    <div id="passListStatus" class="small mb-2"></div>
+                </div>
+
+                <!-- ADMIN ONLY: Find & Update -->
+                <div class="pass-admin-only">
+                    <hr>
+                    <h6 class="mb-2"><i class="bi bi-pencil-square"></i> Find &amp; Update a Single Pass
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:10px;">Admin only</span>
+                    </h6>
+                    <p class="text-muted small mb-2">Look up one vehicle to update its pass details without re-uploading the whole sheet.</p>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <input type="text" class="form-control" id="passEditSearchInput"
+                               placeholder="Enter vehicle number e.g. DL1PC1234" style="flex:1;min-width:200px;">
+                        <button class="btn btn-outline-primary" id="passEditSearchBtn" type="button">
+                            <i class="bi bi-search"></i> Find
+                        </button>
+                    </div>
+                    <div id="passEditFormWrap" style="display:none;">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6"><label class="form-label small">Vehicle Class</label><input type="text" class="form-control form-control-sm" id="passEditVehicleClass"></div>
+                            <div class="col-md-6"><label class="form-label small">Mode of Payment</label><input type="text" class="form-control form-control-sm" id="passEditModeOfPayment"></div>
+                            <div class="col-md-6"><label class="form-label small">Pass Issued Date</label><input type="text" class="form-control form-control-sm" id="passEditIssuedDate"></div>
+                            <div class="col-md-6"><label class="form-label small">Pass Valid Date</label><input type="text" class="form-control form-control-sm" id="passEditValidTill"></div>
+                            <div class="col-md-6"><label class="form-label small">Amount</label><input type="text" class="form-control form-control-sm" id="passEditAmount"></div>
+                            <div class="col-md-6"><label class="form-label small">Mobile No.</label><input type="text" class="form-control form-control-sm" id="passEditMobileNo"></div>
+                            <div class="col-md-6"><label class="form-label small">UTR</label><input type="text" class="form-control form-control-sm" id="passEditUtr"></div>
+                            <div class="col-md-6"><label class="form-label small">SL No.</label><input type="text" class="form-control form-control-sm" id="passEditSlNo"></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-sm" id="passEditSaveBtn" type="button"><i class="bi bi-check-circle"></i> Save Changes</button>
+                            <button class="btn btn-outline-danger btn-sm" id="passEditDeleteBtn" type="button"><i class="bi bi-trash"></i> Delete This Pass</button>
+                        </div>
+                    </div>
+                    <div id="passEditStatus" class="small mt-2"></div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger me-auto pass-admin-only" id="passListClearBtn">
+                    <i class="bi bi-trash"></i> Clear List
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary pass-admin-only" id="passListAddBtn">
+                    <i class="bi bi-plus-circle"></i> Add To List
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BACKUP / RESTORE MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="backupModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-arrow-down-fill"></i> Backup &amp; Restore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">
+                    Everything this app knows — pass list, audit history, login accounts, and settings —
+                    lives in this browser. Use Export to save a backup file, and Import to restore it on
+                    this device or any other.
+                </p>
+                <hr>
+                <h6 class="mb-2"><i class="bi bi-download"></i> Export Backup</h6>
+                <p class="text-muted small mb-2">Downloads one .json file with everything as of right now.</p>
+                <button type="button" class="btn btn-primary w-100 mb-3" id="backupExportBtn">
+                    <i class="bi bi-download"></i> Export Backup File
+                </button>
+                <hr>
+                <h6 class="mb-2"><i class="bi bi-upload"></i> Import Backup</h6>
+                <p class="text-muted small mb-2">Choose a previously exported backup file. This <strong>replaces</strong> all current data.</p>
+                <input type="file" class="form-control mb-2" id="backupImportFile" accept=".json">
+                <button type="button" class="btn btn-outline-primary w-100" id="backupImportBtn">
+                    <i class="bi bi-upload"></i> Restore From This File
+                </button>
+                <div id="backupStatus" class="small mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AVATAR MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="avatarModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-circle"></i> My Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- ── Avatar ── -->
+                <div class="profile-section-label">
+                    <i class="bi bi-emoji-smile"></i> Profile Picture
+                </div>
+                <p class="text-muted small mb-2">Pick a sticker, or upload your own photo.</p>
+                <div class="avatar-sticker-grid" id="avatarStickerGrid"></div>
+                <hr>
+                <p class="fw-semibold small mb-2">Or upload a photo</p>
+                <div class="mb-2">
+                    <input type="file" id="avatarUploadFile" class="form-control form-control-sm" accept="image/*">
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                    <input type="url" id="avatarUploadUrl" class="form-control" placeholder="Paste an image URL…">
+                    <button type="button" class="btn btn-outline-primary" id="avatarUploadUrlBtn">Use URL</button>
+                </div>
+                <div id="avatarUploadStatus" class="small mt-2"></div>
+
+                <!-- ── Quick PIN ── -->
+                <hr class="my-3">
+                <div class="profile-section-label">
+                    <i class="bi bi-grid-3x3-gap-fill"></i> Quick Login PIN
+                </div>
+                <p class="text-muted small mb-3" id="qpStatusText">Loading…</p>
+
+                <!-- State A: No PIN set -->
+                <div id="qpSetupArea">
+                    <div class="pin-setup-step mb-2" id="qpStepLabel">STEP 1 — ENTER NEW PIN</div>
+                    <div class="pin-dots mb-2" id="qpDots">
+                        <span class="pin-dot" id="qpd0"></span>
+                        <span class="pin-dot" id="qpd1"></span>
+                        <span class="pin-dot" id="qpd2"></span>
+                        <span class="pin-dot" id="qpd3"></span>
+                    </div>
+                    <div id="qpError" class="text-danger small mb-2" style="display:none;"></div>
+                    <div class="pin-numpad pin-numpad--sm" id="qpNumpad">
+                        <button class="pin-key" data-qdigit="1" type="button">1</button>
+                        <button class="pin-key" data-qdigit="2" type="button">2</button>
+                        <button class="pin-key" data-qdigit="3" type="button">3</button>
+                        <button class="pin-key" data-qdigit="4" type="button">4</button>
+                        <button class="pin-key" data-qdigit="5" type="button">5</button>
+                        <button class="pin-key" data-qdigit="6" type="button">6</button>
+                        <button class="pin-key" data-qdigit="7" type="button">7</button>
+                        <button class="pin-key" data-qdigit="8" type="button">8</button>
+                        <button class="pin-key" data-qdigit="9" type="button">9</button>
+                        <button class="pin-key pin-key-clear" id="qpClear" type="button"><i class="bi bi-x-circle"></i></button>
+                        <button class="pin-key" data-qdigit="0" type="button">0</button>
+                        <button class="pin-key pin-key-del" id="qpDel" type="button"><i class="bi bi-backspace-fill"></i></button>
+                    </div>
+                </div>
+
+                <!-- State B: PIN already set -->
+                <div id="qpManageArea" style="display:none;">
+                    <div class="qp-manage-row">
+                        <button class="btn btn-sm btn-outline-primary" id="qpChangeBtn" type="button">
+                            <i class="bi bi-pencil"></i> Change PIN
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" id="qpRemoveBtn" type="button">
+                            <i class="bi bi-trash"></i> Remove PIN
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QUICK PIN "GIVE IT A TRY" OVERLAY -->
+<div id="qpTryOverlay" class="pin-setup-overlay">
+    <div class="pin-setup-card">
+        <div class="pin-setup-icon">🎉</div>
+        <div class="pin-setup-title">PIN Set!</div>
+        <div class="pin-setup-sub" id="qpTrySub">
+            Want to try logging in with it right now?
+        </div>
+        <!-- Try: mini numpad -->
+        <div id="qpTryArea">
+            <div class="pin-dots mb-2" id="qpTryDots">
+                <span class="pin-dot" id="qtd0"></span>
+                <span class="pin-dot" id="qtd1"></span>
+                <span class="pin-dot" id="qtd2"></span>
+                <span class="pin-dot" id="qtd3"></span>
+            </div>
+            <div id="qpTryError" class="text-danger small mb-1 text-center" style="display:none;">Wrong PIN. Try again.</div>
+            <div class="pin-setup-numpad" id="qpTryNumpad">
+                <button class="pin-key" data-tdigit="1" type="button">1</button>
+                <button class="pin-key" data-tdigit="2" type="button">2</button>
+                <button class="pin-key" data-tdigit="3" type="button">3</button>
+                <button class="pin-key" data-tdigit="4" type="button">4</button>
+                <button class="pin-key" data-tdigit="5" type="button">5</button>
+                <button class="pin-key" data-tdigit="6" type="button">6</button>
+                <button class="pin-key" data-tdigit="7" type="button">7</button>
+                <button class="pin-key" data-tdigit="8" type="button">8</button>
+                <button class="pin-key" data-tdigit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="qpTryClear" type="button"><i class="bi bi-x-circle"></i></button>
+                <button class="pin-key" data-tdigit="0" type="button">0</button>
+                <button class="pin-key pin-key-del" id="qpTryDel" type="button"><i class="bi bi-backspace-fill"></i></button>
+            </div>
+        </div>
+        <div class="pin-setup-actions mt-2">
+            <button type="button" id="qpTrySkipBtn" class="btn-forgot">Skip — I'll try later</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHANGE USERNAME MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="usernameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-gear"></i> Change Username</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label small">New username</label>
+                <input type="text" id="newUsernameInput" class="form-control" placeholder="Enter a new username">
+                <div id="usernameChangeError" class="small text-danger mt-2" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveUsernameBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUDIT LOG HISTORY MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="auditLogModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-check-fill"></i> Saved Audit History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="display:flex;gap:16px;min-height:420px;flex-wrap:wrap;">
+                <!-- Date list -->
+                <div style="min-width:200px;max-width:240px;flex-shrink:0;border-right:1px solid #e5e7eb;padding-right:12px;">
+                    <p class="text-muted small mb-2"><strong>Saved Dates</strong></p>
+                    <div id="auditLogDateList" style="display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+                <!-- Detail panel -->
+                <div style="flex:1;min-width:280px;">
+                    <div id="auditLogDetailBody">
+                        <p class="text-muted small">Left side se koi date select karo.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAID — PAYMENT METHOD MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="paidModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:15px;">
+                    <i class="bi bi-currency-rupee"></i> Select Payment Method
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body d-grid gap-2">
+                <button type="button" class="btn btn-outline-success vehicle-btn-paid" data-payment="Cash" style="padding:12px;font-weight:700;">
+                    💵 Cash
+                </button>
+                <button type="button" class="btn btn-outline-primary vehicle-btn-paid" data-payment="ETC" style="padding:12px;font-weight:700;">
+                    🔵 ETC (FASTag)
+                </button>
+                <button type="button" class="btn btn-outline-info vehicle-btn-paid" data-payment="Digital" style="padding:12px;font-weight:700;">
+                    📱 Digital Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUDIT MATRIX MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="auditMatrixModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header am-modal-header">
+                <div class="am-modal-title-wrap">
+                    <i class="bi bi-grid-3x3 am-header-icon"></i>
+                    <div>
+                        <h5 class="modal-title am-modal-title">Audit Validation Matrix</h5>
+                        <div class="am-modal-sub">Class as per System Report  ×  Actual Class after Validate</div>
+                    </div>
+                </div>
+                <div class="am-header-actions">
+                    <div class="am-mode-tabs">
+                        <button class="am-mode-tab active" data-am-mode="Violation" type="button">Violation</button>
+                        <button class="am-mode-tab" data-am-mode="Exemption" type="button">Exemption</button>
+                    </div>
+                    <button type="button" class="btn btn-sm am-export-btn am-export-xls" id="amExportXlsBtn" title="Export as Excel">
+                        <i class="bi bi-file-earmark-excel-fill"></i> Excel
+                    </button>
+                    <button type="button" class="btn btn-sm am-export-btn am-export-pdf" id="amExportPdfBtn" title="Export as PDF">
+                        <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                    </button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body am-modal-body">
+                <!-- Legend -->
+                <div class="am-legend">
+                    <span class="am-legend-item"><span class="am-legend-swatch am-diagonal"></span> Correctly classified</span>
+                    <span class="am-legend-item"><span class="am-legend-swatch am-mismatch"></span> Misclassified (audit finding)</span>
+                    <span class="am-legend-item"><span class="am-legend-swatch am-zero"></span> No count</span>
+                </div>
+                <!-- Summary chips -->
+                <div class="am-summary-bar" id="amSummaryBar"></div>
+                <!-- Matrix table -->
+                <div class="am-table-wrap">
+                    <table class="am-table" id="amTable">
+                        <thead id="amThead"></thead>
+                        <tbody id="amTbody"></tbody>
+                        <tfoot id="amTfoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOAST CONTAINER
+═══════════════════════════════════════════════════════════ -->
+<div id="toastContainer"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<!-- Firebase Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- Application Files -->
+<script src="firebase.js"></script>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="passlist.js"></script>
+<script src="app.js"></script>
+<script src="auth.js"></script>
+<script src="backup.js"></script>
+<script src="avatar.js"></script>
+<script src="sheets.js"></script>
+
+</body>
+</html>
