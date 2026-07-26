@@ -344,21 +344,30 @@ async function fbLoadAuditLogDates() {
 
     try {
 
+        /* Doc IDs are "{uid}_{dateKey}" — use a prefix range scan on the
+           document ID itself. No composite index needed at all.
+           startAt / endAt with "\uf8ff" covers all keys with this uid prefix. */
+        const prefix = uid + "_";
         const snap = await fbDb.collection("userAuditLogs")
-            .where("uid", "==", uid)
-            .orderBy("savedAt", "desc")
+            .orderBy(firebase.firestore.FieldPath.documentId())
+            .startAt(prefix)
+            .endAt(prefix + "\uf8ff")
             .get();
 
-        return snap.docs.map(doc => {
+        const entries = snap.docs.map(doc => {
             const d = doc.data();
             return {
-                dateKey: d.dateKey,
+                dateKey: d.dateKey || doc.id.replace(prefix, ""),
                 savedAt: d.savedAt
                     ? new Date(d.savedAt).toLocaleString("en-IN")
                     : "—",
                 auditor: d.auditor || "—"
             };
         });
+
+        /* Sort newest date first (dateKey is "YYYY-MM-DD" — lexicographic = chronological) */
+        entries.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+        return entries;
 
     } catch (err) {
 

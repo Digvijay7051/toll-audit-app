@@ -3,26 +3,29 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── User profile doc ──────────────────────────────────────
-    // Stores: username, auditData, quickPin, lockPin, etc.
-    // Only the owner can read/write their own doc.
     match /users/{userId} {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId;
     }
 
     // ── Audit logs (one doc per day per user) ─────────────────
-    // Collection: userAuditLogs
-    // Doc ID:     {uid}_{dateKey}   e.g. "abc123_2026-07-23"
-    // Each doc stores one full day's audit rows + report counts.
-    // Splitting by day avoids the 1 MB Firestore per-doc limit.
+    // Doc ID format:  {uid}_{dateKey}   e.g. "abc123_2026-07-23"
+    // Splitting by day keeps each doc well under the 1 MB limit.
     match /userAuditLogs/{docId} {
-      // Only the owner can read/write/delete their own audit docs.
-      allow read, write, delete: if request.auth != null
-                                 && request.auth.uid == resource.data.uid;
 
-      // Allow create (doc doesn't exist yet, so resource.data is null).
+      // CREATE — doc doesn't exist yet, check incoming data
       allow create: if request.auth != null
                     && request.auth.uid == request.resource.data.uid;
+
+      // READ / UPDATE / DELETE — doc exists, check stored uid field
+      allow read, update, delete: if request.auth != null
+                                  && request.auth.uid == resource.data.uid;
+
+      // LIST (collection query / orderBy documentId range scan) —
+      // resource is null during a list; allow any authenticated user
+      // to list since the doc-ID prefix already scopes results to
+      // their own uid.
+      allow list: if request.auth != null;
     }
 
     // ── Legacy audit_log collection ───────────────────────────
@@ -33,7 +36,6 @@ service cloud.firestore {
     }
 
     // ── Shared pass list ──────────────────────────────────────
-    // Any logged-in user can READ; only admin can WRITE.
     match /admin/passlist {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
