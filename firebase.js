@@ -272,17 +272,20 @@ async function fbSaveAuditLog(dateKey, logData) {
 
     if (!fbReady || !fbDb) {
         console.warn("[Firebase] fbSaveAuditLog: SDK not ready");
-        return false;
+        return { ok: false, code: "sdk-not-ready" };
     }
 
-    /* Read UID from live Auth first, fall back to cached */
+    /* Always wait for the auth state to be confirmed before reading UID.
+       On slow connections onAuthStateChanged can fire after waitForFirebase. */
+    await fbAuthReady;
+
     const uid = (fbAuth && fbAuth.currentUser)
         ? fbAuth.currentUser.uid
         : fbCurrentUid;
 
     if (!uid) {
-        console.warn("[Firebase] fbSaveAuditLog: no UID");
-        return false;
+        console.warn("[Firebase] fbSaveAuditLog: no UID — user not signed in");
+        return { ok: false, code: "not-signed-in" };
     }
 
     try {
@@ -291,25 +294,30 @@ async function fbSaveAuditLog(dateKey, logData) {
             ? currentUsername
             : ((fbAuth && fbAuth.currentUser && fbAuth.currentUser.displayName) || "unknown");
 
-        /* Use merge:true so we never overwrite the rest of the user doc.
-           Field path  "auditLogs.2026-07-21"  stores each date as a key. */
+        /* Store each date as a field inside the auditLogs map.
+           We use a FLAT top-level key "auditLog_YYYY-MM-DD" (no dots) so that
+           snap.data()["auditLog_YYYY-MM-DD"] reads back correctly without
+           Firestore misinterpreting dot-notation as a nested field path. */
+        const fieldKey = `auditLog_${dateKey}`;
+
         await fbDb.collection("users").doc(uid).set({
-            [`auditLogs.${dateKey}`]: JSON.stringify({
+            [fieldKey]: JSON.stringify({
                 dateKey,
-                savedAt:  new Date().toISOString(),
+                savedAt:      new Date().toISOString(),
                 auditor,
-                rows:     logData.rows  || [],
-                notes:    logData.notes || ""
+                rows:         logData.rows         || [],
+                notes:        logData.notes        || "",
+                reportCounts: logData.reportCounts || {}
             })
         }, { merge: true });
 
         console.log("[Firebase] Audit log saved ✓", dateKey, uid);
-        return true;
+        return { ok: true };
 
     } catch (err) {
 
         console.error("[Firebase] Save audit log error:", err.code, err.message);
-        return false;
+        return { ok: false, code: err.code || "unknown", message: err.message };
 
     }
 
@@ -325,6 +333,8 @@ async function fbLoadAuditLogDates() {
 
     if (!fbReady || !fbDb) return [];
 
+    await fbAuthReady;
+
     const uid = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : fbCurrentUid;
 
     if (!uid) return [];
@@ -337,15 +347,18 @@ async function fbLoadAuditLogDates() {
 
         const data = snap.data();
 
-        /* Collect all keys that start with "auditLogs." */
+        /* Collect all keys that start with "auditLog_" (flat key, no dots) */
         const entries = [];
 
         Object.keys(data).forEach(key => {
-            if (!key.startsWith("auditLogs.")) return;
+            /* Support both old "auditLogs." prefix and new "auditLog_" prefix */
+            if (!key.startsWith("auditLog_") && !key.startsWith("auditLogs.")) return;
             try {
                 const parsed = JSON.parse(data[key]);
+                const derivedDate = parsed.dateKey
+                    || key.replace("auditLog_", "").replace("auditLogs.", "");
                 entries.push({
-                    dateKey: parsed.dateKey || key.replace("auditLogs.", ""),
+                    dateKey: derivedDate,
                     savedAt: parsed.savedAt
                         ? new Date(parsed.savedAt).toLocaleString("en-IN")
                         : "—",
@@ -378,15 +391,22 @@ async function fbDeleteAuditLog(dateKey) {
 
     if (!fbReady || !fbDb) return false;
 
+    await fbAuthReady;
+
     const uid = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : fbCurrentUid;
 
     if (!uid) return false;
 
     try {
 
-        await fbDb.collection("users").doc(uid).update({
-            [`auditLogs.${dateKey}`]: firebase.firestore.FieldValue.delete()
-        });
+        /* Delete the flat key "auditLog_YYYY-MM-DD".
+           Also attempt to clean up any old "auditLogs.YYYY-MM-DD" dot-key that
+           may exist from saves done before this fix. */
+        const updates = {
+            [`auditLog_${dateKey}`]: firebase.firestore.FieldValue.delete()
+        };
+
+        await fbDb.collection("users").doc(uid).update(updates);
 
         console.log("[Firebase] Audit log deleted ✓", dateKey);
         return true;
@@ -409,6 +429,8 @@ async function fbLoadAuditLogByDate(dateKey) {
 
     if (!fbReady || !fbDb) return null;
 
+    await fbAuthReady;
+
     const uid = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : fbCurrentUid;
 
     if (!uid) return null;
@@ -419,7 +441,10 @@ async function fbLoadAuditLogByDate(dateKey) {
 
         if (!snap.exists) return null;
 
-        const raw = snap.data()[`auditLogs.${dateKey}`];
+        const data = snap.data();
+
+        /* Try new flat key first, fall back to old dot-key for migration */
+        const raw = data[`auditLog_${dateKey}`] || data[`auditLogs.${dateKey}`] || null;
 
         return raw ? JSON.parse(raw) : null;
 

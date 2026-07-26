@@ -214,12 +214,17 @@ async function submitAuditToSheet(notes) {
         reportCounts:  buildReportCountsSnapshot(bucket)
     };
 
-    const ok = await fbSaveAuditLog(date, logData);
+    const result = await fbSaveAuditLog(date, logData);
 
-    if (!ok) {
+    if (!result.ok) {
+        /* Surface the real error code so the user can act on it */
+        let hint = "Internet connection check karo aur dobara try karo.";
+        if (result.code === "not-signed-in")  hint = "Aap logged out ho gaye hain. Page reload karke dobara sign in karo.";
+        if (result.code === "sdk-not-ready")  hint = "Firebase load nahi hua. Page reload karke try karo.";
+        if (result.code === "permission-denied") hint = "Permission denied — Firestore rules check karo ya admin se contact karo.";
         return {
             success: false,
-            message: "Firestore mein save nahi hua. Internet connection check karo aur dobara try karo."
+            message: `Firestore mein save nahi hua. ${hint}${result.message ? `\n\nError: ${result.message}` : ""}`
         };
     }
 
