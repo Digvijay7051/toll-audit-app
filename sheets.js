@@ -75,6 +75,79 @@ function buildAuditRows(bucket) {
 }
 
 /* ===============================
+   BUILD REPORT COUNTS SNAPSHOT
+   Returns { mode: { cat: { reportCount, checkedCount } } }
+   so saved history always carries the full count data.
+=============================== */
+
+function buildReportCountsSnapshot(bucket) {
+
+    const snapshot = {};
+
+    AUDIT_MODES.forEach((mode) => {
+
+        snapshot[mode] = {};
+
+        const modeData = bucket[mode];
+
+        REPORT_CATEGORIES.forEach((cat) => {
+
+            const catData = (modeData && modeData[cat]) || {};
+
+            snapshot[mode][cat] = {
+                reportCount:  catData.reportCount           || 0,
+                checkedCount: (catData.transactions || []).length,
+                vehicleCounts: catData.vehicleCounts        || {}
+            };
+
+        });
+
+    });
+
+    return snapshot;
+
+}
+
+/* ===============================
+   VALIDATE ALL COUNTS MATCH
+   Returns array of mismatch objects:
+   { mode, category, reportCount, checkedCount }
+   Empty array = all OK to save.
+=============================== */
+
+function validateCountsMatch(bucket) {
+
+    const mismatches = [];
+
+    AUDIT_MODES.forEach((mode) => {
+
+        const modeData = bucket[mode];
+
+        REPORT_CATEGORIES.forEach((cat) => {
+
+            const catData = (modeData && modeData[cat]) || {};
+
+            const reportCount  = catData.reportCount           || 0;
+            const checkedCount = (catData.transactions || []).length;
+
+            /* If reportCount is 0, this category was not applicable — skip */
+            if (reportCount === 0) return;
+
+            if (checkedCount !== reportCount) {
+
+                mismatches.push({ mode, category: cat, reportCount, checkedCount });
+
+            }
+
+        });
+
+    });
+
+    return mismatches;
+
+}
+
+/* ===============================
    SUBMIT AUDIT LOG
    Saves audit to Firestore under the
    user's own account. Replaces old
@@ -89,6 +162,25 @@ async function submitAuditToSheet(notes) {
 
     if (!bucket) {
         return { success: false, message: "Is date ka koi audit data nahi mila." };
+    }
+
+    /* ── VALIDATION: checked count must match report count ── */
+    const mismatches = validateCountsMatch(bucket);
+
+    if (mismatches.length > 0) {
+
+        const lines = mismatches.map(m =>
+            `  • ${m.mode} › ${m.category}: Report=${m.reportCount}, Checked=${m.checkedCount} (${m.reportCount - m.checkedCount} baki)`
+        );
+
+        return {
+            success: false,
+            message:
+                "⚠️ Save nahi ho sakta — kuch categories abhi bhi incomplete hain:\n\n" +
+                lines.join("\n") +
+                "\n\nPehle in sabhi categories ka audit pura karo, phir save karo."
+        };
+
     }
 
     const rows = buildAuditRows(bucket);
@@ -114,11 +206,12 @@ async function submitAuditToSheet(notes) {
         return { success: false, message: "Aap logged in nahi hain. Please sign in karke dobara try karo." };
     }
 
-    /* NOTE: bucket intentionally excluded — it duplicates rows data
-       and can push the document over Firestore's 1 MB limit. */
+    /* Save rows + full reportCounts snapshot so history is always
+       complete when viewed from any device / any browser / any year */
     const logData = {
-        notes: notes || "",
-        rows:  rows
+        notes:         notes || "",
+        rows:          rows,
+        reportCounts:  buildReportCountsSnapshot(bucket)
     };
 
     const ok = await fbSaveAuditLog(date, logData);
@@ -190,6 +283,65 @@ function renderAuditLogDetail(dateKey, logData) {
             <strong>${prettyDate}</strong> — ${rows.length} transactions
             ${logData.notes ? `<br>Notes: <em>${logData.notes}</em>` : ""}
         </p>
+    `;
+
+    /* ── Report Count Summary (from saved snapshot) ── */
+    if (logData.reportCounts) {
+
+        html += `<h6 class="mt-2 mb-1" style="font-size:13px;font-weight:600;">📋 Report Count Summary</h6>`;
+
+        const modesWithData = Object.keys(logData.reportCounts);
+
+        modesWithData.forEach(mode => {
+
+            const modeCounts = logData.reportCounts[mode];
+
+            html += `
+                <p class="mb-1" style="font-size:12px;font-weight:600;color:#555;">${mode}</p>
+                <div class="table-responsive mb-2">
+                <table class="table table-sm table-bordered mb-0" style="font-size:12px;">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Category</th>
+                            <th>Report Count</th>
+                            <th>Checked</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            Object.keys(modeCounts).forEach(cat => {
+
+                const rc = modeCounts[cat];
+                const rpt     = rc.reportCount  || 0;
+                const chk     = rc.checkedCount  || 0;
+
+                if (rpt === 0) return; /* skip non-applicable categories */
+
+                const match   = chk === rpt;
+                const badge   = match
+                    ? `<span style="color:#16a34a;font-weight:600;">✓ Match</span>`
+                    : `<span style="color:#dc2626;font-weight:600;">✗ ${chk}/${rpt}</span>`;
+
+                html += `<tr>
+                    <td>${cat}</td>
+                    <td>${rpt}</td>
+                    <td>${chk}</td>
+                    <td>${badge}</td>
+                </tr>`;
+
+            });
+
+            html += `</tbody></table></div>`;
+
+        });
+
+    }
+
+    /* ── Transactions Table ── */
+    html += `
+        <h6 class="mt-3 mb-1" style="font-size:13px;font-weight:600;">🚗 Transaction Log</h6>
         <div class="table-responsive">
         <table class="table table-sm table-striped table-bordered mb-0" style="font-size:13px;">
             <thead class="table-dark">
@@ -239,6 +391,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         submitBtn.addEventListener("click", async function () {
 
+            /* Pre-flight validation before asking for notes —
+               show the full incomplete list so user knows what to fix */
+            const date   = selectedAuditDate || getTodayKey();
+            const bucket = auditDataStore && auditDataStore[date];
+
+            if (bucket) {
+
+                const mismatches = validateCountsMatch(bucket);
+
+                if (mismatches.length > 0) {
+
+                    const lines = mismatches.map(m =>
+                        `• ${m.mode} › ${m.category}: Report=${m.reportCount}, Checked=${m.checkedCount} (${m.reportCount - m.checkedCount} baki)`
+                    );
+
+                    alert(
+                        "⚠️ Audit Save Nahi Ho Sakta\n\n" +
+                        "Pehle in sabhi categories ka audit pura karo:\n\n" +
+                        lines.join("\n") +
+                        "\n\nSabhi categories complete hone ke baad hi Save hoga."
+                    );
+
+                    return;
+
+                }
+
+            }
+
             const notes = prompt(
                 "Optional: Is audit ke liye koi note add karo\n(e.g. 'Night shift', 'Entry lane only')\n\nKhali rehne do aur OK dabao agar nahi chahiye.",
                 ""
@@ -254,15 +434,19 @@ document.addEventListener("DOMContentLoaded", () => {
             submitBtn.disabled  = false;
             submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill"></i> Save Audit Log';
 
-            if (typeof showToast === "function") {
-                showToast(
-                    result.success ? "Audit Saved ✓" : "Save Failed",
-                    result.success ? result.message.split("\n")[0] : result.message,
-                    result.success ? "success" : "error",
-                    result.success ? 5000 : 4000
-                );
+            if (result.success) {
+
+                if (typeof showToast === "function") {
+                    showToast("Audit Saved ✓", result.message.split("\n")[0], "success", 5000);
+                } else {
+                    alert(result.message);
+                }
+
             } else {
+
+                /* Show full message via alert so multi-line errors are fully readable */
                 alert(result.message);
+
             }
 
         });

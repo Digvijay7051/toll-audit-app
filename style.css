@@ -660,7 +660,99 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
   width: 180px; height: 180px; border-radius: 50%;
   background: rgba(255,255,255,.05); pointer-events: none;
 }
-.hero-content { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+/* ── Gate Lift Animation ── */
+.hero-gate-anim {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  width: 70px;
+  height: 40px;
+  opacity: 0.52;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+
+/* SVG element colours (all semi-white to blend with amber gradient) */
+.gate-road   { fill: rgba(255,255,255,0.30); }
+.gate-post   { fill: rgba(255,255,255,0.80); }
+.gate-hinge  { fill: rgba(255,255,255,0.95); }
+.gate-arm    { fill: rgba(255,255,255,0.85); }
+.gate-stripe { fill: rgba(180,83,9,0.55); }   /* amber-dark chevrons */
+.gate-car-body { fill: rgba(255,255,255,0.90); }
+.gate-car-roof { fill: rgba(255,255,255,0.70); }
+.gate-wheel    { fill: rgba(120,53,15,0.75); }
+
+/* ── Arm rotation wrapper
+   SVG transform-origin is in SVG user-units (10 10 = hinge point).
+   We use a CSS custom property so the origin stays at the hinge
+   regardless of scaling. ── */
+.gate-arm-wrap {
+  transform-origin: 10px 10px;          /* hinge = top-left of arm */
+  transform: rotate(0deg);
+  animation: gateArmCycle 4s linear infinite;
+}
+
+/* ── Car translation
+   At 0% the car is fully off-screen left (translateX(-14px)).
+   At 100% it exits right (translateX(70px)).
+   opacity fades in/out so it appears under the open gate only. ── */
+.gate-car-wrap {
+  animation: gateCarCycle 4s linear infinite;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   KEYFRAMES — 4 s cycle
+   0  –  15% (0 – 0.6 s)  : gate closed, car hidden
+   15 – 30% (0.6 – 1.2 s) : arm lifts to –72°
+   30 – 65% (1.2 – 2.6 s) : car slides through (opacity 0→1→0)
+   65 – 85% (2.6 – 3.4 s) : arm lowers back to 0°
+   85 – 100% (3.4 – 4 s)  : gate closed, car hidden
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@keyframes gateArmCycle {
+  0%   { transform: rotate(0deg);    }   /* closed */
+  15%  { transform: rotate(0deg);    }   /* still closed */
+  30%  { transform: rotate(-72deg);  }   /* fully open */
+  65%  { transform: rotate(-72deg);  }   /* hold open while car passes */
+  85%  { transform: rotate(0deg);    }   /* closed again */
+  100% { transform: rotate(0deg);    }
+}
+
+@keyframes gateCarCycle {
+  /* car hidden, parked far left */
+  0%   { transform: translateX(-14px); opacity: 0; }
+  14%  { transform: translateX(-14px); opacity: 0; }
+  /* gate starts opening — car still waiting */
+  30%  { transform: translateX(-14px); opacity: 0; }
+  /* car begins entering — fade in */
+  35%  { transform: translateX(-5px);  opacity: 1; }
+  /* car mid-pass */
+  52%  { transform: translateX(38px);  opacity: 1; }
+  /* car exits — fade out */
+  63%  { transform: translateX(70px);  opacity: 0; }
+  /* reset off-screen for next loop */
+  64%  { transform: translateX(-14px); opacity: 0; }
+  100% { transform: translateX(-14px); opacity: 0; }
+}
+
+/* ── Hide on mobile (≤768 px) ── */
+@media (max-width: 768px) {
+  .hero-gate-anim { display: none; }
+}
+
+/* ── Dark mode: slightly brighter so it doesn't disappear ── */
+body.dark-theme .hero-gate-anim {
+  opacity: 0.60;
+}
+body.dark-theme .gate-stripe {
+  fill: rgba(251,191,36,0.55);   /* amber-yellow stripes in dark mode */
+}
+body.dark-theme .gate-wheel {
+  fill: rgba(251,191,36,0.65);
+}
+
+.hero-content { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding-right: 88px; }
 .hero-left { display: flex; flex-direction: column; gap: 4px; }
 .hero-title {
   font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.3px;
@@ -1413,6 +1505,7 @@ input[type="date"]:focus {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
   .dashboard-hero { padding: 20px 18px; }
   .hero-stats { gap: 10px; }
+  .hero-content { padding-right: 0; }   /* gate is hidden on mobile */
 }
 @media (max-width: 576px) {
   .auth-card, .welcome-card { padding: 30px 22px; }
