@@ -268,6 +268,20 @@ async function fbRenameUser(newUsername) {
    that already works, no new rules needed.
 =============================== */
 
+/* ── COLLECTION LAYOUT ──────────────────────────────────────
+   Top-level collection:  userAuditLogs
+   Document ID:           {uid}_{dateKey}   e.g. "abc123_2026-07-23"
+
+   WHY top-level (not subcollection):
+   • No extra Firestore rules needed beyond "auth.uid matches"
+   • Each document is one day only → well under 1 MB per-doc limit
+   • Query by uid field to list all dates for a user
+─────────────────────────────────────────────────────────── */
+
+function _auditDocId(uid, dateKey) {
+    return `${uid}_${dateKey}`;
+}
+
 async function fbSaveAuditLog(dateKey, logData) {
 
     if (!fbReady || !fbDb) {
@@ -280,7 +294,7 @@ async function fbSaveAuditLog(dateKey, logData) {
         : fbCurrentUid || (await fbAuthReady, fbCurrentUid);
 
     if (!uid) {
-        console.warn("[Firebase] fbSaveAuditLog: no UID — user not signed in");
+        console.warn("[Firebase] fbSaveAuditLog: no UID");
         return { ok: false, code: "not-signed-in" };
     }
 
@@ -290,21 +304,15 @@ async function fbSaveAuditLog(dateKey, logData) {
             ? currentUsername
             : ((fbAuth && fbAuth.currentUser && fbAuth.currentUser.displayName) || "unknown");
 
-        /*  Each date is stored as its OWN DOCUMENT inside the subcollection
-            users/{uid}/auditLogs/{dateKey}
-            This avoids the 1 MB Firestore per-document limit that was hit
-            when all dates were crammed as fields into a single user doc.    */
-        await fbDb
-            .collection("users").doc(uid)
-            .collection("auditLogs").doc(dateKey)
-            .set({
-                dateKey,
-                savedAt:      new Date().toISOString(),
-                auditor,
-                rows:         logData.rows         || [],
-                notes:        logData.notes        || "",
-                reportCounts: logData.reportCounts || {}
-            });
+        await fbDb.collection("userAuditLogs").doc(_auditDocId(uid, dateKey)).set({
+            uid,
+            dateKey,
+            savedAt:      new Date().toISOString(),
+            auditor,
+            rows:         logData.rows         || [],
+            notes:        logData.notes        || "",
+            reportCounts: logData.reportCounts || {}
+        });
 
         console.log("[Firebase] Audit log saved ✓", dateKey, uid);
         return { ok: true };
@@ -320,8 +328,8 @@ async function fbSaveAuditLog(dateKey, logData) {
 
 /* ===============================
    FIRESTORE — LOAD ALL AUDIT LOG DATES
-   Queries subcollection users/{uid}/auditLogs
-   Returns array sorted newest first.
+   Queries userAuditLogs where uid == current user,
+   returns array sorted newest first.
 =============================== */
 
 async function fbLoadAuditLogDates() {
@@ -336,16 +344,15 @@ async function fbLoadAuditLogDates() {
 
     try {
 
-        const snap = await fbDb
-            .collection("users").doc(uid)
-            .collection("auditLogs")
+        const snap = await fbDb.collection("userAuditLogs")
+            .where("uid", "==", uid)
             .orderBy("savedAt", "desc")
             .get();
 
         return snap.docs.map(doc => {
             const d = doc.data();
             return {
-                dateKey: d.dateKey || doc.id,
+                dateKey: d.dateKey,
                 savedAt: d.savedAt
                     ? new Date(d.savedAt).toLocaleString("en-IN")
                     : "—",
@@ -364,7 +371,6 @@ async function fbLoadAuditLogDates() {
 
 /* ===============================
    FIRESTORE — DELETE ONE AUDIT LOG
-   Deletes the subcollection document.
 =============================== */
 
 async function fbDeleteAuditLog(dateKey) {
@@ -379,10 +385,7 @@ async function fbDeleteAuditLog(dateKey) {
 
     try {
 
-        await fbDb
-            .collection("users").doc(uid)
-            .collection("auditLogs").doc(dateKey)
-            .delete();
+        await fbDb.collection("userAuditLogs").doc(_auditDocId(uid, dateKey)).delete();
 
         console.log("[Firebase] Audit log deleted ✓", dateKey);
         return true;
@@ -398,7 +401,6 @@ async function fbDeleteAuditLog(dateKey) {
 
 /* ===============================
    FIRESTORE — LOAD ONE AUDIT LOG
-   Reads a single subcollection document.
 =============================== */
 
 async function fbLoadAuditLogByDate(dateKey) {
@@ -413,9 +415,8 @@ async function fbLoadAuditLogByDate(dateKey) {
 
     try {
 
-        const snap = await fbDb
-            .collection("users").doc(uid)
-            .collection("auditLogs").doc(dateKey)
+        const snap = await fbDb.collection("userAuditLogs")
+            .doc(_auditDocId(uid, dateKey))
             .get();
 
         if (!snap.exists) return null;
