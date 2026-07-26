@@ -338,25 +338,45 @@
             <!-- Title block -->
             <div class="hero-left">
                 <div class="hero-title">
-                    <svg class="hero-gantry-glyph" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- gantry crossbeam -->
-                        <rect x="0" y="2" width="36" height="4" rx="2" fill="currentColor" opacity=".9"/>
-                        <!-- left leg -->
-                        <rect x="1" y="0" width="3" height="28" rx="1.5" fill="currentColor" opacity=".75"/>
-                        <!-- right leg -->
-                        <rect x="32" y="0" width="3" height="28" rx="1.5" fill="currentColor" opacity=".75"/>
-                        <!-- barrier arm (horizontal, centered under crossbeam) -->
-                        <rect x="6" y="10" width="22" height="3" rx="1.5" fill="currentColor" opacity=".6"/>
-                        <!-- barrier stripes -->
-                        <rect x="9"  y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
-                        <rect x="15" y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
-                        <rect x="21" y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
-                        <!-- road base -->
-                        <rect x="0" y="24" width="36" height="4" rx="1" fill="currentColor" opacity=".25"/>
-                        <!-- lane dash -->
-                        <rect x="10" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <rect x="17" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <rect x="24" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                    <!--
+                      Animated barrier-gate glyph — viewBox 0 0 44 28
+                      Post at x=2–7, hinge at (4.5, 8).
+                      .hg-arm  rotates around hinge: 0° closed → −75° open → 0° closed  (4.5 s loop)
+                      .hg-car  slides left→right under the raised arm then resets          (4.5 s loop)
+                    -->
+                    <svg class="hero-gate-glyph" viewBox="0 0 44 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <!-- Road surface -->
+                        <rect x="0" y="22" width="44" height="6" rx="1" fill="white" opacity=".18"/>
+                        <!-- Lane centre dashes -->
+                        <rect x="4"  y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <rect x="13" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <rect x="22" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <rect x="31" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <!-- Gantry post -->
+                        <rect x="2" y="2" width="5" height="20" rx="2" fill="white" opacity=".80"/>
+                        <!-- Hinge pivot dot -->
+                        <circle cx="4.5" cy="8" r="2.5" fill="#f59e0b"/>
+                        <!-- ── Barrier arm — rotates from hinge (4.5, 8) ── -->
+                        <g class="hg-arm">
+                            <rect x="4.5" y="6" width="38" height="4" rx="2" fill="white" opacity=".90"/>
+                            <rect x="10"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
+                            <rect x="20"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
+                            <rect x="30"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
+                        </g>
+                        <!-- ── Car — slides under raised arm ── -->
+                        <g class="hg-car">
+                            <!-- body -->
+                            <rect x="-10" y="14" width="12" height="7" rx="2" fill="white" opacity=".95"/>
+                            <!-- cabin -->
+                            <rect x="-8"  y="10" width="7"  height="5" rx="1.5" fill="white" opacity=".80"/>
+                            <!-- headlight -->
+                            <rect x="-11" y="16.5" width="2.5" height="2" rx=".5" fill="#fde68a"/>
+                            <!-- tail light -->
+                            <rect x="1.5" y="16.5" width="2"   height="2" rx=".5" fill="#f87171"/>
+                            <!-- wheels -->
+                            <circle cx="-7"  cy="22" r="2.5" fill="#1a1200"/>
+                            <circle cx="1"   cy="22" r="2.5" fill="#1a1200"/>
+                        </g>
                     </svg>
                     Toll Audit Dashboard
                 </div>

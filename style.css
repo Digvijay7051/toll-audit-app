@@ -2740,7 +2740,11 @@ body {
 /* ── A. Barrier Gate — arm lifts, car passes, arm lowers ── */
 
 /* SVG sits inside .hero-title, transforms applied via CSS */
-.hero-gate-glyph { overflow: visible; }
+.hero-gate-glyph {
+  width: 44px; height: 28px; flex-shrink: 0;
+  overflow: visible;
+  filter: drop-shadow(0 1px 6px rgba(245,158,11,.40));
+}
 
 /* Arm: closed = horizontal (0°), open = rotated up −75°, hinge at (4.5 8) */
 .hg-arm {
