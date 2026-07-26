@@ -786,10 +786,36 @@ function updateHeroSection() {
 
     const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
 
-    setEl("heroTotalTxn",  totalTxn);
-    setEl("heroChecked",   totalChk);
-    setEl("heroRemaining", remaining);
-    setEl("heroProgress",  pct + "%");
+    /* Count-up helper: animates numeric text with eased interpolation + pop flash */
+    const countUp = (id, target, suffix = "") => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const from = parseInt(el.textContent, 10) || 0;
+        if (from === target) return;
+        const dur  = 520;   /* ms */
+        const start = performance.now();
+        const tick = (now) => {
+            const t = Math.min(1, (now - start) / dur);
+            const ease = 1 - Math.pow(1 - t, 3);  /* cubic ease-out */
+            el.textContent = Math.round(from + (target - from) * ease) + suffix;
+            if (t < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                el.textContent = target + suffix;
+                /* pop flash */
+                el.classList.remove("num-pop");
+                void el.offsetWidth;   /* reflow to restart animation */
+                el.classList.add("num-pop");
+                setTimeout(() => el.classList.remove("num-pop"), 460);
+            }
+        };
+        requestAnimationFrame(tick);
+    };
+
+    countUp("heroTotalTxn",  totalTxn);
+    countUp("heroChecked",   totalChk);
+    countUp("heroRemaining", remaining);
+    countUp("heroProgress",  pct, "%");
     setEl("topbarAuditDate", selectedAuditDate ? `Audit · ${selectedAuditDate}` : "Toll Audit");
 
     /* Update subtitle */

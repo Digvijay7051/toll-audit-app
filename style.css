@@ -884,7 +884,7 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 
 /* ── Bottom dashed lane-marking line ── */
 .hero-lane-line {
-  position: relative; z-index: 2;
+  position: relative; z-index: 2; overflow: hidden;
   height: 14px;
   background:
     repeating-linear-gradient(
@@ -2730,3 +2730,181 @@ body {
   transition: box-shadow .4s var(--ease-out);
 }
 
+
+/* ═══════════════════════════════════════════════════════════
+   46. DASHBOARD HERO — 8 ANIMATIONS
+   All keyframes defined here, before the reduced-motion block
+   that lives further up at line ~2296 — it will catch them all.
+═══════════════════════════════════════════════════════════ */
+
+/* ── A. Barrier Gate — arm lifts, car passes, arm lowers ── */
+
+/* SVG sits inside .hero-title, transforms applied via CSS */
+.hero-gate-glyph { overflow: visible; }
+
+/* Arm: closed = horizontal (0°), open = rotated up −75°, hinge at (4.5 8) */
+.hg-arm {
+  transform-origin: 4.5px 8px;
+  transform-box: fill-box;
+  animation: gateArm 4.5s ease-in-out infinite;
+}
+@keyframes gateArm {
+  /*  0–15 %  arm closed, car waits off-screen left */
+  0%    { transform: rotate(0deg); }
+  /* 15–30 %  arm lifts to −75° */
+  15%   { transform: rotate(0deg); }
+  30%   { transform: rotate(-75deg); }
+  /* 30–70 %  arm stays up while car passes */
+  70%   { transform: rotate(-75deg); }
+  /* 70–85 %  arm lowers back */
+  85%   { transform: rotate(0deg); }
+  100%  { transform: rotate(0deg); }
+}
+
+/* Car: starts far left (−10 visible in SVG = 0% translateX),
+   slides past gate (translate +56px) then off right (+100px) */
+.hg-car {
+  animation: gateCar 4.5s ease-in-out infinite;
+}
+@keyframes gateCar {
+  0%    { transform: translateX(0px);   }
+  /* wait for arm to lift */
+  15%   { transform: translateX(0px);   }
+  /* drive through */
+  65%   { transform: translateX(56px);  }
+  /* disappear off right */
+  75%   { transform: translateX(100px); opacity: 0; }
+  /* teleport back, hidden */
+  76%   { transform: translateX(0px);   opacity: 0; }
+  /* reappear at start */
+  90%   { opacity: 1; transform: translateX(0px); }
+  100%  { transform: translateX(0px);  opacity: 1; }
+}
+
+/* ── B. Scanner sweep line ── */
+
+.gantry-scanner-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.gantry-scanner-wrap i { position: relative; z-index: 1; }
+
+.gantry-scanner-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.9) 40%, rgba(245,158,11,.9) 60%, transparent 100%);
+  border-radius: 1px;
+  top: 0%;
+  animation: scannerSweep 2.2s ease-in-out infinite;
+  pointer-events: none; z-index: 2;
+}
+@keyframes scannerSweep {
+  0%   { top: 0%;   opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { top: 100%; opacity: 1; }
+  90%  { opacity: 0; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ── C. SYSTEM ONLINE — dot ripple pulse ── */
+
+.gantry-online-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.gantry-dot {
+  position: relative; z-index: 2;
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.gantry-ripple {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34,197,94,.70);
+  animation: ripplePulse 2s ease-out infinite;
+  pointer-events: none; z-index: 1;
+}
+@keyframes ripplePulse {
+  0%   { transform: scale(.6); opacity: 1; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ── D. Stat dots — soft blink ── */
+
+.hero-stat-dot--green {
+  animation: dotBlink 2.4s ease-in-out infinite;
+}
+.hero-stat-dot--amber {
+  animation: dotBlink 1.8s ease-in-out infinite .4s;
+}
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .35; }
+}
+
+/* ── E. Lane-line light sweep ── */
+
+.hero-lane-line { overflow: hidden; }   /* contain the sweep */
+
+.lane-line-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent  0%,
+    rgba(255,255,255,.45) 50%,
+    transparent 100%
+  );
+  width: 60px;
+  animation: laneSweep 3.5s linear infinite;
+  pointer-events: none;
+}
+@keyframes laneSweep {
+  0%   { transform: translateX(-80px); }
+  100% { transform: translateX(calc(100vw + 80px)); }
+}
+
+/* ── F. Progress bar shimmer ── */
+
+/* Shimmer highlight layered on top of the hazard-stripe progress bar */
+.progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255,255,255,.40) 50%,
+    transparent 70%
+  );
+  width: 200%;
+  transform: translateX(-100%);
+  animation: progressShimmer 2.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes progressShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── G. Stat numbers — pop micro-animation on change ── */
+/* Triggered via JS adding .num-pop class */
+@keyframes numPop {
+  0%   { transform: scale(1);    color: #fff; }
+  30%  { transform: scale(1.18); color: #fbbf24; }
+  100% { transform: scale(1);    color: #fff; }
+}
+.hero-stat-val.num-pop {
+  animation: numPop .45s var(--ease-spring) forwards;
+}
