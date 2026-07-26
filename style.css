@@ -655,10 +655,10 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 ═══════════════════════════════════ */
 .dashboard-hero {
   background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 55%, #a78bfa 100%);
-  border-radius: 20px; padding: 26px 30px; margin-bottom: 22px;
+  border-radius: 20px; padding: 24px 28px; margin-bottom: 22px;
   position: relative; overflow: hidden;
   box-shadow: 0 12px 40px rgba(124,58,237,.35);
-  display: flex; align-items: center; gap: 0;
+  display: flex; align-items: center; gap: 20px;
 }
 .dashboard-hero::before {
   content: '';
@@ -674,86 +674,107 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 }
 
 /* ══════════════════════════════════════════
-   GATE + CAR ANIMATION — hero right panel
+   GATE ANIMATION — glass panel on the right
 ══════════════════════════════════════════ */
-.hero-gate-anim {
+.hero-gate-panel {
   flex-shrink: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  filter: drop-shadow(0 6px 18px rgba(0,0,0,.30));
+  position: relative; z-index: 2;
+  background: rgba(255,255,255,.10);
+  border: 1.5px solid rgba(255,255,255,.22);
+  border-radius: 18px;
+  padding: 10px 14px 6px;
+  backdrop-filter: blur(12px);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  overflow: hidden;
+}
+
+.hero-gate-label {
+  font-size: 9px; font-weight: 800; letter-spacing: .14em;
+  color: rgba(255,255,255,.60); text-transform: uppercase;
+  align-self: flex-start;
+}
+
+.hero-gate-anim {
+  display: block;
+  width: 220px; height: 138px;
+  overflow: visible;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.25));
 }
 
 /* ── SVG element colours ── */
+.gate-sky         { fill: rgba(255,255,255,0.04); }
 /* Road */
-.gate-road      { fill: rgba(255,255,255,0.15); }
-.gate-road-dash { fill: rgba(255,255,255,0.55); }
-/* Toll booth */
-.gate-booth      { fill: rgba(255,255,255,0.22); }
-.gate-booth-win  { fill: rgba(167,139,250,0.85); }
-.gate-booth-roof { fill: rgba(255,255,255,0.50); }
-/* Post & arm */
-.gate-post   { fill: rgba(255,255,255,0.90); }
-.gate-hinge  { fill: #fff; }
-.gate-arm    { fill: rgba(255,255,255,0.95); }
-.gate-stripe { fill: rgba(233,213,255,0.70); }
+.gate-road        { fill: rgba(30,10,80,0.55); }
+.gate-road-dash   { fill: rgba(255,255,255,0.50); }
+/* Booth */
+.gate-booth       { fill: rgba(255,255,255,0.18); }
+.gate-booth-roof  { fill: rgba(255,255,255,0.40); }
+.gate-booth-win   { fill: rgba(196,181,253,0.85); }
+.gate-booth-door  { fill: rgba(255,255,255,0.12); }
+.gate-booth-sign  { fill: rgba(250,204,21,0.70); }
+/* Post */
+.gate-post-shadow { fill: rgba(0,0,0,0.20); }
+.gate-post        { fill: rgba(255,255,255,0.92); }
+.gate-hinge-ring  { fill: rgba(255,255,255,0.35); }
+.gate-hinge       { fill: #fff; }
+/* Arm */
+.gate-arm         { fill: rgba(255,255,255,0.95); }
+.gate-stripe      { fill: rgba(250,204,21,0.80); }
+.gate-arm-tip     { fill: #ef4444; }
 /* Car */
-.gate-car-body        { fill: #fff; }
-.gate-car-roof        { fill: rgba(233,213,255,0.95); }
-.gate-car-glass       { fill: rgba(167,139,250,0.80); }
+.gate-car-shadow  { fill: rgba(0,0,0,0.25); }
+.gate-car-body    { fill: #ffffff; }
+.gate-car-roof    { fill: #ede9fe; }
+.gate-car-glass   { fill: rgba(139,92,246,0.70); }
 .gate-car-light-front { fill: #fde68a; }
-.gate-car-light-rear  { fill: #fca5a5; }
-.gate-wheel           { fill: rgba(91,33,182,0.90); }
-.gate-wheel-hub       { fill: rgba(255,255,255,0.70); }
+.gate-car-light-rear  { fill: #f87171; }
+.gate-wheel       { fill: #4c1d95; }
+.gate-wheel-hub   { fill: rgba(255,255,255,0.80); }
 
-/* ── Arm rotation — hinge at SVG point (22, 22) ── */
+/* ── Arm rotates around hinge at SVG coords (33, 20) ── */
 .gate-arm-wrap {
-  transform-origin: 22px 22px;
+  transform-origin: 33px 20px;
   animation: gateArmCycle 5s ease-in-out infinite;
 }
 
-/* ── Car slide ── */
+/* ── Car slides horizontally ── */
 .gate-car-wrap {
   animation: gateCarCycle 5s ease-in-out infinite;
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    KEYFRAMES — 5 s cycle
-   0  – 18%  : gate closed, car waiting off-left
-   18 – 32%  : arm lifts to −80°
-   32 – 68%  : car drives through (fade in → out)
-   68 – 82%  : arm lowers back to 0°
-   82 – 100% : gate closed, pause
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+   0  – 16% : gate closed, car hidden off-left
+   16 – 30% : arm lifts to −85°
+   30 – 66% : car drives through L→R
+   66 – 80% : arm lowers
+   80 –100% : gate closed, pause
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @keyframes gateArmCycle {
-  0%   { transform: rotate(0deg);   }
-  18%  { transform: rotate(0deg);   }
-  32%  { transform: rotate(-80deg); }
-  68%  { transform: rotate(-80deg); }
-  82%  { transform: rotate(0deg);   }
-  100% { transform: rotate(0deg);   }
+  0%,  16% { transform: rotate(0deg);   }
+  30%       { transform: rotate(-85deg); }
+  66%       { transform: rotate(-85deg); }
+  80%       { transform: rotate(0deg);   }
+  100%      { transform: rotate(0deg);   }
 }
 
 @keyframes gateCarCycle {
-  0%   { transform: translateX(-36px); opacity: 0; }
-  18%  { transform: translateX(-36px); opacity: 0; }
-  30%  { transform: translateX(-36px); opacity: 0; }
-  36%  { transform: translateX(-10px); opacity: 1; }
-  60%  { transform: translateX(100px); opacity: 1; }
-  70%  { transform: translateX(148px); opacity: 0; }
-  71%  { transform: translateX(-36px); opacity: 0; }
-  100% { transform: translateX(-36px); opacity: 0; }
+  /* waiting off-screen left */
+  0%,  16% { transform: translateX(-40px); opacity: 0; }
+  /* gate opening — car appears */
+  28%       { transform: translateX(-40px); opacity: 0; }
+  34%       { transform: translateX(-16px); opacity: 1; }
+  /* car passes through gate */
+  62%       { transform: translateX(116px); opacity: 1; }
+  /* car exits right */
+  70%       { transform: translateX(168px); opacity: 0; }
+  /* instant reset */
+  71%,100%  { transform: translateX(-40px); opacity: 0; }
 }
 
-/* ── Hide on mobile ── */
+/* ── Hide panel on mobile ── */
 @media (max-width: 768px) {
-  .hero-gate-anim { display: none; }
-}
-
-/* ── Dark mode ── */
-body.dark-theme .hero-gate-anim {
-  filter: drop-shadow(0 6px 22px rgba(0,0,0,.45));
+  .hero-gate-panel { display: none; }
 }
 
 .hero-content { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; flex: 1; }
