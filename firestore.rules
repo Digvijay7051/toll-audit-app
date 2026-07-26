@@ -2,11 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Each user's own document — only they can read/write it.
-    // auditLogs are stored as fields inside this same document,
-    // so no subcollection rules are needed.
+    // Each user's own profile document — only they can read/write it.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Each audit date is stored as its own document in this subcollection.
+      // This avoids the 1 MB per-document Firestore limit.
+      match /auditLogs/{dateKey} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Legacy audit_log collection — kept for backward compatibility
