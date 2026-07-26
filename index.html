@@ -517,30 +517,6 @@
         <span class="next-cat-name" id="nextCatNameLabel"></span>
     </button>
 
-    <!-- ── Verify Pass Section ── -->
-    <div class="card shadow-sm mb-3 verify-pass-card">
-        <div class="verify-pass-header">
-            <div class="verify-pass-title-wrap">
-                <span class="verify-pass-icon"><i class="bi bi-patch-check-fill"></i></span>
-                <div>
-                    <div class="verify-pass-title">Verify Pass</div>
-                    <div class="verify-pass-sub">Enter vehicle number to check monthly pass status</div>
-                </div>
-            </div>
-            <div class="pass-search-bar-wrap">
-                <div class="pass-search-icon">
-                    <i class="bi bi-search"></i>
-                </div>
-                <input type="text" id="passCheckInput" class="pass-search-input"
-                       placeholder="Enter Vehicle Number…" autocomplete="off" spellcheck="false">
-                <button class="pass-search-btn" id="passCheckBtn" type="button">
-                    Search
-                </button>
-            </div>
-        </div>
-        <div id="passCheckResult" class="pass-check-result"></div>
-    </div>
-
     <!-- ── Vehicle Tiles ── -->
     <div class="card shadow-sm mb-4">
         <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
@@ -635,6 +611,30 @@
 
             </div>
         </div>
+    </div>
+
+    <!-- ── Verify Pass Section ── -->
+    <div class="card shadow-sm mb-4 verify-pass-card">
+        <div class="verify-pass-header">
+            <div class="verify-pass-title-wrap">
+                <span class="verify-pass-icon"><i class="bi bi-patch-check-fill"></i></span>
+                <div>
+                    <div class="verify-pass-title">Verify Pass</div>
+                    <div class="verify-pass-sub">Enter vehicle number to check monthly pass status</div>
+                </div>
+            </div>
+            <div class="pass-search-bar-wrap">
+                <div class="pass-search-icon">
+                    <i class="bi bi-search"></i>
+                </div>
+                <input type="text" id="passCheckInput" class="pass-search-input"
+                       placeholder="Enter Vehicle Number…" autocomplete="off" spellcheck="false">
+                <button class="pass-search-btn" id="passCheckBtn" type="button">
+                    Search
+                </button>
+            </div>
+        </div>
+        <div id="passCheckResult" class="pass-check-result"></div>
     </div>
 
     <!-- ── Counts + History ── -->
