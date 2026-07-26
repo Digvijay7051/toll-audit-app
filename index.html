@@ -332,119 +332,83 @@
 
     <!-- ── Premium Hero Section ── -->
     <div class="dashboard-hero">
-        <!-- Left: title + stats -->
-        <div class="hero-content">
+
+        <!-- ░░ TOP STRIP — overhead gantry info bar ░░ -->
+        <div class="hero-gantry-strip">
+            <span class="gantry-plaza">
+                <i class="bi bi-upc-scan"></i>
+                PLAZA · NH-48
+            </span>
+            <span class="gantry-lane">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="4" width="5" height="5" rx="1" fill="currentColor"/></svg>
+                LANE 3 &nbsp;·&nbsp; OVERHEAD READER
+            </span>
+            <span class="gantry-status">
+                <span class="gantry-dot gantry-dot--green"></span>
+                SYSTEM ONLINE
+            </span>
+        </div>
+
+        <!-- ░░ BODY — title · stats ░░ -->
+        <div class="hero-body">
+
+            <!-- Title block -->
             <div class="hero-left">
                 <div class="hero-title">
-                    <i class="bi bi-speedometer2"></i>
+                    <svg class="hero-gantry-glyph" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- gantry crossbeam -->
+                        <rect x="0" y="2" width="36" height="4" rx="2" fill="currentColor" opacity=".9"/>
+                        <!-- left leg -->
+                        <rect x="1" y="0" width="3" height="28" rx="1.5" fill="currentColor" opacity=".75"/>
+                        <!-- right leg -->
+                        <rect x="32" y="0" width="3" height="28" rx="1.5" fill="currentColor" opacity=".75"/>
+                        <!-- barrier arm (horizontal, centered under crossbeam) -->
+                        <rect x="6" y="10" width="22" height="3" rx="1.5" fill="currentColor" opacity=".6"/>
+                        <!-- barrier stripes -->
+                        <rect x="9"  y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
+                        <rect x="15" y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
+                        <rect x="21" y="10" width="3" height="3" fill="#f59e0b" opacity=".85"/>
+                        <!-- road base -->
+                        <rect x="0" y="24" width="36" height="4" rx="1" fill="currentColor" opacity=".25"/>
+                        <!-- lane dash -->
+                        <rect x="10" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <rect x="17" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                        <rect x="24" y="26" width="4" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
+                    </svg>
                     Toll Audit Dashboard
                 </div>
                 <div class="hero-sub" id="heroSubLine">Ready to audit — select a category and start recording.</div>
             </div>
+
+            <!-- Stat tiles -->
             <div class="hero-stats">
                 <div class="hero-stat">
+                    <span class="hero-stat-dot hero-stat-dot--idle"></span>
                     <div class="hero-stat-val" id="heroTotalTxn">0</div>
                     <div class="hero-stat-lbl">Total Txns</div>
                 </div>
                 <div class="hero-stat">
+                    <span class="hero-stat-dot hero-stat-dot--green"></span>
                     <div class="hero-stat-val" id="heroChecked">0</div>
                     <div class="hero-stat-lbl">Checked</div>
                 </div>
                 <div class="hero-stat">
+                    <span class="hero-stat-dot hero-stat-dot--amber"></span>
                     <div class="hero-stat-val" id="heroRemaining">0</div>
                     <div class="hero-stat-lbl">Remaining</div>
                 </div>
                 <div class="hero-stat">
+                    <span class="hero-stat-dot hero-stat-dot--idle"></span>
                     <div class="hero-stat-val" id="heroProgress">0%</div>
                     <div class="hero-stat-lbl">Progress</div>
                 </div>
             </div>
+
         </div>
 
-        <!-- Right: Gate animation in a glass panel -->
-        <div class="hero-gate-panel" aria-hidden="true">
-            <div class="hero-gate-label">TOLL GATE</div>
-            <!--
-              viewBox: 0 0 160 100
-              Road: y=78–100. Post: x=28–36, y=8–78. Hinge: (32,20).
-              Arm: x=32–32+92=124, y=16–24 (8px tall). Stripes every 16px.
-              Booth: x=118–148, y=36–78.
-              Car starts at x=−38, ends at x=168.
-            -->
-            <svg class="hero-gate-anim" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- ░░ BOTTOM — dashed lane-marking line ░░ -->
+        <div class="hero-lane-line" aria-hidden="true"></div>
 
-                <!-- Sky / background glow -->
-                <ellipse cx="80" cy="60" rx="90" ry="50" class="gate-sky"/>
-
-                <!-- Road -->
-                <rect x="0" y="78" width="160" height="22" rx="0" class="gate-road"/>
-                <!-- Lane markings -->
-                <rect x="0"   y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-                <rect x="30"  y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-                <rect x="60"  y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-                <rect x="90"  y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-                <rect x="120" y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-                <rect x="150" y="87" width="22" height="4" rx="2" class="gate-road-dash"/>
-
-                <!-- Toll booth building -->
-                <rect x="118" y="36" width="34" height="42" rx="5" class="gate-booth"/>
-                <!-- Booth roof -->
-                <rect x="114" y="30" width="42" height="9"  rx="4" class="gate-booth-roof"/>
-                <!-- Booth windows -->
-                <rect x="123" y="42" width="10" height="8" rx="2" class="gate-booth-win"/>
-                <rect x="136" y="42" width="10" height="8" rx="2" class="gate-booth-win"/>
-                <!-- Booth door -->
-                <rect x="129" y="58" width="10" height="20" rx="2" class="gate-booth-door"/>
-                <!-- Booth sign strip -->
-                <rect x="118" y="52" width="34" height="4"  rx="1" class="gate-booth-sign"/>
-
-                <!-- Post shadow -->
-                <rect x="36" y="16" width="6" height="62" rx="3" class="gate-post-shadow"/>
-                <!-- Main vertical post -->
-                <rect x="28" y="8"  width="10" height="70" rx="4" class="gate-post"/>
-                <!-- Hinge ring -->
-                <circle cx="33" cy="20" r="6" class="gate-hinge-ring"/>
-                <circle cx="33" cy="20" r="3" class="gate-hinge"/>
-
-                <!-- Barrier arm (rotates from hinge 33,20) -->
-                <g class="gate-arm-wrap">
-                    <!-- arm body -->
-                    <rect x="33" y="16" width="96" height="9" rx="4" class="gate-arm"/>
-                    <!-- alternating warning stripes -->
-                    <rect x="42"  y="16" width="12" height="9" class="gate-stripe"/>
-                    <rect x="66"  y="16" width="12" height="9" class="gate-stripe"/>
-                    <rect x="90"  y="16" width="12" height="9" class="gate-stripe"/>
-                    <rect x="114" y="16" width="12" height="9" class="gate-stripe"/>
-                    <!-- tip cap -->
-                    <rect x="124" y="16" width="5" height="9" rx="3" class="gate-arm-tip"/>
-                </g>
-
-                <!-- Car (starts hidden off left, slides right) -->
-                <g class="gate-car-wrap">
-                    <!-- car shadow on road -->
-                    <ellipse cx="19" cy="79" rx="18" ry="3" class="gate-car-shadow"/>
-                    <!-- body -->
-                    <rect x="2"  y="58" width="36" height="18" rx="5" class="gate-car-body"/>
-                    <!-- cabin -->
-                    <rect x="8"  y="46" width="20" height="14" rx="4" class="gate-car-roof"/>
-                    <!-- windscreen -->
-                    <rect x="10" y="48" width="7"  height="9"  rx="2" class="gate-car-glass"/>
-                    <!-- rear window -->
-                    <rect x="21" y="48" width="5"  height="9"  rx="2" class="gate-car-glass"/>
-                    <!-- headlight -->
-                    <rect x="1"  y="62" width="5"  height="5"  rx="2" class="gate-car-light-front"/>
-                    <!-- tail light -->
-                    <rect x="33" y="62" width="5"  height="5"  rx="2" class="gate-car-light-rear"/>
-                    <!-- front wheel -->
-                    <circle cx="10" cy="77" r="7" class="gate-wheel"/>
-                    <circle cx="10" cy="77" r="3" class="gate-wheel-hub"/>
-                    <!-- rear wheel -->
-                    <circle cx="28" cy="77" r="7" class="gate-wheel"/>
-                    <circle cx="28" cy="77" r="3" class="gate-wheel-hub"/>
-                </g>
-
-            </svg>
-        </div>
     </div>
 
     <!-- Pending Audit Banner -->

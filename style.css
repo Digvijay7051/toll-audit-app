@@ -7,6 +7,7 @@
    GOOGLE FONTS — Plus Jakarta Sans (premium feel)
 ═══════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 /* ═══════════════════════════════════
    DESIGN TOKENS
@@ -650,151 +651,154 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 }
 .user-menu-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow); }
 
-/* ═══════════════════════════════════
-   PREMIUM DASHBOARD HERO SECTION
-═══════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD HERO — toll-gantry control-room aesthetic
+═══════════════════════════════════════════════════════════ */
 .dashboard-hero {
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 55%, #a78bfa 100%);
-  border-radius: 20px; padding: 24px 28px; margin-bottom: 22px;
+  /* Asphalt-dark base with amber accent warmth */
+  background: linear-gradient(160deg, #1a1a2e 0%, #16213e 45%, #1a1a2e 100%);
+  border-radius: 20px; margin-bottom: 22px;
   position: relative; overflow: hidden;
-  box-shadow: 0 12px 40px rgba(124,58,237,.35);
-  display: flex; align-items: center; gap: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(245,158,11,.18);
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(245,158,11,.14);
 }
+
+/* Subtle asphalt texture overlay */
 .dashboard-hero::before {
   content: '';
-  position: absolute; top: -50px; right: -50px;
-  width: 260px; height: 260px; border-radius: 50%;
-  background: rgba(255,255,255,.07); pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    repeating-linear-gradient(
+      105deg,
+      transparent 0px, transparent 28px,
+      rgba(255,255,255,.012) 28px, rgba(255,255,255,.012) 29px
+    );
 }
+
+/* Amber glow bloom — top-right */
 .dashboard-hero::after {
   content: '';
-  position: absolute; bottom: -70px; right: 20%;
-  width: 180px; height: 180px; border-radius: 50%;
-  background: rgba(255,255,255,.05); pointer-events: none;
+  position: absolute; top: -60px; right: -60px;
+  width: 280px; height: 280px; border-radius: 50%; pointer-events: none; z-index: 0;
+  background: radial-gradient(circle, rgba(245,158,11,.18) 0%, transparent 68%);
 }
 
-/* ══════════════════════════════════════════
-   GATE ANIMATION — glass panel on the right
-══════════════════════════════════════════ */
-.hero-gate-panel {
-  flex-shrink: 0;
+/* ── Overhead gantry info strip ── */
+.hero-gantry-strip {
   position: relative; z-index: 2;
-  background: rgba(255,255,255,.10);
-  border: 1.5px solid rgba(255,255,255,.22);
-  border-radius: 18px;
-  padding: 10px 14px 6px;
-  backdrop-filter: blur(12px);
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  overflow: hidden;
+  display: flex; align-items: center; gap: 0;
+  padding: 7px 22px;
+  background: rgba(0,0,0,.38);
+  border-bottom: 1px solid rgba(245,158,11,.22);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: .1em;
+  color: rgba(255,255,255,.45);
+  text-transform: uppercase;
+  gap: 24px; flex-wrap: wrap;
 }
-
-.hero-gate-label {
-  font-size: 9px; font-weight: 800; letter-spacing: .14em;
-  color: rgba(255,255,255,.60); text-transform: uppercase;
-  align-self: flex-start;
+.gantry-plaza {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(245,158,11,.80);
 }
-
-.hero-gate-anim {
-  display: block;
-  width: 220px; height: 138px;
-  overflow: visible;
-  filter: drop-shadow(0 4px 12px rgba(0,0,0,.25));
+.gantry-plaza i { font-size: 11px; }
+.gantry-lane {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(255,255,255,.55);
 }
-
-/* ── SVG element colours ── */
-.gate-sky         { fill: rgba(255,255,255,0.04); }
-/* Road */
-.gate-road        { fill: rgba(30,10,80,0.55); }
-.gate-road-dash   { fill: rgba(255,255,255,0.50); }
-/* Booth */
-.gate-booth       { fill: rgba(255,255,255,0.18); }
-.gate-booth-roof  { fill: rgba(255,255,255,0.40); }
-.gate-booth-win   { fill: rgba(196,181,253,0.85); }
-.gate-booth-door  { fill: rgba(255,255,255,0.12); }
-.gate-booth-sign  { fill: rgba(250,204,21,0.70); }
-/* Post */
-.gate-post-shadow { fill: rgba(0,0,0,0.20); }
-.gate-post        { fill: rgba(255,255,255,0.92); }
-.gate-hinge-ring  { fill: rgba(255,255,255,0.35); }
-.gate-hinge       { fill: #fff; }
-/* Arm */
-.gate-arm         { fill: rgba(255,255,255,0.95); }
-.gate-stripe      { fill: rgba(250,204,21,0.80); }
-.gate-arm-tip     { fill: #ef4444; }
-/* Car */
-.gate-car-shadow  { fill: rgba(0,0,0,0.25); }
-.gate-car-body    { fill: #ffffff; }
-.gate-car-roof    { fill: #ede9fe; }
-.gate-car-glass   { fill: rgba(139,92,246,0.70); }
-.gate-car-light-front { fill: #fde68a; }
-.gate-car-light-rear  { fill: #f87171; }
-.gate-wheel       { fill: #4c1d95; }
-.gate-wheel-hub   { fill: rgba(255,255,255,0.80); }
-
-/* ── Arm rotates around hinge at SVG coords (33, 20) ── */
-.gate-arm-wrap {
-  transform-origin: 33px 20px;
-  animation: gateArmCycle 5s ease-in-out infinite;
+.gantry-status {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto;
 }
-
-/* ── Car slides horizontally ── */
-.gate-car-wrap {
-  animation: gateCarCycle 5s ease-in-out infinite;
+.gantry-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
 }
+.gantry-dot--green { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.gantry-dot--amber { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+.gantry-dot--red   { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+.gantry-dot--idle  { background: #475569; }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   KEYFRAMES — 5 s cycle
-   0  – 16% : gate closed, car hidden off-left
-   16 – 30% : arm lifts to −85°
-   30 – 66% : car drives through L→R
-   66 – 80% : arm lowers
-   80 –100% : gate closed, pause
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-@keyframes gateArmCycle {
-  0%,  16% { transform: rotate(0deg);   }
-  30%       { transform: rotate(-85deg); }
-  66%       { transform: rotate(-85deg); }
-  80%       { transform: rotate(0deg);   }
-  100%      { transform: rotate(0deg);   }
+/* ── Hero body: title + stats ── */
+.hero-body {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+  padding: 20px 24px 16px;
 }
+.hero-left { display: flex; flex-direction: column; gap: 5px; }
 
-@keyframes gateCarCycle {
-  /* waiting off-screen left */
-  0%,  16% { transform: translateX(-40px); opacity: 0; }
-  /* gate opening — car appears */
-  28%       { transform: translateX(-40px); opacity: 0; }
-  34%       { transform: translateX(-16px); opacity: 1; }
-  /* car passes through gate */
-  62%       { transform: translateX(116px); opacity: 1; }
-  /* car exits right */
-  70%       { transform: translateX(168px); opacity: 0; }
-  /* instant reset */
-  71%,100%  { transform: translateX(-40px); opacity: 0; }
-}
-
-/* ── Hide panel on mobile ── */
-@media (max-width: 768px) {
-  .hero-gate-panel { display: none; }
-}
-
-.hero-content { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; flex: 1; }
-.hero-left { display: flex; flex-direction: column; gap: 4px; }
+/* Title — Oswald + gantry glyph */
 .hero-title {
-  font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.3px;
-  display: flex; align-items: center; gap: 10px;
+  font-family: 'Oswald', 'Impact', sans-serif;
+  font-size: 26px; font-weight: 700; color: #fff;
+  letter-spacing: .02em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 12px; line-height: 1;
 }
-.hero-title i { opacity: .9; font-size: 20px; }
-.hero-sub { font-size: 13px; color: rgba(255,255,255,.75); font-weight: 500; }
-.hero-stats { display: flex; gap: 18px; flex-wrap: wrap; }
+.hero-gantry-glyph {
+  width: 36px; height: 28px; flex-shrink: 0;
+  color: rgba(255,255,255,.85);
+  filter: drop-shadow(0 1px 4px rgba(245,158,11,.30));
+}
+
+/* Subtitle — JetBrains Mono */
+.hero-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: rgba(255,255,255,.45);
+  font-weight: 400; letter-spacing: .04em;
+}
+
+/* ── Stat tiles with signal dots ── */
+.hero-stats { display: flex; gap: 10px; flex-wrap: wrap; }
 .hero-stat {
-  background: rgba(255,255,255,.14); border-radius: 12px;
-  padding: 10px 16px; text-align: center; min-width: 80px;
-  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.18);
-  transition: transform var(--transition), background var(--transition);
+  position: relative;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 12px;
+  padding: 10px 18px 10px;
+  text-align: center; min-width: 82px;
+  transition: background var(--transition), border-color var(--transition);
 }
-.hero-stat:hover { transform: translateY(-2px); background: rgba(255,255,255,.2); }
-.hero-stat-val { font-size: 26px; font-weight: 800; color: #fff; line-height: 1; }
-.hero-stat-lbl { font-size: 11px; color: rgba(255,255,255,.7); font-weight: 600; margin-top: 2px; }
+.hero-stat:hover {
+  background: rgba(245,158,11,.10);
+  border-color: rgba(245,158,11,.35);
+}
+
+/* Signal dot — top-right corner of each tile */
+.hero-stat-dot {
+  position: absolute; top: 8px; right: 8px;
+  width: 7px; height: 7px; border-radius: 50%;
+}
+.hero-stat-dot--idle  { background: #475569; }
+.hero-stat-dot--green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.7); }
+.hero-stat-dot--amber { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,.7); }
+.hero-stat-dot--red   { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.7); }
+
+/* Stat number — Oswald */
+.hero-stat-val {
+  font-family: 'Oswald', sans-serif;
+  font-size: 30px; font-weight: 700; color: #fff;
+  line-height: 1; letter-spacing: .02em;
+}
+/* Stat label — JetBrains Mono */
+.hero-stat-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 600; letter-spacing: .09em;
+  color: rgba(255,255,255,.40); text-transform: uppercase; margin-top: 4px;
+}
+
+/* ── Bottom dashed lane-marking line ── */
+.hero-lane-line {
+  position: relative; z-index: 2;
+  height: 14px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(245,158,11,.55) 0px,  rgba(245,158,11,.55) 28px,
+      transparent          28px, transparent          48px
+    );
+  border-top: 1px solid rgba(245,158,11,.18);
+  border-radius: 0 0 20px 20px;
+}
 
 /* ── Stat Cards ── */
 .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
@@ -818,19 +822,31 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 .stat-card-value.green { color: var(--success); }
 .stat-card-value.red   { color: var(--danger); }
 
-/* ── Progress Bar ── */
+/* ── Progress Bar — hazard-stripe barrier arm ── */
 .progress {
-  height: 30px; border-radius: 50px; background: #e8ecf5;
-  overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.07); margin-bottom: 14px;
+  height: 28px; border-radius: 6px;
+  background: #1e1e2e;
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.40);
+  margin-bottom: 14px;
+  border: 1px solid rgba(245,158,11,.20);
 }
 .progress-bar {
-  height: 100%; border-radius: 50px;
-  background: linear-gradient(90deg, var(--primary) 0%, #a78bfa 100%);
-  font-size: 12px; font-weight: 800; color: #2e1065;
+  height: 100%; border-radius: 6px;
+  /* diagonal amber / dark hazard stripes — like a barrier arm */
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      #f59e0b   0px, #f59e0b   10px,
+      #1a1200   10px, #1a1200  20px
+    );
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px; font-weight: 600; color: #fff;
   display: flex; align-items: center; justify-content: center;
   transition: width .5s cubic-bezier(.4,0,.2,1);
-  box-shadow: 0 3px 10px rgba(124,58,237,.45);
-  letter-spacing: .02em;
+  box-shadow: 0 2px 10px rgba(245,158,11,.35);
+  letter-spacing: .06em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
 }
 
 /* ── Next Category Button — compact premium pill ── */
@@ -1589,7 +1605,7 @@ body.dark-theme .user-info-panel {
   background: linear-gradient(135deg, rgba(124,58,237,.14) 0%, rgba(245,158,11,.10) 100%);
   border-color: rgba(124,58,237,.3); color: var(--text);
 }
-body.dark-theme .progress   { background: #2e1065; }
+body.dark-theme .progress   { background: #0d0d1a; border-color: rgba(245,158,11,.25); }
 body.dark-theme #vehicleCountTable tr:hover { background: #2e1065; color: var(--text); }
 body.dark-theme .card-header .btn-outline-primary { color: #a78bfa; border-color: #a78bfa; }
 body.dark-theme .card-header .btn-outline-primary:hover, body.dark-theme .card-header .btn-outline-primary.show { background: #a78bfa; color: #050011; }
@@ -1597,7 +1613,7 @@ body.dark-theme #exportCurrentCsvBtn { color: #a78bfa; border-color: #a78bfa; }
 body.dark-theme #exportCurrentCsvBtn:hover { background: #a78bfa; color: #050011; }
 body.dark-theme .table thead { background: #2e1065; }
 body.dark-theme .table th { background: transparent; background: linear-gradient(135deg, #3b0764, #6d28d9); }
-body.dark-theme .dashboard-hero { box-shadow: 0 12px 40px rgba(124,58,237,.25); }
+body.dark-theme .dashboard-hero { box-shadow: 0 12px 40px rgba(0,0,0,.60), inset 0 1px 0 rgba(245,158,11,.22); }
 body.dark-theme #historySearchInput, body.dark-theme #passCheckInput { background: #1a0d00 !important; border-color: var(--border) !important; color: var(--text) !important; }
 body.dark-theme #historySearchInput:focus, body.dark-theme #passCheckInput:focus { background: var(--surface) !important; }
 
