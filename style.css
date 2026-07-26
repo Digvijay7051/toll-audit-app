@@ -391,12 +391,23 @@ html, body {
   border-bottom: 1px solid rgba(255,255,255,.07);
   margin-bottom: 18px;
 }
+@keyframes iconIdleWiggle {
+  0%,  82% { transform: rotate(0deg); }
+  85%       { transform: rotate(-8deg); }
+  88%       { transform: rotate(8deg); }
+  91%       { transform: rotate(-5deg); }
+  94%       { transform: rotate(3deg); }
+  97%       { transform: rotate(0deg); }
+  100%      { transform: rotate(0deg); }
+}
 .sidebar-brand-icon {
   width: 40px; height: 40px; border-radius: 12px;
   background: linear-gradient(135deg, var(--primary), #a78bfa);
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; color: #fff; flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(124,58,237,.45);
+  transform-origin: center;
+  animation: iconIdleWiggle 5s ease-in-out infinite;
 }
 .sidebar-brand-text { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -.2px; }
 .sidebar-brand-sub  { font-size: 10px; color: #c4b5fd; letter-spacing: .06em; font-weight: 700; }
