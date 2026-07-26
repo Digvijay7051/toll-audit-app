@@ -719,11 +719,11 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 /* ── Next Category Button — compact premium pill ── */
 #nextCategoryBtn {
   display: inline-flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, #059669, #10b981);
+  background: linear-gradient(135deg, var(--primary), #f87171);
   border: none; color: #fff; border-radius: 50px;
   padding: 10px 22px; font-weight: 700; font-size: 13px;
   cursor: pointer; margin-bottom: 18px;
-  box-shadow: 0 4px 14px rgba(5,150,105,.35);
+  box-shadow: 0 4px 14px rgba(220,38,38,.35);
   transition: transform var(--transition), box-shadow var(--transition);
   font-family: inherit; letter-spacing: .02em;
   position: relative; overflow: hidden;
@@ -733,7 +733,7 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(255,255,255,.16) 0%, transparent 60%);
 }
-#nextCategoryBtn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 22px rgba(5,150,105,.5); }
+#nextCategoryBtn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 22px rgba(220,38,38,.5); }
 .next-cat-name {
   background: rgba(255,255,255,.22); border-radius: 50px;
   padding: 2px 10px; font-size: 12px; font-weight: 800;
@@ -933,7 +933,7 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 .pass-search-input::placeholder { color: var(--text-muted); font-weight: 500; }
 .pass-search-btn {
   flex-shrink: 0; border: none; cursor: pointer;
-  background: linear-gradient(135deg, var(--primary) 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #f87171 100%);
   color: #fff; font-weight: 700; font-size: 12px; font-family: inherit;
   padding: 9px 18px; border-radius: 0 50px 50px 0;
   transition: filter var(--transition);
@@ -1523,11 +1523,11 @@ body.dark-theme .audit-log-delete-btn:hover { background: #ef4444; color: #fff; 
 ═══════════════════════════════════ */
 .save-report-btn-premium {
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  background: linear-gradient(135deg, #059669 0%, #10b981 60%, #34d399 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #ef4444 60%, #f87171 100%);
   color: #fff; border: none; border-radius: 14px; padding: 15px 20px;
   font-size: 15px; font-weight: 800; font-family: inherit; letter-spacing: .02em;
   cursor: pointer; position: relative; overflow: hidden;
-  box-shadow: 0 6px 24px rgba(5,150,105,.38);
+  box-shadow: 0 6px 24px rgba(220,38,38,.38);
   transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
 }
 .save-report-btn-premium::before {
@@ -1538,7 +1538,7 @@ body.dark-theme .audit-log-delete-btn:hover { background: #ef4444; color: #fff; 
 }
 .save-report-btn-premium:hover {
   transform: translateY(-3px); filter: brightness(1.06);
-  box-shadow: 0 12px 32px rgba(5,150,105,.50);
+  box-shadow: 0 12px 32px rgba(220,38,38,.50);
   color: #fff;
 }
 .save-report-btn-premium:active { transform: scale(.97) !important; }
@@ -1546,7 +1546,7 @@ body.dark-theme .audit-log-delete-btn:hover { background: #ef4444; color: #fff; 
 
 /* Dark mode */
 body.dark-theme .save-report-btn-premium {
-  box-shadow: 0 6px 24px rgba(5,150,105,.25);
+  box-shadow: 0 6px 24px rgba(220,38,38,.25);
 }
 
 /* ═══════════════════════════════════
