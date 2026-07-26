@@ -332,41 +332,6 @@
 
     <!-- ── Premium Hero Section ── -->
     <div class="dashboard-hero">
-        <div class="hero-gate-anim" aria-hidden="true">
-            <!--
-                viewBox: 0 0 70 40
-                Ground line y=34. Post: x=8-12, y=6-34. Arm hinge at (10,10).
-                Car travels from x=-14 to x=70, y=26-34 (under the arm).
-            -->
-            <svg viewBox="0 0 70 40" width="120" height="70" xmlns="http://www.w3.org/2000/svg">
-                <!-- Road base -->
-                <rect x="0" y="34" width="70" height="3" rx="1.5" class="gate-road"/>
-                <!-- Vertical post -->
-                <rect x="8" y="6" width="4" height="28" rx="1.5" class="gate-post"/>
-                <!-- Hinge dot -->
-                <circle cx="10" cy="10" r="2" class="gate-hinge"/>
-                <!-- Barrier arm — rotates around its left end (10,10).
-                     A <g> wrapper lets transform-origin work reliably cross-browser. -->
-                <g class="gate-arm-wrap">
-                    <rect x="10" y="8" width="46" height="4" rx="2" class="gate-arm"/>
-                    <!-- Red/white stripes on arm -->
-                    <rect x="16" y="8" width="5"  height="4" rx="0" class="gate-stripe"/>
-                    <rect x="26" y="8" width="5"  height="4" rx="0" class="gate-stripe"/>
-                    <rect x="36" y="8" width="5"  height="4" rx="0" class="gate-stripe"/>
-                    <rect x="46" y="8" width="5"  height="4" rx="0" class="gate-stripe"/>
-                </g>
-                <!-- Car — slides left→right under the arm -->
-                <g class="gate-car-wrap">
-                    <!-- car body -->
-                    <rect x="0" y="28" width="14" height="6" rx="2" class="gate-car-body"/>
-                    <!-- car cabin roof -->
-                    <rect x="3" y="24" width="7"  height="4" rx="1.5" class="gate-car-roof"/>
-                    <!-- wheels -->
-                    <circle cx="3"  cy="34" r="2" class="gate-wheel"/>
-                    <circle cx="11" cy="34" r="2" class="gate-wheel"/>
-                </g>
-            </svg>
-        </div>
         <div class="hero-content">
             <div class="hero-left">
                 <div class="hero-title">
@@ -393,6 +358,51 @@
                     <div class="hero-stat-lbl">Progress</div>
                 </div>
             </div>
+        </div>
+
+        <!-- Gate + Car animation scene — right side of hero -->
+        <div class="hero-gate-anim" aria-hidden="true">
+            <svg viewBox="0 0 140 90" width="200" height="128" xmlns="http://www.w3.org/2000/svg">
+                <!-- Road surface -->
+                <rect x="0" y="74" width="140" height="16" rx="4" class="gate-road"/>
+                <!-- Road centre dashes -->
+                <rect x="0"   y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <rect x="26"  y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <rect x="52"  y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <rect x="78"  y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <rect x="104" y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <rect x="130" y="81" width="18" height="3" rx="1.5" class="gate-road-dash"/>
+                <!-- Toll booth (right) -->
+                <rect x="108" y="42" width="26" height="32" rx="4" class="gate-booth"/>
+                <rect x="112" y="46" width="8"  height="6"  rx="2" class="gate-booth-win"/>
+                <rect x="122" y="46" width="8"  height="6"  rx="2" class="gate-booth-win"/>
+                <rect x="106" y="39" width="30" height="5"  rx="2" class="gate-booth-roof"/>
+                <!-- Vertical post -->
+                <rect x="18" y="14" width="8" height="60" rx="3" class="gate-post"/>
+                <!-- Hinge dot -->
+                <circle cx="22" cy="22" r="4" class="gate-hinge"/>
+                <!-- Barrier arm -->
+                <g class="gate-arm-wrap">
+                    <rect x="22" y="18" width="86" height="8" rx="3" class="gate-arm"/>
+                    <rect x="30" y="18" width="10" height="8" class="gate-stripe"/>
+                    <rect x="50" y="18" width="10" height="8" class="gate-stripe"/>
+                    <rect x="70" y="18" width="10" height="8" class="gate-stripe"/>
+                    <rect x="90" y="18" width="10" height="8" class="gate-stripe"/>
+                    <circle cx="108" cy="22" r="5" class="gate-hinge"/>
+                </g>
+                <!-- Car -->
+                <g class="gate-car-wrap">
+                    <rect x="0" y="57" width="32" height="14" rx="4" class="gate-car-body"/>
+                    <rect x="6" y="48" width="18" height="10" rx="3" class="gate-car-roof"/>
+                    <rect x="8" y="50" width="5"  height="6"  rx="1" class="gate-car-glass"/>
+                    <rect x="0"  y="60" width="4" height="4" rx="1" class="gate-car-light-front"/>
+                    <rect x="28" y="60" width="4" height="4" rx="1" class="gate-car-light-rear"/>
+                    <circle cx="8"  cy="72" r="5" class="gate-wheel"/>
+                    <circle cx="24" cy="72" r="5" class="gate-wheel"/>
+                    <circle cx="8"  cy="72" r="2" class="gate-wheel-hub"/>
+                    <circle cx="24" cy="72" r="2" class="gate-wheel-hub"/>
+                </g>
+            </svg>
         </div>
     </div>
 
