@@ -207,6 +207,59 @@ async function fbLogoutUser() {
 }
 
 /* ===============================
+   AUTH — GOOGLE SIGN-IN
+   Uses a popup. Works for both first-time
+   sign-up and returning users — Firebase
+   handles both cases automatically.
+   Returns { ok, displayName, isNewUser } or { ok:false, code, message }
+=============================== */
+
+async function fbGoogleSignIn() {
+
+    if (!fbReady || !fbAuth) {
+        return { ok: false, code: "sdk-not-ready", message: "Firebase not ready." };
+    }
+
+    try {
+
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+
+        const result = await fbAuth.signInWithPopup(provider);
+        const user   = result.user;
+
+        fbCurrentUid = user.uid;
+
+        /* Persist the display name from Google into the Firestore user doc
+           so the app can show it the same way as email-registered users. */
+        const displayName = user.displayName || user.email.split("@")[0];
+
+        await fbDb.collection("users").doc(user.uid).set(
+            { username: displayName, email: user.email },
+            { merge: true }
+        );
+
+        const isNewUser = result.additionalUserInfo && result.additionalUserInfo.isNewUser;
+
+        console.log("[Firebase] Google sign-in ✓", displayName, user.uid);
+        return { ok: true, displayName, isNewUser: !!isNewUser };
+
+    } catch (err) {
+
+        /* User closed the popup — treat silently */
+        if (err.code === "auth/popup-closed-by-user" ||
+            err.code === "auth/cancelled-popup-request") {
+            return { ok: false, code: "cancelled" };
+        }
+
+        console.error("[Firebase] Google sign-in error:", err.code, err.message);
+        return { ok: false, code: err.code || "unknown", message: err.message };
+
+    }
+
+}
+
+/* ===============================
    AUTH — RESET PASSWORD
    Sends Firebase password-reset email.
    Returns { success, message }

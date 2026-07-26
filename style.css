@@ -250,6 +250,35 @@ html, body {
 }
 .btn-forgot:hover { color: #f59e0b; }
 
+/* ── Google Sign-In Button ── */
+.btn-google-signin {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: #fff;
+  border: 1.5px solid rgba(255,255,255,.18);
+  border-radius: 12px;
+  padding: 11px 18px;
+  font-size: 13px; font-weight: 600;
+  color: #1f1f1f;
+  cursor: pointer;
+  font-family: var(--font-base);
+  letter-spacing: .01em;
+  transition: box-shadow var(--transition), background var(--transition), transform var(--transition);
+  margin-bottom: 4px;
+}
+.btn-google-signin:hover {
+  background: #f7f7f7;
+  box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  transform: translateY(-1px);
+}
+.btn-google-signin:active { transform: scale(.98); }
+.btn-google-signin:disabled {
+  opacity: .65; cursor: not-allowed; transform: none;
+}
+.google-logo {
+  width: 18px; height: 18px; flex-shrink: 0;
+}
+
 /* ── Divider ── */
 .auth-divider {
   display: flex; align-items: center; gap: 10px; margin: 18px 0;
