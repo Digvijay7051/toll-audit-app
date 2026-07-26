@@ -1192,6 +1192,73 @@ body.dark-theme .pass-search-bar-wrap { background: #1a0d00; border-color: var(-
 body.dark-theme .pass-search-bar-wrap:focus-within { background: var(--surface); }
 body.dark-theme .pass-search-input { color: var(--text); }
 
+/* ── Verify Pass — dedicated section ── */
+.verify-pass-card {
+  border: 1.5px solid rgba(245,158,11,.22) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden;
+}
+.verify-pass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: linear-gradient(100deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid rgba(245,158,11,.15);
+}
+.verify-pass-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.verify-pass-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: rgba(245,158,11,.15);
+  border: 1px solid rgba(245,158,11,.30);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #f59e0b;
+  flex-shrink: 0;
+}
+.verify-pass-title {
+  font-family: var(--font-display);
+  font-size: 18px; font-weight: 700;
+  color: #fff;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.verify-pass-sub {
+  font-family: var(--font-mono);
+  font-size: 10px; color: rgba(255,255,255,.40);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+/* Search bar inside verify-pass gets a dark tint */
+.verify-pass-header .pass-search-bar-wrap {
+  background: rgba(255,255,255,.07);
+  border-color: rgba(245,158,11,.30);
+  max-width: 400px;
+}
+.verify-pass-header .pass-search-bar-wrap:focus-within {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.25);
+  background: rgba(255,255,255,.10);
+}
+.verify-pass-header .pass-search-input {
+  color: #fff;
+}
+.verify-pass-header .pass-search-input::placeholder {
+  color: rgba(255,255,255,.35);
+}
+.verify-pass-header .pass-search-icon {
+  color: rgba(255,255,255,.45);
+}
+
 /* ═══════════════════════════════════
    TABLES — PREMIUM (Report Setup only)
 ═══════════════════════════════════ */

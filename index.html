@@ -517,11 +517,16 @@
         <span class="next-cat-name" id="nextCatNameLabel"></span>
     </button>
 
-    <!-- ── Vehicle Tiles ── -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
-            <strong><i class="bi bi-car-front-fill"></i> Tap a Vehicle Class to Record</strong>
-            <!-- Premium search bar -->
+    <!-- ── Verify Pass Section ── -->
+    <div class="card shadow-sm mb-3 verify-pass-card">
+        <div class="verify-pass-header">
+            <div class="verify-pass-title-wrap">
+                <span class="verify-pass-icon"><i class="bi bi-patch-check-fill"></i></span>
+                <div>
+                    <div class="verify-pass-title">Verify Pass</div>
+                    <div class="verify-pass-sub">Enter vehicle number to check monthly pass status</div>
+                </div>
+            </div>
             <div class="pass-search-bar-wrap">
                 <div class="pass-search-icon">
                     <i class="bi bi-search"></i>
@@ -533,8 +538,14 @@
                 </button>
             </div>
         </div>
-
         <div id="passCheckResult" class="pass-check-result"></div>
+    </div>
+
+    <!-- ── Vehicle Tiles ── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <strong><i class="bi bi-car-front-fill"></i> Tap a Vehicle Class to Record</strong>
+        </div>
 
         <div class="card-body pt-3">
             <div id="vehicleButtons" class="veh-grid">
