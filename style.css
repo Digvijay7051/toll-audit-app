@@ -886,14 +886,30 @@ body.dark-theme .topbar-profile-name { color: var(--text); }
 .hero-lane-line {
   position: relative; z-index: 2; overflow: hidden;
   height: 14px;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgba(245,158,11,.55) 0px,  rgba(245,158,11,.55) 28px,
-      transparent          28px, transparent          48px
-    );
+  background: transparent;          /* strips are on ::before now */
   border-top: 1px solid rgba(245,158,11,.18);
   border-radius: 0 0 20px 20px;
+}
+
+/* Scrolling hazard strips — one tile = 28px amber + 20px gap = 48px */
+.hero-lane-line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* make it 200 % wide so the looping seam is invisible */
+  width: 200%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(245,158,11,.58) 0px,  rgba(245,158,11,.58) 28px,
+    #0d1220                   28px, #0d1220                   48px
+  );
+  animation: laneScroll 2.4s linear infinite;
+  will-change: transform;
+}
+
+@keyframes laneScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-48px); }   /* exactly one tile width = seamless */
 }
 
 /* ── Stat Cards ── */
