@@ -54,9 +54,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    GATE SCREENS  (Login / Welcome / Date)
-═══════════════════════════════════ */
+   Asphalt + Amber toll-gantry aesthetic
+═══════════════════════════════════════════════════════ */
 .gate-screen {
   position: fixed; inset: 0; z-index: 1500;
   display: flex; align-items: center; justify-content: center;
@@ -64,7 +65,7 @@ html, body {
   background: #0d0900;
 }
 
-/* Animated mesh gradient background — asphalt + amber */
+/* Asphalt texture grain overlay */
 .gate-screen::before {
   content: '';
   position: absolute; inset: 0;
@@ -81,161 +82,223 @@ html, body {
   100% { opacity: .85; transform: scale(1); }
 }
 
-/* Floating orbs */
+/* Ambient orbs */
 .gate-screen::after {
   content: '';
   position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(circle 180px at 10% 20%, rgba(255,255,255,.04) 0%, transparent 80%),
-    radial-gradient(circle 120px at 90% 80%, rgba(255,255,255,.03) 0%, transparent 80%);
+    radial-gradient(circle 180px at 10% 20%, rgba(255,255,255,.03) 0%, transparent 80%),
+    radial-gradient(circle 120px at 90% 80%, rgba(255,255,255,.02) 0%, transparent 80%);
 }
 
-/* Road line */
+/* Animated dashed road line across screen bottom */
 .gate-road-line {
-  position: absolute; top: 50%; left: -10%; width: 120%; height: 2px;
-  transform: translateY(160px) rotate(-2deg);
+  position: absolute; bottom: 28px; left: -10%; width: 120%; height: 3px;
   background: repeating-linear-gradient(90deg,
-    rgba(255,255,255,.35) 0, rgba(255,255,255,.35) 32px,
-    transparent 32px, transparent 64px);
-  opacity: .10;
-  animation: roadMove 5s linear infinite;
+    rgba(245,158,11,.55) 0, rgba(245,158,11,.55) 28px,
+    transparent 28px, transparent 48px);
+  animation: roadMove 3s linear infinite;
+  z-index: 1;
 }
 @keyframes roadMove {
   from { background-position-x: 0; }
-  to   { background-position-x: -64px; }
+  to   { background-position-x: -76px; }
 }
 
-/* ── Auth Card ── */
-.auth-card {
+/* ════════════════════════════════
+   SHARED GATE CARD BASE
+   Used by auth-card, welcome-card, date-card
+════════════════════════════════ */
+.auth-card,
+.welcome-card {
   position: relative; z-index: 2;
-  background: rgba(255,255,255,.96);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border-radius: 28px;
-  padding: 44px 40px;
-  width: 100%; max-width: 430px;
-  box-shadow: 0 40px 100px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.18);
-  animation: cardIn .5s cubic-bezier(.22,.68,0,1.15) both;
+  /* Asphalt dark card */
+  background: #1c1b18;
+  border: 1px solid rgba(245,158,11,.22);
+  border-radius: 20px;
+  overflow: hidden;
+  width: 100%;
+  box-shadow:
+    0 40px 80px rgba(0,0,0,.60),
+    0 0 0 1px rgba(245,158,11,.10),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  animation: cardIn .45s cubic-bezier(.22,.68,0,1.15) both;
 }
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(36px) scale(.96); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
+.auth-card  { max-width: 430px; }
+.welcome-card { max-width: 400px; text-align: center; }
+
+/* Top gantry micro-strip on every card */
+.auth-card::before,
+.welcome-card::before {
+  content: 'RODWAL TOLL PLAZA  ·  AUDIT SYSTEM';
+  display: block;
+  background: rgba(0,0,0,.45);
+  border-bottom: 1px solid rgba(245,158,11,.20);
+  padding: 6px 20px;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 600; letter-spacing: .14em;
+  color: rgba(245,158,11,.65);
+  text-transform: uppercase;
 }
 
-/* Brand / logo inside auth card */
+/* Bottom lane-marking line on every card */
+.auth-card::after,
+.welcome-card::after {
+  content: '';
+  display: block;
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(245,158,11,.50) 0px,  rgba(245,158,11,.50) 22px,
+    transparent          22px, transparent          38px
+  );
+  border-top: 1px solid rgba(245,158,11,.15);
+}
+
+/* Inner padding wrapper — sits between ::before and ::after */
+.auth-card-body,
+.welcome-card-body {
+  padding: 28px 34px 24px;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(32px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Brand / logo ── */
 .auth-brand {
-  display: flex; align-items: center; justify-content: center; gap: 11px;
-  font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 4px;
-  letter-spacing: -.4px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-bottom: 4px;
+}
+.auth-brand-name {
+  font-family: var(--font-display);
+  font-size: 28px; font-weight: 700; color: #fff;
+  letter-spacing: .06em; text-transform: uppercase;
 }
 .auth-brand i {
-  width: 46px; height: 46px; border-radius: 14px;
+  width: 48px; height: 48px; border-radius: 14px;
   background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: #fff;
-  box-shadow: 0 6px 20px rgba(217,119,6,.45);
+  font-size: 24px; color: #fff;
+  box-shadow: 0 6px 20px rgba(217,119,6,.50);
 }
 .auth-tagline {
-  color: var(--text-muted); font-size: 13px; text-align: center;
-  margin-bottom: 30px; font-weight: 500;
+  font-family: var(--font-mono);
+  color: rgba(255,255,255,.38); font-size: 11px; text-align: center;
+  margin-bottom: 26px; font-weight: 400; letter-spacing: .05em;
 }
 
-/* Input fields on auth */
+/* ── Inputs ── */
 .auth-card .form-label {
-  font-size: 12px; font-weight: 700; color: var(--text);
-  display: block; margin-bottom: 5px; letter-spacing: .02em; text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600; color: rgba(245,158,11,.80);
+  display: block; margin-bottom: 6px; letter-spacing: .1em; text-transform: uppercase;
 }
 .auth-card .form-control {
-  border: 1.5px solid #e2e0d8; border-radius: 12px;
-  padding: 12px 15px; font-size: 14px; color: var(--text);
-  background: #fafaf8;
+  border: 1.5px solid rgba(245,158,11,.22); border-radius: 10px;
+  padding: 12px 15px; font-size: 14px;
+  color: #e8e5de; background: rgba(255,255,255,.06);
   transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
-  font-family: inherit;
+  font-family: var(--font-base);
 }
+.auth-card .form-control::placeholder { color: rgba(255,255,255,.25); }
 .auth-card .form-control:focus {
-  border-color: var(--primary);
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(217,119,6,.13);
-  outline: none;
+  border-color: #f59e0b;
+  background: rgba(245,158,11,.08);
+  box-shadow: 0 0 0 3px rgba(217,119,6,.18);
+  outline: none; color: #fff;
 }
 
+/* ── Primary button ── */
 .btn-auth-primary {
   width: 100%; padding: 13px; border: none;
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  color: #fff; border-radius: 12px; font-weight: 800; font-size: 15px;
+  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
+  color: #fff; border-radius: 10px;
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 16px; letter-spacing: .08em; text-transform: uppercase;
   cursor: pointer; margin-top: 8px;
   transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
-  box-shadow: 0 6px 22px rgba(217,119,6,.40);
-  letter-spacing: .01em; font-family: inherit;
+  box-shadow: 0 6px 22px rgba(217,119,6,.45);
   position: relative; overflow: hidden;
 }
 .btn-auth-primary::before {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.14) 0%, transparent 60%);
+  background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, transparent 55%);
 }
-.btn-auth-primary:hover  { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(217,119,6,.50); filter: brightness(1.06); }
+.btn-auth-primary:hover  { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(217,119,6,.55); filter: brightness(1.06); }
 .btn-auth-primary:active { transform: scale(.97); }
 
+/* ── Secondary / ghost button ── */
 .btn-auth-secondary {
-  width: 100%; padding: 12px; border: 1.5px solid var(--primary);
-  background: transparent; color: var(--primary); border-radius: 12px;
-  font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px;
-  transition: background var(--transition), color var(--transition);
-  font-family: inherit;
+  width: 100%; padding: 11px; border: 1.5px solid rgba(245,158,11,.35);
+  background: transparent; color: #f59e0b; border-radius: 10px;
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; margin-top: 8px;
+  transition: background var(--transition), border-color var(--transition);
 }
-.btn-auth-secondary:hover { background: var(--primary-soft); }
+.btn-auth-secondary:hover { background: rgba(245,158,11,.10); border-color: #f59e0b; }
 
+/* ── Forgot / link buttons ── */
 .btn-forgot {
-  background: none; border: none; color: var(--text-muted); font-size: 12px;
+  background: none; border: none; color: rgba(255,255,255,.35); font-size: 12px;
   cursor: pointer; width: 100%; text-align: center; margin-top: 10px;
-  transition: color var(--transition); font-family: inherit; font-weight: 600;
+  transition: color var(--transition); font-family: var(--font-mono); font-weight: 600;
+  letter-spacing: .04em;
 }
-.btn-forgot:hover { color: var(--primary); }
+.btn-forgot:hover { color: #f59e0b; }
 
+/* ── Divider ── */
 .auth-divider {
   display: flex; align-items: center; gap: 10px; margin: 18px 0;
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.25); font-size: 11px; font-weight: 600;
+  font-family: var(--font-mono); letter-spacing: .06em;
 }
 .auth-divider::before, .auth-divider::after {
-  content: ''; flex: 1; height: 1px; background: var(--border);
+  content: ''; flex: 1; height: 1px; background: rgba(245,158,11,.18);
 }
 
 /* ── Auth Tab Bar (Email / Quick PIN) ── */
 .auth-tab-bar {
-  display: flex; gap: 6px; margin-bottom: 22px;
-  background: #fffbeb; border-radius: 14px; padding: 5px;
+  display: flex; gap: 5px; margin-bottom: 22px;
+  background: rgba(0,0,0,.30); border-radius: 12px; padding: 5px;
+  border: 1px solid rgba(245,158,11,.14);
 }
 .auth-tab {
-  flex: 1; border: none; border-radius: 10px;
-  padding: 9px 8px; font-size: 12px; font-weight: 700;
-  cursor: pointer; font-family: inherit; color: var(--text-muted);
+  flex: 1; border: none; border-radius: 9px;
+  padding: 9px 8px; font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: var(--font-mono);
+  color: rgba(255,255,255,.40); letter-spacing: .06em; text-transform: uppercase;
   background: transparent;
   transition: background var(--transition), color var(--transition), box-shadow var(--transition);
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .auth-tab.active {
-  background: #fff; color: var(--primary);
-  box-shadow: 0 2px 8px rgba(217,119,6,.18);
+  background: rgba(217,119,6,.22); color: #fbbf24;
+  box-shadow: 0 2px 8px rgba(217,119,6,.25);
+  border: 1px solid rgba(245,158,11,.30);
 }
 
-/* ── PIN Login ── */
+/* ── PIN dots ── */
 .pin-login-sub {
-  text-align: center; color: var(--text-muted);
-  font-size: 13px; font-weight: 600; margin-bottom: 20px;
+  text-align: center; color: rgba(255,255,255,.40);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  margin-bottom: 20px; letter-spacing: .06em; text-transform: uppercase;
 }
 .pin-dots {
   display: flex; justify-content: center; gap: 16px; margin-bottom: 10px;
 }
 .pin-dot {
   width: 18px; height: 18px; border-radius: 50%;
-  border: 2.5px solid #d1d5db; background: transparent;
+  border: 2.5px solid rgba(255,255,255,.20); background: transparent;
   transition: background .15s ease, border-color .15s ease, transform .15s ease;
 }
 .pin-dot.filled {
-  background: var(--primary); border-color: var(--primary);
+  background: #f59e0b; border-color: #f59e0b;
   transform: scale(1.15);
-  box-shadow: 0 0 0 4px rgba(217,119,6,.18);
+  box-shadow: 0 0 0 4px rgba(217,119,6,.25);
 }
 .pin-dot.error {
   background: var(--danger); border-color: var(--danger);
@@ -248,120 +311,144 @@ html, body {
   60%      { transform: translateX(-5px); }
   80%      { transform: translateX(3px); }
 }
+
+/* ── PIN numpad ── */
 .pin-numpad {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 10px; margin: 18px 0 6px;
+  gap: 8px; margin: 18px 0 6px;
 }
 .pin-key {
-  height: 56px; border-radius: 14px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8f9ff; color: var(--text);
-  font-size: 20px; font-weight: 700; font-family: inherit;
+  height: 56px; border-radius: 12px;
+  border: 1px solid rgba(245,158,11,.18);
+  background: rgba(255,255,255,.06); color: #e8e5de;
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background var(--transition), transform .1s ease, box-shadow .1s ease, border-color var(--transition);
   user-select: none;
 }
-.pin-key:hover  { background: var(--primary-soft); border-color: rgba(217,119,6,.3); }
-.pin-key:active { transform: scale(.91); background: #fde68a; box-shadow: none; }
-.pin-key-del    { font-size: 16px; color: var(--text-muted); }
-.pin-key-clear  { font-size: 15px; color: var(--danger); border-color: #fde68a; background: #fffbeb; }
-.pin-key-clear:hover { background: #fef3c7; border-color: var(--danger); }
+.pin-key:hover  { background: rgba(217,119,6,.16); border-color: rgba(245,158,11,.45); color: #fbbf24; }
+.pin-key:active { transform: scale(.91); background: rgba(217,119,6,.30); box-shadow: none; }
+.pin-key-del    { font-size: 16px; color: rgba(255,255,255,.45); }
+.pin-key-clear  { font-size: 13px; font-family: var(--font-mono); color: var(--danger); border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.06); }
+.pin-key-clear:hover { background: rgba(239,68,68,.14); border-color: var(--danger); }
 
-/* ── PIN Setup Modal (post-login offer) ── */
+/* ── PIN Setup Modal ── */
 .pin-setup-overlay {
   position: fixed; inset: 0; z-index: 2500;
-  background: rgba(7,6,26,.72); backdrop-filter: blur(8px);
+  background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
-  padding: 20px;
-  opacity: 0; pointer-events: none;
+  padding: 20px; opacity: 0; pointer-events: none;
   transition: opacity .28s ease;
 }
 .pin-setup-overlay.active { opacity: 1; pointer-events: all; }
 .pin-setup-card {
-  background: #fff; border-radius: 28px; padding: 38px 34px;
+  background: #1c1b18; border-radius: 20px; padding: 32px 28px;
   width: 100%; max-width: 360px; text-align: center;
-  box-shadow: 0 40px 100px rgba(0,0,0,.45);
+  border: 1px solid rgba(245,158,11,.22);
+  box-shadow: 0 40px 80px rgba(0,0,0,.60);
   animation: cardIn .4s cubic-bezier(.22,.68,0,1.15) both;
 }
 .pin-setup-icon  { font-size: 44px; margin-bottom: 14px; }
-.pin-setup-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
-.pin-setup-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; font-weight: 500; }
+.pin-setup-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase; }
+.pin-setup-sub   { font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,.40); margin-bottom: 24px; font-weight: 400; letter-spacing: .04em; }
 .pin-setup-dots  { display: flex; justify-content: center; gap: 14px; margin-bottom: 6px; }
 .pin-setup-numpad {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 9px; margin: 16px 0 14px;
+  gap: 8px; margin: 16px 0 14px;
 }
 .pin-setup-actions { display: flex; flex-direction: column; gap: 8px; }
-.pin-setup-step { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
-
-.auth-switch { color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 16px; }
-.btn-link-plain {
-  background: none; border: none; color: var(--primary);
-  font-weight: 800; font-size: 13px; cursor: pointer; padding: 0; font-family: inherit;
+.pin-setup-step {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  color: #f59e0b; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px;
 }
-.btn-link-plain:hover { text-decoration: underline; }
+
+.auth-switch { color: rgba(255,255,255,.35); font-size: 12px; text-align: center; margin-top: 16px; font-family: var(--font-mono); letter-spacing: .03em; }
+.btn-link-plain {
+  background: none; border: none; color: #f59e0b;
+  font-weight: 700; font-size: 12px; cursor: pointer; padding: 0; font-family: var(--font-mono);
+}
+.btn-link-plain:hover { text-decoration: underline; color: #fbbf24; }
 
 /* ── Profile modal section label ── */
 .profile-section-label {
-  font-size: 12px; font-weight: 800; color: var(--primary);
-  text-transform: uppercase; letter-spacing: .07em;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600; color: #f59e0b;
+  text-transform: uppercase; letter-spacing: .1em;
   display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
 }
-.profile-section-label i { font-size: 13px; }
+.profile-section-label i { font-size: 12px; }
 
 /* Compact numpad variant (inside modal) */
 .pin-numpad--sm { margin: 10px 0 4px; }
-.pin-numpad--sm .pin-key { height: 46px; font-size: 17px; border-radius: 11px; }
+.pin-numpad--sm .pin-key { height: 46px; font-size: 18px; border-radius: 10px; }
 
 /* Manage row (Change / Remove buttons side by side) */
-.qp-manage-row {
-  display: flex; gap: 10px; flex-wrap: wrap;
-}
+.qp-manage-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* ── Welcome Card ── */
-.welcome-card {
-  position: relative; z-index: 2;
-  background: rgba(255,255,255,.96);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border-radius: 28px; padding: 44px 40px;
-  width: 100%; max-width: 400px; text-align: center;
-  box-shadow: 0 40px 100px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.18);
-  animation: cardIn .5s cubic-bezier(.22,.68,0,1.15) both;
-}
+/* ════════════════════════════════
+   WELCOME CARD
+════════════════════════════════ */
 .avatar-circle {
-  width: 82px; height: 82px; border-radius: 50%;
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  border: 3px solid var(--primary);
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(135deg, #78350f, #d97706);
+  border: 3px solid #f59e0b;
   display: flex; align-items: center; justify-content: center;
-  font-size: 40px; margin: 0 auto 18px;
+  font-size: 38px; margin: 0 auto 16px;
   cursor: pointer;
   transition: transform var(--transition), box-shadow var(--transition);
-  box-shadow: 0 6px 20px rgba(217,119,6,.22);
+  box-shadow: 0 6px 20px rgba(217,119,6,.35);
 }
-.avatar-circle:hover { transform: scale(1.09); box-shadow: 0 10px 30px rgba(217,119,6,.34); }
-.welcome-card h2 { font-size: 25px; font-weight: 800; color: var(--text); margin-bottom: 6px; letter-spacing: -.3px; }
-.welcome-sub { color: var(--text-muted); font-size: 14px; margin-bottom: 26px; font-weight: 500; }
+.avatar-circle:hover { transform: scale(1.09); box-shadow: 0 10px 30px rgba(217,119,6,.50); }
+
+.welcome-card h2 {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 700; color: #fff;
+  margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase;
+}
+.welcome-sub {
+  font-family: var(--font-mono);
+  color: rgba(255,255,255,.40); font-size: 11px;
+  margin-bottom: 24px; letter-spacing: .04em;
+}
 .start-audit-btn {
   width: 100%; padding: 14px; border: none;
-  background: linear-gradient(135deg, var(--primary) 0%, #fbbf24 100%);
-  color: #fff; border-radius: 13px; font-weight: 800; font-size: 16px;
-  cursor: pointer; box-shadow: 0 6px 24px rgba(217,119,6,.42);
+  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
+  color: #fff; border-radius: 10px;
+  font-family: var(--font-display); font-weight: 600; font-size: 17px;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; box-shadow: 0 6px 24px rgba(217,119,6,.45);
   transition: transform var(--transition), box-shadow var(--transition);
-  font-family: inherit; position: relative; overflow: hidden;
+  position: relative; overflow: hidden;
 }
 .start-audit-btn::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.14) 0%, transparent 60%);
+  background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, transparent 55%);
 }
-.start-audit-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(217,119,6,.52); }
+.start-audit-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(217,119,6,.55); }
 .welcome-logout {
-  background: none; border: none; color: var(--text-muted); font-size: 13px;
+  background: none; border: none; color: rgba(255,255,255,.30); font-size: 12px;
   cursor: pointer; display: block; width: 100%; margin-top: 16px;
-  transition: color var(--transition); font-family: inherit; font-weight: 600;
+  transition: color var(--transition); font-family: var(--font-mono);
+  font-weight: 600; letter-spacing: .04em;
 }
 .welcome-logout:hover { color: var(--danger); }
-.welcome-icon { font-size: 50px; color: var(--primary); margin-bottom: 14px; display: block; }
+.welcome-icon { font-size: 48px; color: #f59e0b; margin-bottom: 12px; display: block; }
+
+/* Date input inside dark welcome-card */
+.welcome-card .form-control {
+  border: 1.5px solid rgba(245,158,11,.25); border-radius: 10px;
+  padding: 12px 15px; font-size: 15px;
+  color: #e8e5de; background: rgba(255,255,255,.06);
+  font-family: var(--font-mono); letter-spacing: .04em;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  color-scheme: dark;
+}
+.welcome-card .form-control:focus {
+  border-color: #f59e0b;
+  background: rgba(245,158,11,.08);
+  box-shadow: 0 0 0 3px rgba(217,119,6,.18);
+  outline: none; color: #fff;
+}
 
 /* ═══════════════════════════════════
    APP LAYOUT
