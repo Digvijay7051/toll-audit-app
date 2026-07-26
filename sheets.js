@@ -155,7 +155,9 @@ function validateCountsMatch(bucket) {
    Returns { success, message }
 =============================== */
 
-async function submitAuditToSheet(notes) {
+/* prebuilt: optional { rows, snapshot } passed from the button handler
+   when data was already built during the notes prompt — skips rebuild. */
+async function submitAuditToSheet(notes, prebuilt) {
 
     const date   = selectedAuditDate || getTodayKey();
     const bucket = auditDataStore[date];
@@ -164,15 +166,12 @@ async function submitAuditToSheet(notes) {
         return { success: false, message: "Is date ka koi audit data nahi mila." };
     }
 
-    /* ── VALIDATION: checked count must match report count ── */
+    /* Validation (fast — synchronous) */
     const mismatches = validateCountsMatch(bucket);
-
     if (mismatches.length > 0) {
-
         const lines = mismatches.map(m =>
             `  • ${m.mode} › ${m.category}: Report=${m.reportCount}, Checked=${m.checkedCount} (${m.reportCount - m.checkedCount} baki)`
         );
-
         return {
             success: false,
             message:
@@ -180,47 +179,34 @@ async function submitAuditToSheet(notes) {
                 lines.join("\n") +
                 "\n\nPehle in sabhi categories ka audit pura karo, phir save karo."
         };
-
     }
 
-    const rows = buildAuditRows(bucket);
+    /* Use pre-built data if caller already computed it, otherwise build now */
+    const rows     = (prebuilt && prebuilt.rows)     || buildAuditRows(bucket);
+    const snapshot = (prebuilt && prebuilt.snapshot) || buildReportCountsSnapshot(bucket);
 
     if (rows.length === 0) {
         return { success: false, message: "Koi transaction nahi mila. Pehle kuch vehicles add karo." };
-    }
-
-    /* Ensure Firebase is ready before attempting to save */
-    if (typeof waitForFirebase === "function") {
-        const ready = await waitForFirebase(6000);
-        if (!ready) {
-            return { success: false, message: "Firebase connect nahi hua. Internet check karo aur dobara try karo." };
-        }
     }
 
     if (typeof fbSaveAuditLog !== "function") {
         return { success: false, message: "Firebase function load nahi hua. Page reload karke try karo." };
     }
 
-    /* Check user is logged in */
     if (typeof fbAuth !== "undefined" && fbAuth && !fbAuth.currentUser) {
         return { success: false, message: "Aap logged in nahi hain. Please sign in karke dobara try karo." };
     }
 
-    /* Save rows + full reportCounts snapshot so history is always
-       complete when viewed from any device / any browser / any year */
-    const logData = {
-        notes:         notes || "",
+    const result = await fbSaveAuditLog(date, {
+        notes:         notes    || "",
         rows:          rows,
-        reportCounts:  buildReportCountsSnapshot(bucket)
-    };
-
-    const result = await fbSaveAuditLog(date, logData);
+        reportCounts:  snapshot
+    });
 
     if (!result.ok) {
-        /* Surface the real error code so the user can act on it */
         let hint = "Internet connection check karo aur dobara try karo.";
-        if (result.code === "not-signed-in")  hint = "Aap logged out ho gaye hain. Page reload karke dobara sign in karo.";
-        if (result.code === "sdk-not-ready")  hint = "Firebase load nahi hua. Page reload karke try karo.";
+        if (result.code === "not-signed-in")     hint = "Aap logged out ho gaye hain. Page reload karke dobara sign in karo.";
+        if (result.code === "sdk-not-ready")     hint = "Firebase load nahi hua. Page reload karke try karo.";
         if (result.code === "permission-denied") hint = "Permission denied — Firestore rules check karo ya admin se contact karo.";
         return {
             success: false,
@@ -396,62 +382,69 @@ document.addEventListener("DOMContentLoaded", () => {
 
         submitBtn.addEventListener("click", async function () {
 
-            /* Pre-flight validation before asking for notes —
-               show the full incomplete list so user knows what to fix */
             const date   = selectedAuditDate || getTodayKey();
             const bucket = auditDataStore && auditDataStore[date];
 
+            /* ── Step 1: validate BEFORE prompt (instant, no async) ── */
             if (bucket) {
-
                 const mismatches = validateCountsMatch(bucket);
-
                 if (mismatches.length > 0) {
-
                     const lines = mismatches.map(m =>
                         `• ${m.mode} › ${m.category}: Report=${m.reportCount}, Checked=${m.checkedCount} (${m.reportCount - m.checkedCount} baki)`
                     );
-
                     alert(
                         "⚠️ Audit Save Nahi Ho Sakta\n\n" +
                         "Pehle in sabhi categories ka audit pura karo:\n\n" +
                         lines.join("\n") +
                         "\n\nSabhi categories complete hone ke baad hi Save hoga."
                     );
-
                     return;
-
                 }
-
             }
 
+            /* ── Step 2: kick off Firebase warm-up + data build IN PARALLEL
+               with the notes prompt — by the time user clicks OK, both are done ── */
+            const warmupPromise = (typeof waitForFirebase === "function")
+                ? waitForFirebase(6000)
+                : Promise.resolve(true);
+
+            /* Pre-build rows & snapshot synchronously (no await needed) */
+            const rows     = bucket ? buildAuditRows(bucket)              : [];
+            const snapshot = bucket ? buildReportCountsSnapshot(bucket)   : {};
+
+            /* ── Step 3: show prompt (blocks UI, but warmup runs behind it) ── */
             const notes = prompt(
                 "Optional: Is audit ke liye koi note add karo\n(e.g. 'Night shift', 'Entry lane only')\n\nKhali rehne do aur OK dabao agar nahi chahiye.",
                 ""
             );
-
             if (notes === null) return;   /* user cancelled */
 
+            /* ── Step 4: button disabled, check warmup result ── */
             submitBtn.disabled    = true;
             submitBtn.textContent = "Saving…";
 
-            const result = await submitAuditToSheet(notes);
+            const ready = await warmupPromise;
+            if (!ready) {
+                submitBtn.disabled  = false;
+                submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill"></i> Save Audit Log';
+                alert("Firebase connect nahi hua. Internet check karo aur dobara try karo.");
+                return;
+            }
+
+            /* ── Step 5: fire Firestore write immediately ── */
+            const result = await submitAuditToSheet(notes, { rows, snapshot });
 
             submitBtn.disabled  = false;
             submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill"></i> Save Audit Log';
 
             if (result.success) {
-
                 if (typeof showToast === "function") {
                     showToast("Audit Saved ✓", result.message.split("\n")[0], "success", 5000);
                 } else {
                     alert(result.message);
                 }
-
             } else {
-
-                /* Show full message via alert so multi-line errors are fully readable */
                 alert(result.message);
-
             }
 
         });

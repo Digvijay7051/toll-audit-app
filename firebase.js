@@ -275,13 +275,11 @@ async function fbSaveAuditLog(dateKey, logData) {
         return { ok: false, code: "sdk-not-ready" };
     }
 
-    /* Always wait for the auth state to be confirmed before reading UID.
-       On slow connections onAuthStateChanged can fire after waitForFirebase. */
-    await fbAuthReady;
-
+    /* Wait for auth state only when UID isn't cached yet — avoids an extra
+       async tick on every normal save when the user is already signed in. */
     const uid = (fbAuth && fbAuth.currentUser)
         ? fbAuth.currentUser.uid
-        : fbCurrentUid;
+        : fbCurrentUid || (await fbAuthReady, fbCurrentUid);
 
     if (!uid) {
         console.warn("[Firebase] fbSaveAuditLog: no UID — user not signed in");
@@ -541,12 +539,14 @@ async function fbSubmitAuditLog(logEntry) {
 
 function waitForFirebase(timeoutMs = 5000) {
 
-    return new Promise((resolve) => {
+    /* Already ready — resolve synchronously (zero wait) */
+    if (fbReady) return Promise.resolve(true);
 
-        if (fbReady) { resolve(true); return; }
+    return new Promise((resolve) => {
 
         const start = Date.now();
 
+        /* Poll at 20 ms instead of 100 ms — resolves ~5× faster on slow starts */
         const check = setInterval(() => {
 
             if (fbReady) {
@@ -557,7 +557,7 @@ function waitForFirebase(timeoutMs = 5000) {
                 resolve(false);
             }
 
-        }, 100);
+        }, 20);
 
     });
 
