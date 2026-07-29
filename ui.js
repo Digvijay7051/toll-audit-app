@@ -753,6 +753,11 @@ function refreshUI() {
 
     updateHeroSection();
 
+    /* Re-run motion stagger on newly rendered elements */
+    if (typeof window.motionRefresh === "function") {
+        requestAnimationFrame(window.motionRefresh);
+    }
+
 }
 
 /* ===============================
