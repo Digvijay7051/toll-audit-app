@@ -279,7 +279,54 @@ function collapseReportSetupPanel() {
 
 /* ===============================
    VEHICLE BUTTON
+   Optimised for rapid tapping:
+   • Instant in-place DOM patch (no full re-render)
+   • Debounced heavy save (localStorage + Firestore)
+   • Debounced full refreshUI (history list etc.)
 =============================== */
+
+/* Debounce helpers ─────────────────────────── */
+let _saveTimer    = null;
+let _refreshTimer = null;
+
+function _debouncedSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => saveAuditData(), 400);
+}
+function _debouncedFullRefresh() {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(() => {
+        renderVehicleCounts();
+        renderTransactionHistory();
+        handleCategoryCompletion();
+    }, 150);
+}
+
+/* Instant micro-update: only patches the numbers that changed */
+function _microUpdateAfterClick() {
+    /* 1. Progress bar */
+    if (typeof updateDashboard === "function") updateDashboard();
+    /* 2. Hero stat numbers (no 520ms count-up — just set directly) */
+    const bucket = auditDataStore[selectedAuditDate];
+    if (bucket) {
+        let totalTxn = 0, totalRpt = 0;
+        AUDIT_MODES.forEach(mode => {
+            const md = bucket[mode]; if (!md) return;
+            REPORT_CATEGORIES.forEach(cat => {
+                const c = md[cat]; if (!c) return;
+                totalTxn += (c.transactions || []).length;
+                totalRpt += (c.reportCount  || 0);
+            });
+        });
+        const remaining = Math.max(0, totalRpt - totalTxn);
+        const pct = totalRpt > 0 ? Math.min(100, Math.round((totalTxn / totalRpt) * 100)) : 0;
+        const setN = (id, v, s) => { const e = document.getElementById(id); if (e) { e.textContent = v + (s||""); e.classList.remove("num-pop"); void e.offsetWidth; e.classList.add("num-pop"); setTimeout(()=>e.classList.remove("num-pop"),300); }};
+        setN("heroTotalTxn",  totalTxn);
+        setN("heroChecked",   totalTxn);
+        setN("heroRemaining", remaining);
+        setN("heroProgress",  pct, "%");
+    }
+}
 
 function vehicleButtonClicked(vehicle) {
 
@@ -297,8 +344,7 @@ function vehicleButtonClicked(vehicle) {
 
     }
 
-    const success =
-        addTransaction(vehicle);
+    const success = addTransaction(vehicle);
 
     if (!success) {
 
@@ -312,11 +358,12 @@ function vehicleButtonClicked(vehicle) {
 
     }
 
-    saveAuditData();
+    /* Instant visual feedback — no blocking */
+    _microUpdateAfterClick();
 
-    refreshUI();
-
-    handleCategoryCompletion();
+    /* Debounced heavy work */
+    _debouncedSave();
+    _debouncedFullRefresh();
 
 }
 

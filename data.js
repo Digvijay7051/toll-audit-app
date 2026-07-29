@@ -800,120 +800,167 @@ function buildAuditMatrix(mode) {
 
 /* ===============================
    SAVE
+   Architecture (scalable to 1 lakh+ txns):
+   • localStorage  — always, instant, offline-first
+   • Firestore     — per-date document in userAuditLogs
+                     only the active date is synced on each save
+                     (NOT the whole store as a JSON blob — that
+                     hits the 1MB doc limit quickly)
+   • Debounced Firestore write — max once per 2 s so rapid
+     tapping never floods the network
 =============================== */
+
+let _fsyncTimer = null;
 
 function saveAuditData() {
 
-    /* Always save to localStorage (works offline) */
-
+    /* 1. localStorage — always synchronous, instant */
     localStorage.setItem(
-
         getAuditStorageKey(),
-
         JSON.stringify(auditDataStore)
-
     );
 
-    /* Also sync to Firestore in the background (non-blocking) */
+    /* 2. Firestore — debounced, only current date's bucket */
+    clearTimeout(_fsyncTimer);
+    _fsyncTimer = setTimeout(() => {
+        _syncCurrentDateToFirestore();
+    }, 2000);
 
-    if (typeof fbSaveAuditData === "function") {
-
-        fbSaveAuditData(auditDataStore);
-
+    /* 3. Sidebar history panel */
+    if (typeof renderHistoryPanel === "function") {
+        renderHistoryPanel();
     }
 
-    if (typeof renderHistoryPanel === "function") {
+}
 
-        renderHistoryPanel();
+/* Syncs only the active date's bucket to Firestore as a
+   userAuditLogs document. This is safe for 1 lakh+ txns because
+   each date is its own document — no single-blob 1MB limit. */
+async function _syncCurrentDateToFirestore() {
 
+    if (typeof fbDb === "undefined" || !fbDb) return;
+    if (typeof fbAuth === "undefined" || !fbAuth || !fbAuth.currentUser) return;
+
+    const dateKey = selectedAuditDate || getTodayKey();
+    const bucket  = auditDataStore[dateKey];
+    if (!bucket) return;
+
+    const uid = fbAuth.currentUser.uid;
+
+    try {
+        await fbDb.collection("userAuditLogs")
+            .doc(`${uid}_${dateKey}`)
+            .set({
+                uid,
+                dateKey,
+                autoSavedAt: new Date().toISOString(),
+                auditBucket: JSON.stringify(bucket)  /* compressed bucket */
+            }, { merge: true });
+    } catch (e) {
+        /* Silent — offline / permission errors should not interrupt work */
+        console.warn("[AutoSync] Firestore sync failed:", e.code || e.message);
     }
 
 }
 
 /* ===============================
    LOAD
+   1. Reads localStorage first (instant)
+   2. Then fetches ALL userAuditLogs docs for this user
+      from Firestore and merges them in — so data from
+      any previous device/session appears immediately.
 =============================== */
 
 function loadAuditData() {
 
-    const data =
-
-        localStorage.getItem(
-
-            getAuditStorageKey()
-
-        );
-
+    /* Always read from localStorage first (instant, offline-safe) */
+    const data = localStorage.getItem(getAuditStorageKey());
     auditDataStore = data ? JSON.parse(data) : {};
-
     migrateAuditDataStore();
 
-    /* Restore whichever date the user was last working on */
-
-    const lastDate =
-        loadSelectedAuditDate() || getTodayKey();
-
+    const lastDate = loadSelectedAuditDate() || getTodayKey();
     setActiveAuditDate(lastDate);
 
-    /* In parallel: try to load from Firestore (cloud sync) */
-    /* If Firestore has newer/more data, merge it in         */
+    /* Background: fetch all dates from Firestore userAuditLogs collection */
+    _mergeAllDatesFromFirestore();
 
-    if (typeof fbLoadAuditData === "function") {
+}
 
-        fbLoadAuditData().then((cloudStore) => {
+async function _mergeAllDatesFromFirestore() {
 
-            if (!cloudStore) return;
+    if (typeof fbDb === "undefined" || !fbDb) return;
 
-            /* Merge: cloud dates take precedence over local */
+    /* Wait until auth state is known */
+    if (typeof fbAuthReady !== "undefined") await fbAuthReady;
 
-            let merged = false;
+    if (typeof fbAuth === "undefined" || !fbAuth || !fbAuth.currentUser) return;
 
-            Object.keys(cloudStore).forEach((dateKey) => {
+    const uid    = fbAuth.currentUser.uid;
+    const prefix = uid + "_";
 
-                if (!auditDataStore[dateKey]) {
+    try {
+        const snap = await fbDb.collection("userAuditLogs")
+            .orderBy(firebase.firestore.FieldPath.documentId())
+            .startAt(prefix)
+            .endAt(prefix + "\uf8ff")
+            .get();
 
-                    auditDataStore[dateKey] = cloudStore[dateKey];
+        if (snap.empty) return;
 
-                    merged = true;
+        let merged = false;
 
-                }
+        snap.docs.forEach(doc => {
+            const d = doc.data();
+            const dateKey = d.dateKey || doc.id.replace(prefix, "");
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
 
-            });
-
-            if (merged) {
-
-                /* Persist merged data back to localStorage */
-
-                localStorage.setItem(
-
-                    getAuditStorageKey(),
-
-                    JSON.stringify(auditDataStore)
-
-                );
-
-                migrateAuditDataStore();
-
-                setActiveAuditDate(selectedAuditDate || getTodayKey());
-
-                if (typeof renderHistoryPanel === "function") {
-
-                    renderHistoryPanel();
-
-                }
-
-                if (typeof refreshUI === "function") {
-
-                    refreshUI();
-
-                }
-
+            /* Prefer the auto-saved full bucket if present */
+            if (d.auditBucket) {
+                try {
+                    const cloudBucket = JSON.parse(d.auditBucket);
+                    /* Cloud wins if local has no data for this date OR
+                       cloud has more transactions (most recent device wins) */
+                    const localTxnCount = _countTransactions(auditDataStore[dateKey]);
+                    const cloudTxnCount = _countTransactions(cloudBucket);
+                    if (!auditDataStore[dateKey] || cloudTxnCount >= localTxnCount) {
+                        auditDataStore[dateKey] = cloudBucket;
+                        merged = true;
+                    }
+                } catch (_) { /* corrupted — skip */ }
+            } else if (!auditDataStore[dateKey]) {
+                /* Older docs without auditBucket — create an empty bucket so
+                   the date at least appears in the sidebar history */
+                auditDataStore[dateKey] = createEmptyAuditBucket();
+                merged = true;
             }
-
         });
 
+        if (merged) {
+            localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
+            migrateAuditDataStore();
+            setActiveAuditDate(selectedAuditDate || getTodayKey());
+            if (typeof renderHistoryPanel === "function") renderHistoryPanel();
+            if (typeof refreshUI          === "function") refreshUI();
+        }
+
+    } catch (e) {
+        console.warn("[LoadDates] Firestore fetch failed:", e.code || e.message);
     }
 
+}
+
+/* Counts total transactions across all modes/categories in a bucket */
+function _countTransactions(bucket) {
+    if (!bucket) return 0;
+    let n = 0;
+    AUDIT_MODES.forEach(mode => {
+        const md = bucket[mode]; if (!md) return;
+        REPORT_CATEGORIES.forEach(cat => {
+            const c = md[cat]; if (!c) return;
+            n += (c.transactions || []).length;
+        });
+    });
+    return n;
 }
 
 /* ===============================
@@ -1446,40 +1493,14 @@ async function loadAllCloudData(username) {
         await fbAuthReady;
     }
 
-    /* If Firebase isn't available, nothing to do */
-    if (typeof fbLoadAuditData !== "function") return;
-
-    /* 2. Load all three in parallel */
-    const [cloudStore, cloudLockPin, cloudQuickPin] = await Promise.all([
-        fbLoadAuditData(),
+    /* 2. Load all audit dates from Firestore userAuditLogs + PIN data in parallel */
+    const [cloudLockPin, cloudQuickPin] = await Promise.all([
         typeof fbLoadLockPin  === "function" ? fbLoadLockPin()  : Promise.resolve(null),
         typeof fbLoadQuickPin === "function" ? fbLoadQuickPin() : Promise.resolve(null)
     ]);
 
-    /* 3. Merge audit data — cloud always wins for any date */
-    if (cloudStore && typeof cloudStore === "object") {
-
-        let merged = false;
-
-        Object.keys(cloudStore).forEach((dateKey) => {
-            /* Cloud always replaces local for existing dates too —
-               the cloud is the source of truth */
-            if (JSON.stringify(auditDataStore[dateKey]) !==
-                JSON.stringify(cloudStore[dateKey])) {
-                auditDataStore[dateKey] = cloudStore[dateKey];
-                merged = true;
-            }
-        });
-
-        if (merged) {
-            localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
-            migrateAuditDataStore();
-            setActiveAuditDate(selectedAuditDate || getTodayKey());
-            if (typeof renderHistoryPanel === "function") renderHistoryPanel();
-            if (typeof refreshUI          === "function") refreshUI();
-        }
-
-    }
+    /* 3. Merge all Firestore audit dates — reuses the same loader as loadAuditData() */
+    await _mergeAllDatesFromFirestore();
 
     /* 4. Restore lock PIN */
     if (cloudLockPin) {
@@ -1492,11 +1513,9 @@ async function loadAllCloudData(username) {
 
     /* 5. Restore Quick PIN */
     if (cloudQuickPin && username) {
-        /* Only store if not already matching */
         const localHash = localStorage.getItem(_pinKey(username));
         if (localHash !== cloudQuickPin) {
             localStorage.setItem(_pinKey(username), cloudQuickPin);
-            /* Refresh the login tab visibility */
             if (window._refreshAuthTabs) window._refreshAuthTabs();
         }
     }

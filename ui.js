@@ -426,84 +426,76 @@ let historyFilter = {
 
 };
 
+/* Maximum transactions shown in history list at one time.
+   Keeps DOM small for large audits (1 lakh+ txns). */
+const TXN_PAGE_SIZE = 80;
+
 function renderTransactionHistory() {
 
-    const container =
-        document.getElementById("transactionHistory");
+    const container = document.getElementById("transactionHistory");
 
-    container.innerHTML = "";
+    const allTransactions = getTransactions();
 
-    const allTransactions =
-        getTransactions();
+    const searchText = historyFilter.text.trim().toLowerCase();
 
     const filtered = allTransactions.filter(t => {
-
-        const matchesVehicle =
-
-            !historyFilter.vehicle ||
-
-            t.actualVehicle === historyFilter.vehicle;
-
-        const searchText =
-
-            historyFilter.text.trim().toLowerCase();
-
-        const matchesText =
-
-            !searchText ||
-
-            t.actualVehicle.toLowerCase().includes(searchText) ||
-
-            (t.comment || "").toLowerCase().includes(searchText) ||
-
-            String(t.transactionNo).includes(searchText);
-
-        return matchesVehicle && matchesText;
-
+        if (historyFilter.vehicle && t.actualVehicle !== historyFilter.vehicle) return false;
+        if (searchText &&
+            !t.actualVehicle.toLowerCase().includes(searchText) &&
+            !(t.comment || "").toLowerCase().includes(searchText) &&
+            !String(t.transactionNo).includes(searchText)) return false;
+        return true;
     });
 
     if (allTransactions.length === 0) {
-
         container.innerHTML = `
             <div class="th-empty">
                 <i class="bi bi-inbox"></i>
                 <span>No Transactions yet.</span>
             </div>`;
-
         return;
-
     }
 
     if (filtered.length === 0) {
-
         container.innerHTML = `
             <div class="th-empty">
                 <i class="bi bi-funnel"></i>
                 <span>No transactions match this filter.</span>
             </div>`;
-
         return;
-
     }
 
-    /* Accent colour per vehicle class (matches vehicle button palette) */
+    /* Accent colour per vehicle class */
     const TXN_COLORS = {
-        "Car":"#2563eb","LCV":"#059669","Bus 2 Axle":"#d97706",
+        "Car":"#2563eb","LCV":"#059669","Bus 2 Axle":"#7c3aed",
         "Minibus":"#0284c7","Truck 2 Axle":"#dc2626","Truck 3 Axle":"#475569",
         "MAV":"#1e293b","Oversized Vehicle":"#c2410c","Tractor":"#065f46",
-        "JCB":"#92400e","Auto":"#6d28d9","Bike":"#475569",
-        "Ambulance":"#be185d","Government Vehicle":"#065f46","Army Vehicle":"#713f12",
+        "JCB":"#6d28d9","Auto":"#6d28d9","Bike":"#475569",
+        "Ambulance":"#be185d","Government Vehicle":"#065f46","Army Vehicle":"#4c1d95",
         "Police":"#1e3a8a","Has Pass":"#0e7490","Paid":"#064e3b",
-        "Forcefully":"#991b1b","Fake Exemption":"#78350f","Fake Violation":"#7f1d1d"
+        "Forcefully":"#991b1b","Fake Exemption":"#4c1d95","Fake Violation":"#7f1d1d"
     };
 
-    filtered.slice().reverse().forEach(transaction => {
+    /* Show newest first, cap at TXN_PAGE_SIZE for performance */
+    const reversed = filtered.slice().reverse();
+    const visible  = reversed.slice(0, TXN_PAGE_SIZE);
+    const hidden   = reversed.length - visible.length;
+
+    /* Build into a DocumentFragment — single DOM insertion = no layout thrashing */
+    const frag = document.createDocumentFragment();
+
+    if (hidden > 0) {
+        const info = document.createElement("div");
+        info.className = "th-truncated-note";
+        info.innerHTML = `<i class="bi bi-info-circle"></i> Showing latest ${TXN_PAGE_SIZE} of ${reversed.length} transactions`;
+        frag.appendChild(info);
+    }
+
+    visible.forEach(transaction => {
 
         const card = document.createElement("div");
         card.className = "txn-card";
-
-        const accent = TXN_COLORS[transaction.actualVehicle] || "#5b5ef6";
-        card.style.borderLeftColor = accent;
+        card.style.borderLeftColor = TXN_COLORS[transaction.actualVehicle] || "#7c3aed";
 
         const timeLabel = transaction.timestamp
             ? new Date(transaction.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -535,49 +527,40 @@ function renderTransactionHistory() {
             </div>
             ${commentHtml}`;
 
-        container.appendChild(card);
+        frag.appendChild(card);
 
     });
 
-    container.querySelectorAll(".txn-comment-btn").forEach(btn => {
-        btn.addEventListener("click", function () {
-            openCommentPrompt(Number(this.dataset.txn));
-        });
-    });
+    /* Single DOM write */
+    container.innerHTML = "";
+    container.appendChild(frag);
 
-    container.querySelectorAll(".txn-comment-del").forEach(btn => {
-        btn.addEventListener("click", function (e) {
-            e.stopPropagation();
-            deleteTransactionComment(Number(this.dataset.txn));
-        });
-    });
+    /* Event delegation — one listener on container instead of per-card listeners.
+       Use a data attribute to prevent stacking on re-renders. */
+    if (!container._txnDelegated) {
+        container._txnDelegated = true;
+        container.addEventListener("click", function (e) {
+            const commentBtn = e.target.closest(".txn-comment-btn");
+            const commentDel = e.target.closest(".txn-comment-del");
+            const deleteBtn  = e.target.closest(".txn-delete-btn");
 
-    container.querySelectorAll(".txn-delete-btn").forEach(btn => {
-        btn.addEventListener("click", function (e) {
-
+            if (commentBtn) {
+                openCommentPrompt(Number(commentBtn.dataset.txn));
+            } else if (commentDel) {
                 e.stopPropagation();
-
-                const txnNo = Number(this.dataset.txn);
-
-                const txn = getTransactions().find(t => t.transactionNo === txnNo);
-
+                deleteTransactionComment(Number(commentDel.dataset.txn));
+            } else if (deleteBtn) {
+                e.stopPropagation();
+                const txnNo = Number(deleteBtn.dataset.txn);
+                const txn   = getTransactions().find(t => t.transactionNo === txnNo);
                 const label = txn ? txn.actualVehicle : `#${txnNo}`;
-
-                if (!confirm(`Delete transaction #${txnNo} (${label})?\n\nThis will remove it from the count and the history.`)) {
-
-                    return;
-
-                }
-
+                if (!confirm(`Delete transaction #${txnNo} (${label})?\n\nThis will remove it from the count and the history.`)) return;
                 deleteTransaction(txnNo);
-
                 saveAuditData();
-
                 refreshUI();
-
-            });
-
+            }
         });
+    }
 
 }
 
