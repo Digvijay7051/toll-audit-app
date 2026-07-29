@@ -245,7 +245,7 @@
         tagMotionElements();
         initStaggerObserver();
         initMagnetic();
-        initFloatingLabels();
+        /* initFloatingLabels — disabled, using visible labels instead */
         initClickRipple();
     }
 
