@@ -186,6 +186,48 @@ function showMainApp() {
 }
 
 /* ===============================
+   BOOM BARRIER + LANE STATUS
+   Helpers called on Login ↔ Signup switch
+=============================== */
+
+/**
+ * _boomLift(armId, open)
+ * Lifts (open=true) or closes (open=false) the boom arm.
+ * Uses the CSS class .boom-arm--open which rotates to -80deg.
+ */
+function _boomLift(armId, open) {
+    const arm = document.getElementById(armId);
+    if (!arm) return;
+    if (open) {
+        arm.classList.add("boom-arm--open");
+    } else {
+        arm.classList.remove("boom-arm--open");
+    }
+}
+
+/**
+ * _laneStatus(textId, lightId, clear)
+ * Switches the lane status strip between LANE CLOSED and LANE CLEAR.
+ * Also changes the reader light colour.
+ */
+function _laneStatus(textId, lightId, clear) {
+    const textEl  = document.getElementById(textId);
+    const lightEl = document.getElementById(lightId);
+    const strip   = document.getElementById("authLaneStatus");
+
+    if (textEl)  textEl.textContent = clear ? "LANE CLEAR" : "LANE CLOSED";
+    if (strip) {
+        strip.classList.toggle("lane-status-strip--clear", clear);
+        /* Update the icon glyph */
+        const iconEl = strip.querySelector(".lane-status-icon");
+        if (iconEl) iconEl.textContent = clear ? "▲" : "■";
+    }
+    if (lightEl) {
+        lightEl.classList.toggle("boom-reader-light--scan", clear);
+    }
+}
+
+/* ===============================
    LOGIN / SIGN UP FORMS
 =============================== */
 
@@ -371,21 +413,21 @@ function setupAuthForms() {
     document
         .getElementById("showSignupBtn")
         .addEventListener("click", function () {
-
-            document.getElementById("loginBox").style.display = "none";
-
+            document.getElementById("loginBox").style.display  = "none";
             document.getElementById("signupBox").style.display = "block";
-
+            /* Boom barrier lifts + lane status = CLEAR */
+            _boomLift("authBoomArm", true);
+            _laneStatus("authLaneStatusText", "authReaderLight", true);
         });
 
     document
         .getElementById("showLoginBtn")
         .addEventListener("click", function () {
-
             document.getElementById("signupBox").style.display = "none";
-
-            document.getElementById("loginBox").style.display = "block";
-
+            document.getElementById("loginBox").style.display  = "block";
+            /* Boom barrier closes + lane status = CLOSED */
+            _boomLift("authBoomArm", false);
+            _laneStatus("authLaneStatusText", "authReaderLight", false);
         });
 
     /* ── FORGOT PASSWORD ── */

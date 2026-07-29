@@ -14,15 +14,50 @@
      AUTH SCREEN
 ═══════════════════════════════════════════════════════════ -->
 <div id="authScreen" class="gate-screen">
-    <div class="gate-road-line"></div>
-    <div class="auth-card">
-      <div class="auth-card-body">
 
-        <div class="auth-brand">
-            <i class="bi bi-car-front-fill"></i>
-            <span class="auth-brand-name">Toll Audit</span>
+    <!-- 3-D tunnel: 5 gantry frames fly toward camera -->
+    <div class="tunnel-wrap" aria-hidden="true">
+        <div class="tunnel-frame" style="--d:1"></div>
+        <div class="tunnel-frame" style="--d:2"></div>
+        <div class="tunnel-frame" style="--d:3"></div>
+        <div class="tunnel-frame" style="--d:4"></div>
+        <div class="tunnel-frame" style="--d:5"></div>
+        <!-- Road surface perspective lines -->
+        <div class="tunnel-road"></div>
+    </div>
+
+    <!-- Boom barrier above the card -->
+    <div class="boom-wrap" id="authBoomWrap" aria-hidden="true">
+        <div class="boom-post"></div>
+        <div class="boom-arm" id="authBoomArm">
+            <div class="boom-stripes"></div>
+            <div class="boom-tip"></div>
         </div>
-        <p class="auth-tagline">Professional toll auditing, made simple</p>
+        <div class="boom-reader">
+            <span class="boom-reader-light" id="authReaderLight"></span>
+        </div>
+    </div>
+
+    <!-- Status strip (bottom) -->
+    <div class="lane-status-strip" id="authLaneStatus">
+        <span class="lane-status-icon">&#9632;</span>
+        <span class="lane-status-text" id="authLaneStatusText">LANE CLOSED</span>
+        <span class="lane-status-sep">·</span>
+        <span class="lane-status-id">LANE 3 · TOLL AUDIT SYSTEM</span>
+    </div>
+
+    <!-- The card itself sits inside a flip-wrapper -->
+    <div class="card-flip-wrapper" id="authFlipWrapper">
+      <div class="card-flip-inner" id="authFlipInner">
+
+        <!-- FRONT: Login card -->
+        <div class="auth-card card-flip-front">
+          <div class="auth-card-body">
+            <div class="auth-brand">
+                <i class="bi bi-car-front-fill"></i>
+                <span class="auth-brand-name">Toll Audit</span>
+            </div>
+            <p class="auth-tagline">Professional toll auditing, made simple</p>
 
         <!-- LOGIN TAB SWITCHER -->
         <div class="auth-tab-bar" id="authTabBar">
@@ -103,7 +138,7 @@
             </button>
         </div>
 
-        <!-- SIGNUP BOX -->
+        <!-- SIGNUP BOX — on the BACK face of the flip card -->
         <div id="signupBox" style="display:none;">
             <form id="signupForm" autocomplete="off">
                 <div class="mb-3">
@@ -144,15 +179,45 @@
             </p>
         </div>
 
-      </div><!-- /.auth-card-body -->
-    </div><!-- /.auth-card -->
-</div>
+          </div><!-- /.auth-card-body -->
+        </div><!-- /.auth-card.card-flip-front -->
+
+      </div><!-- /.card-flip-inner -->
+    </div><!-- /.card-flip-wrapper -->
+</div><!-- /#authScreen -->
 
 <!-- ═══════════════════════════════════════════════════════════
      WELCOME SCREEN
 ═══════════════════════════════════════════════════════════ -->
 <div id="welcomeScreen" class="gate-screen" style="display:none;">
-    <div class="gate-road-line"></div>
+
+    <div class="tunnel-wrap" aria-hidden="true">
+        <div class="tunnel-frame" style="--d:1"></div>
+        <div class="tunnel-frame" style="--d:2"></div>
+        <div class="tunnel-frame" style="--d:3"></div>
+        <div class="tunnel-frame" style="--d:4"></div>
+        <div class="tunnel-frame" style="--d:5"></div>
+        <div class="tunnel-road"></div>
+    </div>
+
+    <div class="boom-wrap" id="welcomeBoomWrap" aria-hidden="true">
+        <div class="boom-post"></div>
+        <div class="boom-arm boom-arm--open" id="welcomeBoomArm">
+            <div class="boom-stripes"></div>
+            <div class="boom-tip"></div>
+        </div>
+        <div class="boom-reader">
+            <span class="boom-reader-light boom-reader-light--scan"></span>
+        </div>
+    </div>
+
+    <div class="lane-status-strip lane-status-strip--clear">
+        <span class="lane-status-icon">&#9650;</span>
+        <span class="lane-status-text">LANE CLEAR</span>
+        <span class="lane-status-sep">·</span>
+        <span class="lane-status-id">LANE 3 · TOLL AUDIT SYSTEM</span>
+    </div>
+
     <div class="welcome-card">
       <div class="welcome-card-body">
         <button type="button" class="avatar-circle avatar-display" id="welcomeAvatar"
@@ -173,7 +238,34 @@
      DATE SELECTION SCREEN
 ═══════════════════════════════════════════════════════════ -->
 <div id="dateScreen" class="gate-screen" style="display:none;">
-    <div class="gate-road-line"></div>
+
+    <div class="tunnel-wrap" aria-hidden="true">
+        <div class="tunnel-frame" style="--d:1"></div>
+        <div class="tunnel-frame" style="--d:2"></div>
+        <div class="tunnel-frame" style="--d:3"></div>
+        <div class="tunnel-frame" style="--d:4"></div>
+        <div class="tunnel-frame" style="--d:5"></div>
+        <div class="tunnel-road"></div>
+    </div>
+
+    <div class="boom-wrap" id="dateBoomWrap" aria-hidden="true">
+        <div class="boom-post"></div>
+        <div class="boom-arm boom-arm--open" id="dateBoomArm">
+            <div class="boom-stripes"></div>
+            <div class="boom-tip"></div>
+        </div>
+        <div class="boom-reader">
+            <span class="boom-reader-light boom-reader-light--scan"></span>
+        </div>
+    </div>
+
+    <div class="lane-status-strip lane-status-strip--clear">
+        <span class="lane-status-icon">&#9650;</span>
+        <span class="lane-status-text">LANE CLEAR</span>
+        <span class="lane-status-sep">·</span>
+        <span class="lane-status-id">LANE 3 · TOLL AUDIT SYSTEM</span>
+    </div>
+
     <div class="welcome-card">
       <div class="welcome-card-body">
         <i class="bi bi-calendar-check welcome-icon"></i>
