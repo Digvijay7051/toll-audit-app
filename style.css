@@ -1186,6 +1186,227 @@ body.dark-theme .theme-btn        { border-color: var(--amber-dim); background: 
 .pass-admin-only { }
 
 /* ══════════════════════════════════════
+   PREMIUM PASS RESULT CARD  (prc-*)
+   Rendered by passlist.js buildPassResultCard()
+══════════════════════════════════════ */
+.pass-check-result { min-height: 0; }
+
+.prc-wrapper {
+  padding: 20px 20px 24px;
+  border-top: 1px solid var(--line);
+}
+.prc-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.prc-header-title {
+  font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: -.2px;
+}
+.prc-close-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg-lift);
+  color: var(--text-faint); cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+.prc-close-btn:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* ── Status card (active / expired) ── */
+.prc-status-card {
+  display: flex; align-items: center; justify-content: space-between;
+  border-radius: 14px; padding: 14px 18px; margin-bottom: 16px;
+  gap: 14px; flex-wrap: wrap;
+}
+.prc-status-active {
+  background: var(--green-soft);
+  border: 1px solid rgba(47,182,115,.35);
+}
+.prc-status-expired {
+  background: var(--amber-soft);
+  border: 1px solid rgba(255,176,32,.35);
+}
+.prc-status-left  { display: flex; align-items: center; gap: 12px; }
+.prc-status-dot   { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.prc-dot-active {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(47,182,115,.25);
+  animation: prcDotPulse 2s ease-in-out infinite;
+}
+.prc-dot-expired  { background: var(--amber); box-shadow: 0 0 0 3px rgba(255,176,32,.2); }
+@keyframes prcDotPulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(47,182,115,.25); }
+  50%     { box-shadow: 0 0 0 7px rgba(47,182,115,.08); }
+}
+.prc-status-title {
+  font-size: 13px; font-weight: 800; letter-spacing: .06em;
+  color: var(--green);
+}
+.prc-status-expired .prc-status-title { color: var(--amber); }
+.prc-status-sub   { font-size: 12px; color: var(--green); font-weight: 500; margin-top: 2px; }
+.prc-status-expired .prc-status-sub   { color: var(--amber-dim); }
+
+.prc-status-right { text-align: right; flex-shrink: 0; }
+.prc-valid-until-label {
+  font-size: 10px; font-weight: 700; color: var(--green);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.prc-status-expired .prc-valid-until-label { color: var(--amber-dim); }
+.prc-valid-until-val {
+  font-size: 18px; font-weight: 800; color: var(--green);
+  letter-spacing: -.3px; margin-top: 2px;
+}
+.prc-expired-date { color: var(--amber) !important; }
+.prc-days-chip {
+  display: inline-block; background: rgba(47,182,115,.15); color: var(--green);
+  font-size: 11px; font-weight: 700; border-radius: 50px;
+  padding: 2px 9px; margin-top: 5px;
+}
+
+/* ── Info section grid ── */
+.prc-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+@media (max-width: 900px) { .prc-grid { grid-template-columns: 1fr; } }
+
+.prc-section-card {
+  background: var(--bg-dark); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px 16px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.prc-section-card:hover {
+  border-color: rgba(255,176,32,.3);
+  box-shadow: 0 4px 18px rgba(255,176,32,.07);
+}
+.prc-section-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 800; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-bottom: 12px; padding-bottom: 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.prc-icon { width: 15px; height: 15px; color: var(--amber); flex-shrink: 0; }
+
+/* ── Field grid inside each card ── */
+.prc-field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 10px; }
+.prc-field      { display: flex; flex-direction: column; gap: 3px; }
+.prc-field-label {
+  font-size: 10px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.prc-field-value  { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.prc-field-highlight .prc-field-value { font-size: 16px; font-weight: 800; color: var(--text); }
+.prc-veh-number   {
+  font-size: 18px !important; font-weight: 900 !important;
+  letter-spacing: .04em; color: var(--amber) !important;
+  font-family: var(--font-mono);
+}
+.prc-amount { font-size: 18px !important; font-weight: 800 !important; color: var(--amber) !important; }
+.prc-utr {
+  font-size: 12px !important; font-weight: 600 !important;
+  font-variant-numeric: tabular-nums; word-break: break-all;
+  color: var(--text-dim) !important; font-family: var(--font-mono);
+}
+
+/* Colour helpers */
+.prc-text-success { color: var(--green)  !important; }
+.prc-text-warning { color: var(--amber)  !important; }
+.prc-text-danger  { color: var(--red)    !important; }
+
+/* Badges */
+.prc-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 50px; padding: 3px 12px; font-size: 11px; font-weight: 700;
+}
+.prc-badge-green { background: var(--green-soft); color: var(--green); }
+.prc-badge-red   { background: var(--amber-soft);  color: var(--amber); }
+
+/* Not-found bar */
+.prc-not-found {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; margin: 12px 18px;
+  background: var(--red-soft); border: 1px solid rgba(229,72,77,.3);
+  border-radius: 12px; flex-wrap: wrap;
+}
+.prc-not-found-icon { color: var(--red); flex-shrink: 0; display: flex; }
+.prc-not-found-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 160px; }
+.prc-not-found-text strong { font-size: 14px; font-weight: 800; color: var(--text); }
+.prc-not-found-text span   { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+
+/* ══════════════════════════════════════
+   AUDIT COMPLETE OVERLAY
+   Rendered by app.js showAuditCompleteOverlay()
+══════════════════════════════════════ */
+.audit-complete-overlay {
+  position: fixed; inset: 0; z-index: 3500;
+  background: rgba(11,12,16,.88);
+  backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; transition: opacity .35s ease;
+  pointer-events: none;
+}
+.audit-complete-overlay.active {
+  opacity: 1; pointer-events: all;
+}
+.audit-complete-card {
+  background: var(--bg-mid);
+  border: 1px solid rgba(255,176,32,.25);
+  border-radius: 24px; padding: 46px 40px;
+  text-align: center; max-width: 420px; width: 100%;
+  box-shadow: 0 40px 100px rgba(0,0,0,.65),
+              0 0 40px -10px rgba(255,176,32,.15);
+  transform: translateY(28px) scale(.95);
+  transition: transform .42s cubic-bezier(.22,.68,0,1.15);
+}
+.audit-complete-overlay.active .audit-complete-card {
+  transform: translateY(0) scale(1);
+}
+.audit-complete-icon {
+  font-size: 60px; line-height: 1; margin-bottom: 18px;
+  animation: acIconBounce .6s cubic-bezier(.34,1.56,.64,1) .2s both;
+}
+@keyframes acIconBounce {
+  from { transform: scale(0) rotate(-20deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+}
+.audit-complete-title {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 800; color: var(--text);
+  margin-bottom: 10px; letter-spacing: .2px;
+}
+.audit-complete-sub {
+  font-size: 14px; color: var(--text-dim); margin-bottom: 30px;
+  font-weight: 500; line-height: 1.7;
+}
+.audit-complete-actions { display: flex; flex-direction: column; gap: 10px; }
+.audit-complete-btn-primary {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, var(--amber), #E29418);
+  color: #1a1200; font-size: 15px; font-weight: 800; font-family: var(--font-base);
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(255,176,32,.40);
+  transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
+  position: relative; overflow: hidden;
+}
+.audit-complete-btn-primary::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.14) 0%, transparent 60%);
+  pointer-events: none;
+}
+.audit-complete-btn-primary:hover {
+  transform: translateY(-2px); filter: brightness(1.06);
+  box-shadow: 0 10px 28px rgba(255,176,32,.55);
+}
+.audit-complete-btn-secondary {
+  width: 100%; padding: 12px; border: 1px solid var(--line);
+  border-radius: 12px; background: transparent;
+  color: var(--text-dim); font-size: 14px; font-weight: 700;
+  font-family: var(--font-base); cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+.audit-complete-btn-secondary:hover { border-color: var(--amber); color: var(--amber); }
+
+/* ══════════════════════════════════════
    VEHICLE COUNTS + TRANSACTION HISTORY
 ══════════════════════════════════════ */
 .counts-history-grid {
