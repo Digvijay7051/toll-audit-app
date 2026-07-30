@@ -1505,7 +1505,95 @@ body.dark-theme .theme-btn        { border-color: var(--amber-dim); background: 
 }
 .th-empty i { font-size: 26px; opacity: .5; }
 
-/* Transaction rows (rendered by ui.js) */
+/* ── Transaction cards (rendered by ui.js renderTransactionHistory) ── */
+
+/* "Showing latest N of M" note */
+.th-truncated-note {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; margin-bottom: 4px;
+  background: var(--blue-soft); border-radius: var(--radius-sm);
+  font-size: 11.5px; color: var(--blue);
+}
+.th-truncated-note i { font-size: 13px; }
+
+/* Card wrapper — left accent bar via border-left (colour set inline by JS) */
+.txn-card {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--amber); /* overridden per vehicle class */
+  background: var(--bg-dark);
+  overflow: hidden; flex-shrink: 0;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  margin-bottom: 6px;
+}
+.txn-card:last-child { margin-bottom: 0; }
+.txn-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  border-color: rgba(255,176,32,.35);
+}
+
+/* Main row inside a card */
+.txn-card-body {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px;
+}
+/* Transaction number badge */
+.txn-num {
+  font-size: 11px; font-weight: 700; color: var(--amber);
+  background: var(--amber-soft); border-radius: 7px;
+  padding: 3px 8px; flex-shrink: 0; white-space: nowrap;
+  letter-spacing: .02em; font-family: var(--font-mono);
+}
+/* Vehicle name */
+.txn-vehicle {
+  flex: 1; font-size: 13px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Time stamp */
+.txn-time {
+  font-size: 11px; font-weight: 600; color: var(--text-faint);
+  white-space: nowrap; flex-shrink: 0;
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+}
+.txn-time i { font-size: 10px; }
+
+/* Action buttons row */
+.txn-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.txn-action-btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-lift);
+  color: var(--text-faint); cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  flex-shrink: 0;
+}
+.txn-action-btn:hover {
+  border-color: var(--amber); color: var(--amber); background: var(--amber-soft);
+}
+.txn-action-btn.txn-action-danger:hover {
+  border-color: var(--red); color: var(--red); background: var(--red-soft);
+}
+
+/* Inline comment row */
+.txn-comment {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 13px 9px;
+  background: var(--bg-lift);
+  border-top: 1px dashed var(--line);
+  font-size: 12px; font-weight: 500; color: var(--text-dim);
+}
+.txn-comment i { color: var(--amber); font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.txn-comment-text { flex: 1; line-height: 1.45; }
+.txn-comment-del {
+  border: none; background: none; color: var(--text-faint);
+  cursor: pointer; font-size: 13px; padding: 0; flex-shrink: 0;
+  transition: color var(--transition);
+}
+.txn-comment-del:hover { color: var(--red); }
+
+/* Legacy row classes — kept so old renders don't break */
 .th-row {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 16px; border-bottom: 1px solid var(--line-soft);
@@ -1666,28 +1754,65 @@ thead.table-dark,
 #toastContainer {
   position: fixed; bottom: 22px; right: 22px; z-index: 4000;
   display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+  pointer-events: none;
 }
 .ta-toast {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
   background: var(--bg-mid); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 12px 16px;
-  box-shadow: 0 14px 30px rgba(0,0,0,.5);
+  /* Left accent bar — overridden per type below */
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius-sm); padding: 12px 14px 12px 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35);
   font-size: 13px; font-weight: 500; color: var(--text);
-  max-width: 340px; cursor: pointer;
-  animation: toastIn .25s ease;
+  min-width: 280px; max-width: 360px;
+  cursor: pointer; pointer-events: all;
+  position: relative; overflow: hidden;
+  /* Slide in from right */
+  animation: toastIn .32s cubic-bezier(.22,.68,0,1.2) both;
 }
-.ta-toast.toast-out { animation: toastOut .3s ease forwards; }
-@keyframes toastIn  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes toastOut { to   { opacity: 0; transform: translateY(-6px); } }
-.ta-toast-icon { font-size: 16px; flex-shrink: 0; }
-.ta-toast.toast-success .ta-toast-icon { color: var(--green); }
-.ta-toast.toast-error   .ta-toast-icon { color: var(--red); }
-.ta-toast.toast-warning .ta-toast-icon { color: var(--amber); }
-.ta-toast.toast-info    .ta-toast-icon { color: var(--blue); }
-.ta-toast-body  { flex: 1; }
-.ta-toast-title { font-weight: 700; font-size: 13px; }
-.ta-toast-msg   { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-.ta-toast-close { background: none; border: none; color: var(--text-faint); font-size: 14px; cursor: pointer; padding: 0; line-height: 1; }
+/* Progress timer bar along the bottom */
+.ta-toast::after {
+  content: ''; position: absolute; bottom: 0; left: 0;
+  height: 2px; border-radius: 0 0 0 var(--radius-sm);
+  background: currentColor; opacity: .4;
+  animation: toastTimer 3.5s linear forwards;
+}
+@keyframes toastTimer { from { width: 100%; } to { width: 0%; } }
+
+.ta-toast.toast-out { animation: toastOut .28s ease forwards; }
+@keyframes toastIn  { from { opacity: 0; transform: translateX(24px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to   { opacity: 0; transform: translateX(24px) scale(.94); } }
+
+/* Per-type accent colours */
+.ta-toast.toast-success { border-left-color: var(--green);  color: var(--green); }
+.ta-toast.toast-error   { border-left-color: var(--red);    color: var(--red); }
+.ta-toast.toast-warning { border-left-color: var(--amber);  color: var(--amber); }
+.ta-toast.toast-info    { border-left-color: var(--blue);   color: var(--blue); }
+/* Reset body text colour after setting it for currentColor trick */
+.ta-toast.toast-success .ta-toast-body,
+.ta-toast.toast-error   .ta-toast-body,
+.ta-toast.toast-warning .ta-toast-body,
+.ta-toast.toast-info    .ta-toast-body { color: var(--text); }
+
+/* Icon badge */
+.ta-toast-icon {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.ta-toast.toast-success .ta-toast-icon { background: var(--green-soft);  color: var(--green); }
+.ta-toast.toast-error   .ta-toast-icon { background: var(--red-soft);    color: var(--red); }
+.ta-toast.toast-warning .ta-toast-icon { background: var(--amber-soft);  color: var(--amber); }
+.ta-toast.toast-info    .ta-toast-icon { background: var(--blue-soft);   color: var(--blue); }
+
+.ta-toast-body  { flex: 1; min-width: 0; }
+.ta-toast-title { font-weight: 700; font-size: 13px; color: var(--text); line-height: 1.3; }
+.ta-toast-msg   { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
+.ta-toast-close {
+  background: none; border: none; color: var(--text-faint);
+  font-size: 14px; cursor: pointer; padding: 0; line-height: 1;
+  flex-shrink: 0; transition: color var(--transition);
+}
 .ta-toast-close:hover { color: var(--text); }
 
 /* ══════════════════════════════════════
