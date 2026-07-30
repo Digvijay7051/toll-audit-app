@@ -1283,6 +1283,65 @@ body.dark-theme .theme-btn        { border-color: var(--amber-dim); background: 
 .modal-body hr { border-color: var(--line); }
 .modal-body .table { color: var(--text); }
 .modal-body .table th, .modal-body .table td { border-color: var(--line); color: var(--text); }
+
+/* ── Bootstrap table dark overrides (apply everywhere, not just modal) ──
+   Bootstrap 5 uses CSS vars --bs-table-bg etc on each <td>/<tr>, so we
+   must reset them on every table inside our dark surfaces.              */
+.table {
+  --bs-table-bg:             var(--bg-mid);
+  --bs-table-striped-bg:     var(--bg-lift);
+  --bs-table-active-bg:      var(--bg-panel);
+  --bs-table-hover-bg:       var(--bg-lift);
+  --bs-table-border-color:   var(--line);
+  --bs-table-striped-color:  var(--text);
+  --bs-table-active-color:   var(--text);
+  --bs-table-hover-color:    var(--text);
+  color: var(--text);
+  border-color: var(--line);
+}
+.table > :not(caption) > * > * {
+  background-color: var(--bs-table-bg) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+/* thead variants Bootstrap adds via .table-secondary / .table-dark */
+.table-secondary,
+thead.table-secondary,
+.table-secondary > tr > th,
+.table-secondary > tr > td {
+  --bs-table-bg: var(--bg-panel) !important;
+  background-color: var(--bg-panel) !important;
+  color: var(--text-dim) !important;
+}
+.table-dark,
+thead.table-dark,
+.table-dark > tr > th,
+.table-dark > tr > td {
+  --bs-table-bg: var(--bg-dark) !important;
+  background-color: var(--bg-dark) !important;
+  color: var(--text) !important;
+}
+/* striped rows */
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+  --bs-table-bg: var(--bg-lift) !important;
+  background-color: var(--bg-lift) !important;
+}
+.table-striped > tbody > tr:nth-of-type(even) > * {
+  --bs-table-bg: var(--bg-mid) !important;
+  background-color: var(--bg-mid) !important;
+}
+/* bordered */
+.table-bordered > :not(caption) > * { border-color: var(--line) !important; }
+.table-bordered > :not(caption) > * > * { border-color: var(--line) !important; }
+
+/* badges */
+.badge.bg-secondary        { background-color: var(--bg-panel)  !important; color: var(--text-dim) !important; }
+.badge.bg-light            { background-color: var(--bg-lift)   !important; color: var(--text)     !important; }
+.badge.bg-warning          { background-color: var(--amber)     !important; color: #1a1200         !important; }
+.badge.text-dark           { color: #1a1200 !important; }
+.badge.bg-warning.text-dark { background-color: var(--amber) !important; color: #1a1200 !important; }
+
 .dropdown-menu.topbar-dropdown { background: var(--bg-mid) !important; }
 
 /* ══════════════════════════════════════

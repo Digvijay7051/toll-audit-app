@@ -1331,7 +1331,7 @@ function viewHistorySnapshot(dateKey) {
 
                 badges.push(
 
-                    `<span class="badge ${matchCount > 0 ? "bg-secondary" : "bg-light text-dark border"} me-1 mb-1">${matchingVehicle}: ${matchCount}</span>`
+                    `<span class="badge bg-secondary me-1 mb-1">${matchingVehicle}: ${matchCount}</span>`
 
                 );
 

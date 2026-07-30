@@ -288,7 +288,7 @@ function renderAuditLogDetail(dateKey, logData) {
             const modeCounts = logData.reportCounts[mode];
 
             html += `
-                <p class="mb-1" style="font-size:12px;font-weight:600;color:#555;">${mode}</p>
+                <p class="mb-1" style="font-size:12px;font-weight:600;color:var(--text-dim);">${mode}</p>
                 <div class="table-responsive mb-2">
                 <table class="table table-sm table-bordered mb-0" style="font-size:12px;">
                     <thead class="table-secondary">
@@ -312,8 +312,8 @@ function renderAuditLogDetail(dateKey, logData) {
 
                 const match   = chk === rpt;
                 const badge   = match
-                    ? `<span style="color:#16a34a;font-weight:600;">✓ Match</span>`
-                    : `<span style="color:#dc2626;font-weight:600;">✗ ${chk}/${rpt}</span>`;
+                    ? `<span style="color:var(--green);font-weight:600;">✓ Match</span>`
+                    : `<span style="color:var(--red);font-weight:600;">✗ ${chk}/${rpt}</span>`;
 
                 html += `<tr>
                     <td>${cat}</td>
