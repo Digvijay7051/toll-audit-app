@@ -100,43 +100,72 @@ input  { font-family: inherit; }
 .boom-wrap, .boom-post, .boom-arm, .boom-stripes, .boom-tip, .boom-reader,
 .lane-status-strip { display: none !important; }
 
-/* ── Road scene backdrop ── */
+/* ══════════════════════════════════════
+   ROAD SCENE — infinite perspective scroll
+══════════════════════════════════════ */
 .road-scene {
   position: absolute; inset: 0; z-index: 0; overflow: hidden;
   background:
-    radial-gradient(ellipse 900px 500px at 50% 8%, rgba(255,176,32,.10), transparent 60%),
+    radial-gradient(ellipse 900px 500px at 50% 8%, rgba(255,176,32,.12), transparent 60%),
     linear-gradient(180deg, #0B0C10 0%, #131519 55%, #0B0C10 100%);
+  /* GPU layer */
+  will-change: transform;
+  transform: translateZ(0);
 }
+
+/* The perspective grid — scrolls continuously toward the viewer */
 .road-scene::before {
   content: "";
-  position: absolute; left: 50%; top: 26%;
-  width: 220vw; height: 180vh;
+  position: absolute;
+  left: 50%; top: 0;
+  /* 2× height so we can scroll one full unit and loop perfectly */
+  width: 260vw; height: 360vh;
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 46px,
-    rgba(255,176,32,.28) 46px 52px,
+    rgba(255,176,32,.32) 46px 52px,
     transparent 52px 98px
   );
-  transform: translateX(-50%) perspective(500px) rotateX(62deg);
   transform-origin: top center;
-  opacity: .55;
-  mask-image: linear-gradient(180deg, transparent, black 20%, black 70%, transparent);
+  transform: translateX(-50%) perspective(520px) rotateX(64deg);
+  opacity: .6;
+  mask-image: linear-gradient(180deg, transparent 0%, black 18%, black 65%, transparent 100%);
+  /* Continuous scroll: move the grid down by 50% of its own height (= one tile)
+     translateY goes 0 → +50% — because the grid is 2× screen, this is seamless */
+  animation: roadScroll 3.2s linear infinite;
+  will-change: transform;
 }
+
+@keyframes roadScroll {
+  from { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(0); }
+  to   { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(50%); }
+}
+
+/* Scanline overlay */
 .road-scene::after {
   content: "";
   position: absolute; inset: 0;
-  background: repeating-linear-gradient(180deg, rgba(255,255,255,.015) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
   pointer-events: none;
 }
+
+/* Horizon amber glow bar */
 .gantry-glow {
-  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 120%; height: 2px;
+  position: absolute; top: 22%; left: 50%;
+  transform: translateX(-50%);
+  width: 80%; height: 1px;
   background: linear-gradient(90deg, transparent, var(--amber), transparent);
-  filter: blur(1px);
-  opacity: .6;
+  filter: blur(8px);
+  opacity: .55;
+  animation: glowPulse 3s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes glowPulse {
+  0%,100% { opacity: .35; }
+  50%      { opacity: .75; }
 }
 
-/* Flip wrapper — strip 3-D, keep simple show/hide */
+/* ── Flip wrapper ── */
 .card-flip-wrapper { position: relative; z-index: 5; width: 100%; max-width: 440px; }
 .card-flip-inner   { width: 100%; }
 .card-flip-inner.flipped .card-flip-front { display: none; }
@@ -152,7 +181,7 @@ input  { font-family: inherit; }
 }
 
 /* ══════════════════════════════════════
-   AUTH CARD
+   AUTH CARD — floating + glow
 ══════════════════════════════════════ */
 .auth-card,
 .welcome-card {
@@ -160,17 +189,41 @@ input  { font-family: inherit; }
   background: var(--bg-mid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: 0 30px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02) inset;
+  /* Layered shadow: depth + amber ambient glow */
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,.75),
+    0 0 0 1px rgba(255,255,255,.03) inset,
+    0 0 40px -10px rgba(255,176,32,.18);
   overflow: hidden;
   width: 100%;
-  animation: cardIn .5s cubic-bezier(.2,.8,.2,1);
+  /* Entry animation → then hand off to the float loop */
+  animation: cardIn .55s cubic-bezier(.2,.8,.2,1) forwards, cardFloat 6s ease-in-out 0.6s infinite;
+  will-change: transform, box-shadow;
+  /* GPU layer */
+  transform: translateZ(0);
 }
 .auth-card    { max-width: 440px; }
 .welcome-card { max-width: 400px; text-align: center; }
 
+/* Entrance */
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(14px) scale(.98); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(18px) scale(.97) translateZ(0); }
+  to   { opacity: 1; transform: translateY(0)    scale(1)   translateZ(0); }
+}
+/* Perpetual float */
+@keyframes cardFloat {
+  0%,100% {
+    transform: translateY(0px)   translateZ(0);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.75),
+                0 0 0 1px rgba(255,255,255,.03) inset,
+                0 0 40px -10px rgba(255,176,32,.18);
+  }
+  50% {
+    transform: translateY(-9px)  translateZ(0);
+    box-shadow: 0 44px 100px -20px rgba(0,0,0,.65),
+                0 0 0 1px rgba(255,255,255,.05) inset,
+                0 0 55px -6px  rgba(255,176,32,.28);
+  }
 }
 
 /* Amber top bar */
@@ -209,19 +262,61 @@ input  { font-family: inherit; }
   text-align: center; margin-bottom: 26px;
 }
 .logo-badge {
-  width: 52px; height: 52px; border-radius: 14px;
+  width: 56px; height: 56px; border-radius: 15px;
   background: linear-gradient(150deg, var(--amber), #C9781A);
   display: flex; align-items: center; justify-content: center;
   color: #1a1200;
-  box-shadow: 0 8px 24px -6px rgba(255,176,32,.55);
+  /* Pulsing amber glow on the logo badge */
+  box-shadow:
+    0 8px 24px -6px rgba(255,176,32,.65),
+    0 0 0 3px rgba(255,176,32,.15);
   margin-bottom: 14px;
+  animation: logoBadgeGlow 3s ease-in-out infinite;
+  will-change: box-shadow;
+  transform: translateZ(0);
 }
+@keyframes logoBadgeGlow {
+  0%,100% {
+    box-shadow: 0 8px 24px -6px rgba(255,176,32,.55),
+                0 0 0  3px rgba(255,176,32,.12),
+                0 0 18px -4px rgba(255,176,32,.30);
+  }
+  50% {
+    box-shadow: 0 8px 32px -4px rgba(255,176,32,.80),
+                0 0 0  4px rgba(255,176,32,.25),
+                0 0 38px -4px rgba(255,176,32,.55);
+  }
+}
+/* Subtle icon pulse inside the badge */
+.logo-badge > svg,
+.logo-badge > .bi { animation: logoIconPop 3s ease-in-out infinite; }
+@keyframes logoIconPop {
+  0%,100% { transform: scale(1)    translateZ(0); }
+  50%      { transform: scale(1.08) translateZ(0); }
+}
+
+/* Glowing TOLL AUDIT wordmark */
 .wordmark {
   font-family: var(--font-display); font-weight: 700;
-  font-size: 24px; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 26px; letter-spacing: 3px; text-transform: uppercase;
   color: var(--text);
+  text-shadow: 0 0 12px rgba(255,176,32,.0);
+  animation: wordmarkGlow 3s ease-in-out infinite;
+  will-change: text-shadow;
 }
-.wordmark span { color: var(--amber); }
+@keyframes wordmarkGlow {
+  0%,100% { text-shadow: 0 0  8px rgba(255,176,32,.10); }
+  50%      { text-shadow: 0 0 22px rgba(255,176,32,.55), 0 0 6px rgba(255,176,32,.35); }
+}
+.wordmark span {
+  color: var(--amber);
+  /* The AUDIT part glows more intensely */
+  animation: wordmarkSpanGlow 3s ease-in-out infinite;
+}
+@keyframes wordmarkSpanGlow {
+  0%,100% { text-shadow: 0 0  8px rgba(255,176,32,.20); color: var(--amber); }
+  50%      { text-shadow: 0 0 28px rgba(255,176,32,.80), 0 0 8px rgba(255,176,32,.50); color: #ffc840; }
+}
 .tagline { color: var(--text-dim); font-size: 13px; margin-top: 4px; letter-spacing: .2px; }
 
 /* ── Field groups ── */
@@ -1479,10 +1574,77 @@ body.dark-theme .card-body  { background: var(--bg-dark) !important; }
   .sidebar.show { left: 0; }
   .stat-cards   { grid-template-columns: repeat(2,1fr); }
 }
+
+/* Tablet — tighten the card, keep animations */
+@media (max-width:768px) {
+  .card-flip-wrapper { max-width: 96vw; }
+  .auth-card         { max-width: 96vw; border-radius: 14px; }
+  .welcome-card      { max-width: 96vw; }
+  .gate-screen       { padding: 16px 12px; align-items: center; }
+
+  /* Slow float slightly on tablet so it doesn't look jittery */
+  .auth-card, .welcome-card {
+    animation: cardIn .55s cubic-bezier(.2,.8,.2,1) forwards,
+               cardFloat 7s ease-in-out 0.6s infinite;
+  }
+
+  /* Slightly smaller road grid on narrow viewports */
+  .road-scene::before { width: 400vw; }
+}
+
+/* Mobile */
 @media (max-width:600px) {
-  .auth-card-body, .welcome-card-body { padding: 24px 20px 20px; }
+  .auth-card-body, .welcome-card-body { padding: 24px 18px 20px; }
   .stat-cards   { grid-template-columns: repeat(2,1fr); }
   .hero-stats   { gap: 6px; }
   .hero-stat    { min-width: 68px; padding: 8px 12px; }
   .hero-stat-val { font-size: 24px; }
+
+  /* Logo slightly smaller */
+  .logo-badge   { width: 48px; height: 48px; border-radius: 13px; }
+  .wordmark     { font-size: 22px; letter-spacing: 2px; }
+
+  /* Reduce float travel so card stays on screen */
+  @keyframes cardFloat {
+    0%,100% {
+      transform: translateY(0px) translateZ(0);
+      box-shadow: 0 24px 60px -16px rgba(0,0,0,.75),
+                  0 0 0 1px rgba(255,255,255,.03) inset,
+                  0 0 30px -8px rgba(255,176,32,.18);
+    }
+    50% {
+      transform: translateY(-5px) translateZ(0);
+      box-shadow: 0 32px 80px -16px rgba(0,0,0,.65),
+                  0 0 0 1px rgba(255,255,255,.05) inset,
+                  0 0 40px -4px rgba(255,176,32,.28);
+    }
+  }
+
+  /* Speed up road on small screen so it still feels alive */
+  @keyframes roadScroll {
+    from { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(0); }
+    to   { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(50%); }
+  }
+  .road-scene::before { animation-duration: 2.4s; width: 500vw; }
+}
+
+/* Very small — phones like SE */
+@media (max-width:390px) {
+  .auth-card-body, .welcome-card-body { padding: 20px 14px 16px; }
+  .wordmark  { font-size: 20px; letter-spacing: 1.5px; }
+  .tagline   { font-size: 11.5px; }
+}
+
+/* Respect reduced-motion: keep layout but remove movement */
+@media (prefers-reduced-motion: reduce) {
+  .road-scene::before    { animation: none; }
+  .gantry-glow           { animation: none; }
+  .auth-card,
+  .welcome-card          { animation: cardIn .55s cubic-bezier(.2,.8,.2,1) forwards; }
+  .logo-badge            { animation: none; }
+  .wordmark              { animation: none; }
+  .wordmark span         { animation: none; }
+  .logo-badge > svg,
+  .logo-badge > .bi      { animation: none; }
+  .led-strip span        { animation: none; }
 }
