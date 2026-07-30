@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toll Audit Assistant</title>
+    <title>Toll Audit — Gantry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
@@ -11,22 +13,41 @@
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════
+     SVG ICON SPRITE
+═══════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden">
+<defs>
+<symbol id="i-gate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 21h18M6 21V10a1 1 0 0 1 1-1h1M18 21V10a1 1 0 0 0-1-1h-1M4.5 8.5l14-3.5"/>
+</symbol>
+<symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 17V12l2-5h10l3 5v5"/><path d="M3 17h1M20 17h1"/>
+  <circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/>
+</symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M7 3v4M17 3v4M4 8h16"/><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M9 13l2 2 4-4"/>
+</symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>
+</symbol>
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="4.5"/>
+  <path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>
+</symbol>
+</defs>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════
      AUTH SCREEN
 ═══════════════════════════════════════════════════════════ -->
 <div id="authScreen" class="gate-screen">
 
-    <!-- 3-D tunnel: 5 gantry frames fly toward camera -->
-    <div class="tunnel-wrap" aria-hidden="true">
-        <div class="tunnel-frame" style="--d:1"></div>
-        <div class="tunnel-frame" style="--d:2"></div>
-        <div class="tunnel-frame" style="--d:3"></div>
-        <div class="tunnel-frame" style="--d:4"></div>
-        <div class="tunnel-frame" style="--d:5"></div>
-        <!-- Road surface perspective lines -->
-        <div class="tunnel-road"></div>
+    <!-- Road scene backdrop -->
+    <div class="road-scene" aria-hidden="true">
+        <div class="gantry-glow"></div>
     </div>
 
-    <!-- Boom barrier above the card -->
+    <!-- Boom barrier (kept for JS compat, hidden via CSS) -->
     <div class="boom-wrap" id="authBoomWrap" aria-hidden="true">
         <div class="boom-post"></div>
         <div class="boom-arm" id="authBoomArm">
@@ -38,7 +59,7 @@
         </div>
     </div>
 
-    <!-- Status strip (bottom) -->
+    <!-- Lane status strip (kept for JS compat, hidden via CSS) -->
     <div class="lane-status-strip" id="authLaneStatus">
         <span class="lane-status-icon">&#9632;</span>
         <span class="lane-status-text" id="authLaneStatusText">LANE CLOSED</span>
@@ -46,76 +67,89 @@
         <span class="lane-status-id">LANE 3 · TOLL AUDIT SYSTEM</span>
     </div>
 
-    <!-- The card itself sits inside a flip-wrapper -->
+    <!-- Auth card (flip wrapper kept for JS compat) -->
     <div class="card-flip-wrapper" id="authFlipWrapper">
       <div class="card-flip-inner" id="authFlipInner">
 
-        <!-- FRONT: Login card -->
+        <!-- FRONT: Login / Signup -->
         <div class="auth-card card-flip-front">
+          <div class="auth-card-top"></div>
           <div class="auth-card-body">
-            <div class="auth-brand">
-                <i class="bi bi-car-front-fill"></i>
-                <span class="auth-brand-name">Toll Audit</span>
+
+            <!-- Brand -->
+            <div class="brand-row">
+              <div class="logo-badge">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <use href="#i-gate"/>
+                </svg>
+              </div>
+              <div class="wordmark">TOLL<span> AUDIT</span></div>
+              <div class="tagline">Every lane, every vehicle, accounted for.</div>
             </div>
-            <p class="auth-tagline">Professional toll auditing, made simple</p>
 
-        <!-- LOGIN TAB SWITCHER -->
-        <div class="auth-tab-bar" id="authTabBar">
-            <button class="auth-tab active" id="tabEmailBtn" type="button">
+            <!-- Auth Tab Bar -->
+            <div class="auth-tab-bar" id="authTabBar" style="display:none;">
+              <button class="auth-tab active" id="tabEmailBtn" type="button">
                 <i class="bi bi-envelope-fill"></i> Email
-            </button>
-            <button class="auth-tab" id="tabPinBtn" type="button">
+              </button>
+              <button class="auth-tab" id="tabPinBtn" type="button">
                 <i class="bi bi-grid-3x3-gap-fill"></i> Quick PIN
-            </button>
-        </div>
+              </button>
+            </div>
 
-        <!-- LOGIN BOX — Email/Password -->
-        <div id="loginBox">
-            <form id="loginForm" autocomplete="off">
-                <div class="mb-3">
-                    <label class="form-label">Email address</label>
+            <!-- LOGIN BOX — Email/Password -->
+            <div id="loginBox">
+              <form id="loginForm" autocomplete="off">
+                <div class="field">
+                  <label>Email address</label>
+                  <div class="field-input">
+                    <i class="bi bi-envelope"></i>
                     <input type="email" class="form-control" id="loginUsername" placeholder="you@example.com" required>
+                  </div>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label">Password</label>
+                <div class="field">
+                  <label>Password</label>
+                  <div class="field-input">
+                    <i class="bi bi-lock"></i>
                     <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+                  </div>
                 </div>
-                <div id="loginError"   class="text-danger small mb-2" style="display:none;"></div>
-                <div id="loginSuccess" class="text-success small mb-2" style="display:none;"></div>
+                <div id="loginError"   class="auth-msg auth-msg--error"   style="display:none;"></div>
+                <div id="loginSuccess" class="auth-msg auth-msg--success" style="display:none;"></div>
                 <button type="submit" class="btn-auth-primary">
-                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                  <i class="bi bi-box-arrow-in-right"></i> Sign In
                 </button>
                 <button type="button" id="forgotPasswordBtn" class="btn-forgot">
-                    <i class="bi bi-key"></i> Forgot Password?
+                  <i class="bi bi-key"></i> Forgot Password?
                 </button>
-            </form>
-            <div class="auth-divider">or</div>
-            <button type="button" class="btn-google-signin" id="googleSignInBtn">
+              </form>
+              <div class="auth-divider">or</div>
+              <button type="button" class="btn-google-signin" id="googleSignInBtn">
                 <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Continue with Google
-            </button>
-            <p class="auth-switch">
+              </button>
+              <p class="auth-switch">
                 New here?
                 <button type="button" id="showSignupBtn" class="btn-link-plain">Create a free account</button>
-            </p>
-        </div>
+              </p>
+            </div>
 
-        <!-- LOGIN BOX — Quick PIN -->
-        <div id="pinLoginBox" style="display:none;">
-            <p class="pin-login-sub" id="pinLoginUserLabel">Enter your 4-digit PIN</p>
-            <div class="pin-dots" id="pinDots">
+            <!-- LOGIN BOX — Quick PIN -->
+            <div id="pinLoginBox" style="display:none;">
+              <p class="pin-login-sub" id="pinLoginUserLabel">Enter your 4-digit PIN</p>
+              <div class="pin-dots" id="pinDots">
                 <span class="pin-dot" id="pd0"></span>
                 <span class="pin-dot" id="pd1"></span>
                 <span class="pin-dot" id="pd2"></span>
                 <span class="pin-dot" id="pd3"></span>
-            </div>
-            <div id="pinLoginError" class="text-danger small mb-2 text-center" style="display:none;"></div>
-            <div class="pin-numpad">
+              </div>
+              <div id="pinLoginError" class="auth-msg auth-msg--error" style="display:none;"></div>
+              <div class="pin-numpad">
                 <button class="pin-key" data-digit="1" type="button">1</button>
                 <button class="pin-key" data-digit="2" type="button">2</button>
                 <button class="pin-key" data-digit="3" type="button">3</button>
@@ -125,62 +159,74 @@
                 <button class="pin-key" data-digit="7" type="button">7</button>
                 <button class="pin-key" data-digit="8" type="button">8</button>
                 <button class="pin-key" data-digit="9" type="button">9</button>
-                <button class="pin-key pin-key-clear" id="pinClearBtn" type="button">
-                    <i class="bi bi-x-circle"></i>
-                </button>
+                <button class="pin-key pin-key-clear" id="pinClearBtn" type="button"><i class="bi bi-x-circle"></i></button>
                 <button class="pin-key" data-digit="0" type="button">0</button>
-                <button class="pin-key pin-key-del" id="pinDelBtn" type="button">
-                    <i class="bi bi-backspace-fill"></i>
-                </button>
-            </div>
-            <button type="button" id="pinUseEmailBtn" class="btn-forgot" style="margin-top:8px;">
+                <button class="pin-key pin-key-del"   id="pinDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
+              </div>
+              <button type="button" id="pinUseEmailBtn" class="btn-forgot" style="margin-top:8px;">
                 <i class="bi bi-envelope"></i> Use email instead
-            </button>
-        </div>
+              </button>
+            </div>
 
-        <!-- SIGNUP BOX — on the BACK face of the flip card -->
-        <div id="signupBox" style="display:none;">
-            <form id="signupForm" autocomplete="off">
-                <div class="mb-3">
-                    <label class="form-label">Email address</label>
+            <!-- SIGNUP BOX -->
+            <div id="signupBox" style="display:none;">
+              <form id="signupForm" autocomplete="off">
+                <div class="field">
+                  <label>Email address</label>
+                  <div class="field-input">
+                    <i class="bi bi-envelope"></i>
                     <input type="email" class="form-control" id="signupEmail" placeholder="you@example.com" required>
+                  </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Choose a username</label>
+                <div class="field">
+                  <label>Choose a username</label>
+                  <div class="field-input">
+                    <i class="bi bi-person"></i>
                     <input type="text" class="form-control" id="signupUsername" placeholder="e.g. Ravi Kumar" required>
+                  </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
+                <div class="field">
+                  <label>Password</label>
+                  <div class="field-input">
+                    <i class="bi bi-lock"></i>
                     <input type="password" class="form-control" id="signupPassword" placeholder="min 6 characters" required>
+                  </div>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label">Confirm password</label>
+                <div class="field">
+                  <label>Confirm password</label>
+                  <div class="field-input">
+                    <i class="bi bi-lock-fill"></i>
                     <input type="password" class="form-control" id="signupConfirmPassword" placeholder="repeat password" required>
+                  </div>
                 </div>
-                <div id="signupError"   class="text-danger small mb-2" style="display:none;"></div>
-                <div id="signupSuccess" class="text-success small mb-2" style="display:none;"></div>
+                <div id="signupError"   class="auth-msg auth-msg--error"   style="display:none;"></div>
+                <div id="signupSuccess" class="auth-msg auth-msg--success" style="display:none;"></div>
                 <button type="submit" class="btn-auth-primary">
-                    <i class="bi bi-person-plus"></i> Create Account
+                  <i class="bi bi-person-plus"></i> Create Account
                 </button>
-            </form>
-            <div class="auth-divider">or</div>
-            <button type="button" class="btn-google-signin" id="googleSignUpBtn">
+              </form>
+              <div class="auth-divider">or</div>
+              <button type="button" class="btn-google-signin" id="googleSignUpBtn">
                 <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Continue with Google
-            </button>
-            <p class="auth-switch">
+              </button>
+              <p class="auth-switch">
                 Already have an account?
                 <button type="button" id="showLoginBtn" class="btn-link-plain">Sign in instead</button>
-            </p>
-        </div>
+              </p>
+            </div>
 
           </div><!-- /.auth-card-body -->
-        </div><!-- /.auth-card.card-flip-front -->
+          <div class="led-strip">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div><!-- /.auth-card -->
 
       </div><!-- /.card-flip-inner -->
     </div><!-- /.card-flip-wrapper -->
@@ -191,27 +237,21 @@
 ═══════════════════════════════════════════════════════════ -->
 <div id="welcomeScreen" class="gate-screen" style="display:none;">
 
-    <div class="tunnel-wrap" aria-hidden="true">
-        <div class="tunnel-frame" style="--d:1"></div>
-        <div class="tunnel-frame" style="--d:2"></div>
-        <div class="tunnel-frame" style="--d:3"></div>
-        <div class="tunnel-frame" style="--d:4"></div>
-        <div class="tunnel-frame" style="--d:5"></div>
-        <div class="tunnel-road"></div>
+    <div class="road-scene" aria-hidden="true">
+        <div class="gantry-glow"></div>
     </div>
 
+    <!-- Kept for JS compat -->
     <div class="boom-wrap" id="welcomeBoomWrap" aria-hidden="true">
         <div class="boom-post"></div>
         <div class="boom-arm boom-arm--open" id="welcomeBoomArm">
-            <div class="boom-stripes"></div>
-            <div class="boom-tip"></div>
+            <div class="boom-stripes"></div><div class="boom-tip"></div>
         </div>
         <div class="boom-reader">
             <span class="boom-reader-light boom-reader-light--scan"></span>
         </div>
     </div>
-
-    <div class="lane-status-strip lane-status-strip--clear">
+    <div class="lane-status-strip lane-status-strip--clear" aria-hidden="true">
         <span class="lane-status-icon">&#9650;</span>
         <span class="lane-status-text">LANE CLEAR</span>
         <span class="lane-status-sep">·</span>
@@ -219,6 +259,7 @@
     </div>
 
     <div class="welcome-card">
+      <div class="auth-card-top"></div>
       <div class="welcome-card-body">
         <button type="button" class="avatar-circle avatar-display" id="welcomeAvatar"
                 data-avatar-trigger title="Change your avatar">🧑‍💼</button>
@@ -231,6 +272,10 @@
             <i class="bi bi-box-arrow-right"></i> Logout
         </button>
       </div>
+      <div class="led-strip">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
 </div>
 
@@ -239,27 +284,21 @@
 ═══════════════════════════════════════════════════════════ -->
 <div id="dateScreen" class="gate-screen" style="display:none;">
 
-    <div class="tunnel-wrap" aria-hidden="true">
-        <div class="tunnel-frame" style="--d:1"></div>
-        <div class="tunnel-frame" style="--d:2"></div>
-        <div class="tunnel-frame" style="--d:3"></div>
-        <div class="tunnel-frame" style="--d:4"></div>
-        <div class="tunnel-frame" style="--d:5"></div>
-        <div class="tunnel-road"></div>
+    <div class="road-scene" aria-hidden="true">
+        <div class="gantry-glow"></div>
     </div>
 
+    <!-- Kept for JS compat -->
     <div class="boom-wrap" id="dateBoomWrap" aria-hidden="true">
         <div class="boom-post"></div>
         <div class="boom-arm boom-arm--open" id="dateBoomArm">
-            <div class="boom-stripes"></div>
-            <div class="boom-tip"></div>
+            <div class="boom-stripes"></div><div class="boom-tip"></div>
         </div>
         <div class="boom-reader">
             <span class="boom-reader-light boom-reader-light--scan"></span>
         </div>
     </div>
-
-    <div class="lane-status-strip lane-status-strip--clear">
+    <div class="lane-status-strip lane-status-strip--clear" aria-hidden="true">
         <span class="lane-status-icon">&#9650;</span>
         <span class="lane-status-text">LANE CLEAR</span>
         <span class="lane-status-sep">·</span>
@@ -267,17 +306,26 @@
     </div>
 
     <div class="welcome-card">
+      <div class="auth-card-top"></div>
       <div class="welcome-card-body">
-        <i class="bi bi-calendar-check welcome-icon"></i>
+        <div class="icon-halo">
+          <i class="bi bi-calendar-check" style="font-size:26px;"></i>
+        </div>
         <h2 style="margin-bottom:4px;">Select Audit Date</h2>
         <p class="welcome-sub">Choose the date you want to audit</p>
-        <input type="date" id="auditDateInput" class="form-control form-control-lg text-center mb-3">
+        <div class="date-field-wrap">
+          <input type="date" id="auditDateInput" class="form-control form-control-lg text-center mb-3">
+        </div>
         <button id="continueToAuditBtn" class="start-audit-btn">
             <i class="bi bi-arrow-right-circle"></i> Continue
         </button>
         <button id="backToWelcomeBtn" class="welcome-logout">
             <i class="bi bi-arrow-left"></i> Back
         </button>
+      </div>
+      <div class="led-strip">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
       </div>
     </div>
 </div>
@@ -297,7 +345,9 @@
 
     <!-- Brand -->
     <div class="sidebar-brand">
-        <div class="sidebar-brand-icon"><i class="bi bi-car-front-fill"></i></div>
+        <div class="sidebar-brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gate"/></svg>
+        </div>
         <div>
             <div class="sidebar-brand-text">Toll Audit</div>
             <div class="sidebar-brand-sub">ASSISTANT</div>
@@ -371,13 +421,11 @@
 <main class="col-lg-10">
 <div class="main-inner">
 
-    <!-- ── Premium Topbar ── -->
+    <!-- ── Topbar ── -->
     <header class="topbar">
-
-        <!-- LEFT: Brand + Audit Date -->
         <div class="topbar-left">
             <div class="topbar-brand-icon">
-                <i class="bi bi-car-front-fill"></i>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gate"/></svg>
             </div>
             <div class="topbar-title-block">
                 <span class="topbar-app-name">Toll Audit</span>
@@ -385,11 +433,8 @@
                 <span class="topbar-audit-date" id="topbarAuditDate">Dashboard</span>
             </div>
         </div>
-
-        <!-- RIGHT: Controls -->
         <div class="topbar-right">
-
-            <!-- Night Mode: compact label + mini switch -->
+            <!-- Night Mode toggle -->
             <button class="theme-btn topbar-ctrl" id="themeToggleBtn" type="button" aria-label="Toggle night mode">
                 <span class="theme-ctrl-label" id="themeCtrlLabel">
                     <i class="bi bi-sun-fill theme-ctrl-icon"></i>
@@ -399,7 +444,6 @@
                     <span class="theme-mini-knob"></span>
                 </span>
             </button>
-
             <!-- Profile chip + dropdown -->
             <div class="dropdown topbar-ctrl">
                 <button class="topbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -419,14 +463,11 @@
                     <li><button class="dropdown-item text-danger" id="signOutBtn"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</button></li>
                 </ul>
             </div>
-
         </div>
     </header>
 
-    <!-- ── Premium Hero Section ── -->
+    <!-- ── Dashboard Hero ── -->
     <div class="dashboard-hero">
-
-        <!-- ░░ TOP STRIP — overhead gantry info bar ░░ -->
         <div class="hero-gantry-strip">
             <span class="gantry-plaza">
                 <i class="bi bi-upc-scan"></i>
@@ -441,49 +482,28 @@
                 SYSTEM ONLINE
             </span>
         </div>
-
-        <!-- ░░ BODY — title · stats ░░ -->
         <div class="hero-body">
-
-            <!-- Title block -->
             <div class="hero-left">
                 <div class="hero-title">
-                    <!--
-                      Animated barrier-gate glyph — viewBox 0 0 44 28
-                      Post at x=2–7, hinge at (4.5, 8).
-                      .hg-arm  rotates around hinge: 0° closed → −75° open → 0° closed  (4.5 s loop)
-                      .hg-car  slides left→right under the raised arm then resets          (4.5 s loop)
-                    -->
                     <svg class="hero-gate-glyph" viewBox="0 0 44 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <!-- Road surface -->
                         <rect x="0" y="22" width="44" height="6" rx="1" fill="white" opacity=".18"/>
-                        <!-- Lane centre dashes -->
-                        <rect x="4"  y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <rect x="13" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <rect x="22" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <rect x="31" y="24.5" width="5" height="1.5" rx=".75" fill="#f59e0b" opacity=".7"/>
-                        <!-- Gantry post -->
+                        <rect x="4"  y="24.5" width="5" height="1.5" rx=".75" fill="#FFB020" opacity=".7"/>
+                        <rect x="13" y="24.5" width="5" height="1.5" rx=".75" fill="#FFB020" opacity=".7"/>
+                        <rect x="22" y="24.5" width="5" height="1.5" rx=".75" fill="#FFB020" opacity=".7"/>
+                        <rect x="31" y="24.5" width="5" height="1.5" rx=".75" fill="#FFB020" opacity=".7"/>
                         <rect x="2" y="2" width="5" height="20" rx="2" fill="white" opacity=".80"/>
-                        <!-- Hinge pivot dot -->
-                        <circle cx="4.5" cy="8" r="2.5" fill="#f59e0b"/>
-                        <!-- ── Barrier arm — rotates from hinge (4.5, 8) ── -->
+                        <circle cx="4.5" cy="8" r="2.5" fill="#FFB020"/>
                         <g class="hg-arm">
                             <rect x="4.5" y="6" width="38" height="4" rx="2" fill="white" opacity=".90"/>
-                            <rect x="10"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
-                            <rect x="20"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
-                            <rect x="30"  y="6" width="5"  height="4" fill="#f59e0b" opacity=".85"/>
+                            <rect x="10"  y="6" width="5"  height="4" fill="#FFB020" opacity=".85"/>
+                            <rect x="20"  y="6" width="5"  height="4" fill="#FFB020" opacity=".85"/>
+                            <rect x="30"  y="6" width="5"  height="4" fill="#FFB020" opacity=".85"/>
                         </g>
-                        <!-- ── Car — slides under raised arm ── -->
                         <g class="hg-car">
-                            <!-- body -->
                             <rect x="-10" y="14" width="12" height="7" rx="2" fill="white" opacity=".95"/>
-                            <!-- cabin -->
                             <rect x="-8"  y="10" width="7"  height="5" rx="1.5" fill="white" opacity=".80"/>
-                            <!-- headlight -->
                             <rect x="-11" y="16.5" width="2.5" height="2" rx=".5" fill="#fde68a"/>
-                            <!-- tail light -->
                             <rect x="1.5" y="16.5" width="2"   height="2" rx=".5" fill="#f87171"/>
-                            <!-- wheels -->
                             <circle cx="-7"  cy="22" r="2.5" fill="#1a1200"/>
                             <circle cx="1"   cy="22" r="2.5" fill="#1a1200"/>
                         </g>
@@ -492,8 +512,6 @@
                 </div>
                 <div class="hero-sub" id="heroSubLine">Ready to audit — select a category and start recording.</div>
             </div>
-
-            <!-- Stat tiles -->
             <div class="hero-stats">
                 <div class="hero-stat">
                     <span class="hero-stat-dot hero-stat-dot--idle"></span>
@@ -516,15 +534,11 @@
                     <div class="hero-stat-lbl">Progress</div>
                 </div>
             </div>
-
         </div>
-
-        <!-- ░░ BOTTOM — dashed lane-marking line ░░ -->
         <div class="hero-lane-line" aria-hidden="true"></div>
-
     </div>
 
-    <!-- Pending Audit Banner -->
+    <!-- ── Pending Audit Banner ── -->
     <div id="pendingAuditBanner" class="pending-audit-banner" style="display:none;">
         <div class="pending-audit-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
         <div class="pending-audit-text">
@@ -546,14 +560,12 @@
 
     <!-- ── Report Setup ── -->
     <div class="card shadow-sm mb-4">
-        <!-- Header row: toggle + Actions always visible -->
         <div class="card-header d-flex justify-content-between align-items-center">
             <button class="btn btn-sm btn-link text-decoration-none p-0 report-setup-toggle"
                     type="button" data-bs-toggle="collapse" data-bs-target="#reportSetupBody">
                 <i class="bi bi-chevron-right toggle-caret"></i>
                 <strong><i class="bi bi-table"></i> Report Setup</strong>
             </button>
-            <!-- Actions always visible — not inside collapse -->
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     <i class="bi bi-sliders"></i> Actions
@@ -632,10 +644,8 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <strong><i class="bi bi-car-front-fill"></i> Tap a Vehicle Class to Record</strong>
         </div>
-
         <div class="card-body pt-3">
             <div id="vehicleButtons" class="veh-grid">
-
                 <button class="vehicle-btn" data-vehicle="Car">
                     <i class="bi bi-car-front-fill veh-icon"></i><span>Car</span>
                 </button>
@@ -668,21 +678,14 @@
                 </button>
                 <button class="vehicle-btn" data-vehicle="Auto">
                     <svg class="veh-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width:25px;height:25px;display:block;">
-                        <!-- cabin roof -->
                         <path d="M4 8.5C4 7.4 4.9 6.5 6 6.5h8.5l2.8 3H4V8.5Z"/>
-                        <!-- windshield strut -->
                         <rect x="14" y="6.5" width="1.2" height="3" rx="0.4"/>
-                        <!-- body -->
                         <rect x="4" y="9.5" width="13.5" height="5" rx="1.2"/>
-                        <!-- engine/nose -->
                         <path d="M17.5 11h3c.8 0 1 .6.8 1.2l-.6 2.3H17.5V11Z"/>
-                        <!-- rear wheel -->
                         <circle cx="7" cy="16.5" r="2"/>
                         <circle cx="7" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
-                        <!-- front wheel -->
                         <circle cx="19.5" cy="16.5" r="2"/>
                         <circle cx="19.5" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
-                        <!-- seat detail -->
                         <rect x="5.5" y="10" width="4" height="1.2" rx="0.5" fill="rgba(255,255,255,.25)"/>
                     </svg>
                     <span>Auto</span>
@@ -718,12 +721,11 @@
                 <button class="vehicle-btn" data-vehicle="Fake Violation">
                     <i class="bi bi-exclamation-triangle-fill veh-icon"></i><span>Fake Violation</span>
                 </button>
-
             </div>
         </div>
     </div>
 
-    <!-- ── Verify Pass Section ── -->
+    <!-- ── Verify Pass ── -->
     <div class="card shadow-sm mb-4 verify-pass-card">
         <div class="verify-pass-header">
             <div class="verify-pass-title-wrap">
@@ -734,14 +736,10 @@
                 </div>
             </div>
             <div class="pass-search-bar-wrap">
-                <div class="pass-search-icon">
-                    <i class="bi bi-search"></i>
-                </div>
+                <div class="pass-search-icon"><i class="bi bi-search"></i></div>
                 <input type="text" id="passCheckInput" class="pass-search-input"
                        placeholder="Enter Vehicle Number…" autocomplete="off" spellcheck="false">
-                <button class="pass-search-btn" id="passCheckBtn" type="button">
-                    Search
-                </button>
+                <button class="pass-search-btn" id="passCheckBtn" type="button">Search</button>
             </div>
         </div>
         <div id="passCheckResult" class="pass-check-result"></div>
@@ -750,7 +748,7 @@
     <!-- ── Counts + History ── -->
     <div class="counts-history-grid">
 
-        <!-- ── Actual Vehicle Counts ── -->
+        <!-- Actual Vehicle Counts -->
         <div class="vc-panel">
             <div class="vc-panel-header">
                 <div class="vc-panel-title">
@@ -762,7 +760,7 @@
             <div class="vc-list" id="vehicleCountTable"></div>
         </div>
 
-        <!-- ── Transaction History ── -->
+        <!-- Transaction History -->
         <div class="th-panel">
             <div class="th-panel-header">
                 <div class="th-panel-title">
@@ -778,8 +776,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Search + Filter bar -->
             <div class="th-filter-bar">
                 <div class="th-search-wrap">
                     <i class="bi bi-search th-search-icon"></i>
@@ -790,8 +786,6 @@
                     <option value="">All Vehicles</option>
                 </select>
             </div>
-
-            <!-- Feed -->
             <div id="transactionHistory" class="th-feed">
                 <div class="th-empty"><i class="bi bi-inbox"></i><span>No Transactions</span></div>
             </div>
@@ -809,27 +803,19 @@
 <!-- ═══════════════════════════════════════════════════════════
      LOCK OVERLAY
 ═══════════════════════════════════════════════════════════ -->
-<!-- LOCK OVERLAY -->
 <div id="lockOverlay" class="lock-overlay">
     <div class="lock-box">
-
-        <!-- Default: Enter PIN -->
         <div id="lockBoxMain">
             <i class="bi bi-lock-fill lock-icon"></i>
             <h4 style="font-weight:800;margin-bottom:4px;">Screen Locked</h4>
             <p class="text-muted mb-3" style="font-size:13px;">Enter your PIN to continue</p>
-
-            <!-- PIN dots -->
             <div class="pin-dots mb-3" id="unlockDots">
                 <span class="pin-dot" id="upd0"></span>
                 <span class="pin-dot" id="upd1"></span>
                 <span class="pin-dot" id="upd2"></span>
                 <span class="pin-dot" id="upd3"></span>
             </div>
-
             <div id="unlockError" class="text-danger small mb-2" style="display:none;">Incorrect PIN. Try again.</div>
-
-            <!-- Numpad -->
             <div class="pin-numpad" id="unlockNumpad">
                 <button class="pin-key" data-udigit="1" type="button">1</button>
                 <button class="pin-key" data-udigit="2" type="button">2</button>
@@ -844,18 +830,14 @@
                 <button class="pin-key" data-udigit="0" type="button">0</button>
                 <button class="pin-key pin-key-del"   id="unlockDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
             </div>
-
             <button class="btn-forgot" id="forgotLockPinBtn" style="margin-top:10px;">
                 <i class="bi bi-question-circle"></i> Forgot PIN?
             </button>
         </div>
-
-        <!-- Forget PIN: verify via Quick-login PIN -->
         <div id="lockBoxForgot" style="display:none;">
-            <i class="bi bi-shield-lock-fill lock-icon" style="color:#f59e0b;"></i>
+            <i class="bi bi-shield-lock-fill lock-icon" style="color:#FFB020;"></i>
             <h4 style="font-weight:800;margin-bottom:4px;">Verify Identity</h4>
             <p class="text-muted mb-3" style="font-size:13px;">Enter your <strong>Quick Login PIN</strong> to reset screen lock PIN</p>
-
             <div class="pin-dots mb-3" id="forgotVerifyDots">
                 <span class="pin-dot" id="fvd0"></span>
                 <span class="pin-dot" id="fvd1"></span>
@@ -863,7 +845,6 @@
                 <span class="pin-dot" id="fvd3"></span>
             </div>
             <div id="forgotVerifyError" class="text-danger small mb-2" style="display:none;">Wrong Quick PIN. Try again.</div>
-
             <div class="pin-numpad">
                 <button class="pin-key" data-fdigit="1" type="button">1</button>
                 <button class="pin-key" data-fdigit="2" type="button">2</button>
@@ -878,19 +859,15 @@
                 <button class="pin-key" data-fdigit="0" type="button">0</button>
                 <button class="pin-key pin-key-del"   id="forgotDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
             </div>
-
             <button class="btn-forgot" id="forgotBackBtn" style="margin-top:10px;">
                 <i class="bi bi-arrow-left"></i> Back
             </button>
         </div>
-
-        <!-- Set new lock PIN after identity verified -->
         <div id="lockBoxSetNew" style="display:none;">
-            <i class="bi bi-pencil-square lock-icon" style="font-size:36px;color:#5b5ef6;"></i>
+            <i class="bi bi-pencil-square lock-icon" style="font-size:36px;color:#4C8DFF;"></i>
             <h4 style="font-weight:800;margin-bottom:4px;" id="setNewPinTitle">Set New Lock PIN</h4>
             <p class="text-muted mb-1" style="font-size:13px;" id="setNewPinSub">Enter a new 4-digit PIN</p>
             <div class="pin-setup-step mb-2" id="setNewPinStep">STEP 1 — ENTER NEW PIN</div>
-
             <div class="pin-dots mb-3" id="setNewDots">
                 <span class="pin-dot" id="snd0"></span>
                 <span class="pin-dot" id="snd1"></span>
@@ -898,7 +875,6 @@
                 <span class="pin-dot" id="snd3"></span>
             </div>
             <div id="setNewPinError" class="text-danger small mb-2" style="display:none;"></div>
-
             <div class="pin-numpad">
                 <button class="pin-key" data-ndigit="1" type="button">1</button>
                 <button class="pin-key" data-ndigit="2" type="button">2</button>
@@ -914,17 +890,16 @@
                 <button class="pin-key pin-key-del"   id="setNewDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
             </div>
         </div>
-
     </div>
 </div>
 
-<!-- SET LOCK PIN MODAL (sidebar button) -->
+<!-- SET LOCK PIN MODAL -->
 <div id="setPinModal" class="pin-setup-overlay">
     <div class="pin-setup-card">
         <div class="pin-setup-icon">🔒</div>
         <div class="pin-setup-title" id="setPinModalTitle">Set Screen Lock PIN</div>
-        <div class="pin-setup-sub" id="setPinModalSub">Tap 4 digits · you'll confirm them once</div>
-        <div class="pin-setup-step" id="setPinModalStep">STEP 1 — ENTER NEW PIN</div>
+        <div class="pin-setup-sub"   id="setPinModalSub">Tap 4 digits · you'll confirm them once</div>
+        <div class="pin-setup-step"  id="setPinModalStep">STEP 1 — ENTER NEW PIN</div>
         <div class="pin-setup-dots">
             <span class="pin-dot" id="mpd0"></span>
             <span class="pin-dot" id="mpd1"></span>
@@ -976,28 +951,22 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-
-                <!-- Read-only notice for non-admins -->
                 <div id="passListReadonlyNotice"
                      class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-3"
                      style="display:none!important;font-size:13px;">
                     <i class="bi bi-shield-lock-fill mt-1"></i>
-                    <div><strong>View-only access.</strong> This pass list is managed by your admin. You can check any vehicle number but cannot upload or edit.</div>
+                    <div><strong>View-only access.</strong> This pass list is managed by your admin.</div>
                 </div>
-
                 <div class="mb-3">
                     <label class="form-label small">Currently loaded</label>
                     <div><span class="badge bg-primary" id="passListModalCount">0</span> vehicle numbers</div>
                 </div>
-
                 <div class="mb-3">
                     <label class="form-label small">Breakdown by Vehicle Class <span class="text-muted">(duplicates merged)</span></label>
                     <table class="pass-detail-table" id="passListBreakdownTable">
                         <tbody id="passListBreakdownBody"></tbody>
                     </table>
                 </div>
-
-                <!-- ADMIN ONLY: Upload / Paste -->
                 <div class="pass-admin-only">
                     <hr>
                     <h6 class="mb-2"><i class="bi bi-upload"></i> Upload / Paste Pass List
@@ -1014,8 +983,6 @@
                     </div>
                     <div id="passListStatus" class="small mb-2"></div>
                 </div>
-
-                <!-- ADMIN ONLY: Find & Update -->
                 <div class="pass-admin-only">
                     <hr>
                     <h6 class="mb-2"><i class="bi bi-pencil-square"></i> Find &amp; Update a Single Pass
@@ -1047,7 +1014,6 @@
                     </div>
                     <div id="passEditStatus" class="small mt-2"></div>
                 </div>
-
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-danger me-auto pass-admin-only" id="passListClearBtn">
@@ -1073,20 +1039,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">
-                    Everything this app knows — pass list, audit history, login accounts, and settings —
-                    lives in this browser. Use Export to save a backup file, and Import to restore it on
-                    this device or any other.
-                </p>
+                <p class="text-muted small">Everything lives in this browser. Use Export to save, and Import to restore.</p>
                 <hr>
                 <h6 class="mb-2"><i class="bi bi-download"></i> Export Backup</h6>
-                <p class="text-muted small mb-2">Downloads one .json file with everything as of right now.</p>
                 <button type="button" class="btn btn-primary w-100 mb-3" id="backupExportBtn">
                     <i class="bi bi-download"></i> Export Backup File
                 </button>
                 <hr>
                 <h6 class="mb-2"><i class="bi bi-upload"></i> Import Backup</h6>
-                <p class="text-muted small mb-2">Choose a previously exported backup file. This <strong>replaces</strong> all current data.</p>
                 <input type="file" class="form-control mb-2" id="backupImportFile" accept=".json">
                 <button type="button" class="btn btn-outline-primary w-100" id="backupImportBtn">
                     <i class="bi bi-upload"></i> Restore From This File
@@ -1111,11 +1071,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-
-                <!-- ── Avatar ── -->
-                <div class="profile-section-label">
-                    <i class="bi bi-emoji-smile"></i> Profile Picture
-                </div>
+                <div class="profile-section-label"><i class="bi bi-emoji-smile"></i> Profile Picture</div>
                 <p class="text-muted small mb-2">Pick a sticker, or upload your own photo.</p>
                 <div class="avatar-sticker-grid" id="avatarStickerGrid"></div>
                 <hr>
@@ -1129,14 +1085,9 @@
                 </div>
                 <div id="avatarUploadStatus" class="small mt-2"></div>
 
-                <!-- ── Quick PIN ── -->
                 <hr class="my-3">
-                <div class="profile-section-label">
-                    <i class="bi bi-grid-3x3-gap-fill"></i> Quick Login PIN
-                </div>
+                <div class="profile-section-label"><i class="bi bi-grid-3x3-gap-fill"></i> Quick Login PIN</div>
                 <p class="text-muted small mb-3" id="qpStatusText">Loading…</p>
-
-                <!-- State A: No PIN set -->
                 <div id="qpSetupArea">
                     <div class="pin-setup-step mb-2" id="qpStepLabel">STEP 1 — ENTER NEW PIN</div>
                     <div class="pin-dots mb-2" id="qpDots">
@@ -1161,8 +1112,6 @@
                         <button class="pin-key pin-key-del" id="qpDel" type="button"><i class="bi bi-backspace-fill"></i></button>
                     </div>
                 </div>
-
-                <!-- State B: PIN already set -->
                 <div id="qpManageArea" style="display:none;">
                     <div class="qp-manage-row">
                         <button class="btn btn-sm btn-outline-primary" id="qpChangeBtn" type="button">
@@ -1173,7 +1122,6 @@
                         </button>
                     </div>
                 </div>
-
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1187,10 +1135,7 @@
     <div class="pin-setup-card">
         <div class="pin-setup-icon">🎉</div>
         <div class="pin-setup-title">PIN Set!</div>
-        <div class="pin-setup-sub" id="qpTrySub">
-            Want to try logging in with it right now?
-        </div>
-        <!-- Try: mini numpad -->
+        <div class="pin-setup-sub" id="qpTrySub">Want to try logging in with it right now?</div>
         <div id="qpTryArea">
             <div class="pin-dots mb-2" id="qpTryDots">
                 <span class="pin-dot" id="qtd0"></span>
@@ -1220,9 +1165,7 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     CHANGE USERNAME MODAL
-═══════════════════════════════════════════════════════════ -->
+<!-- CHANGE USERNAME MODAL -->
 <div class="modal fade" id="usernameModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1243,9 +1186,7 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     AUDIT LOG HISTORY MODAL
-═══════════════════════════════════════════════════════════ -->
+<!-- AUDIT LOG HISTORY MODAL -->
 <div class="modal fade" id="auditLogModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1254,15 +1195,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="display:flex;gap:16px;min-height:420px;flex-wrap:wrap;">
-                <!-- Date list -->
                 <div style="min-width:200px;max-width:240px;flex-shrink:0;border-right:1px solid #e5e7eb;padding-right:12px;">
                     <p class="text-muted small mb-2"><strong>Saved Dates</strong></p>
                     <div id="auditLogDateList" style="display:flex;flex-direction:column;gap:6px;"></div>
                 </div>
-                <!-- Detail panel -->
                 <div style="flex:1;min-width:280px;">
                     <div id="auditLogDetailBody">
-                        <p class="text-muted small">Left side se koi date select karo.</p>
+                        <p class="text-muted small">Select a date from the left.</p>
                     </div>
                 </div>
             </div>
@@ -1273,9 +1212,7 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     PAID — PAYMENT METHOD MODAL
-═══════════════════════════════════════════════════════════ -->
+<!-- PAID — PAYMENT METHOD MODAL -->
 <div class="modal fade" id="paidModal" tabindex="-1">
     <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content">
@@ -1286,23 +1223,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body d-grid gap-2">
-                <button type="button" class="btn btn-outline-success vehicle-btn-paid" data-payment="Cash" style="padding:12px;font-weight:700;">
-                    💵 Cash
-                </button>
-                <button type="button" class="btn btn-outline-primary vehicle-btn-paid" data-payment="ETC" style="padding:12px;font-weight:700;">
-                    🔵 ETC (FASTag)
-                </button>
-                <button type="button" class="btn btn-outline-info vehicle-btn-paid" data-payment="Digital" style="padding:12px;font-weight:700;">
-                    📱 Digital Payment
-                </button>
+                <button type="button" class="btn btn-outline-success vehicle-btn-paid" data-payment="Cash" style="padding:12px;font-weight:700;">💵 Cash</button>
+                <button type="button" class="btn btn-outline-primary vehicle-btn-paid" data-payment="ETC"  style="padding:12px;font-weight:700;">🔵 ETC (FASTag)</button>
+                <button type="button" class="btn btn-outline-info   vehicle-btn-paid" data-payment="Digital" style="padding:12px;font-weight:700;">📱 Digital Payment</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     AUDIT MATRIX MODAL
-═══════════════════════════════════════════════════════════ -->
+<!-- AUDIT MATRIX MODAL -->
 <div class="modal fade" id="auditMatrixModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1311,7 +1240,7 @@
                     <i class="bi bi-grid-3x3 am-header-icon"></i>
                     <div>
                         <h5 class="modal-title am-modal-title">Audit Validation Matrix</h5>
-                        <div class="am-modal-sub">Class as per System Report  ×  Actual Class after Validate</div>
+                        <div class="am-modal-sub">Class as per System Report × Actual Class after Validate</div>
                     </div>
                 </div>
                 <div class="am-header-actions">
@@ -1329,15 +1258,12 @@
                 </div>
             </div>
             <div class="modal-body am-modal-body">
-                <!-- Legend -->
                 <div class="am-legend">
                     <span class="am-legend-item"><span class="am-legend-swatch am-diagonal"></span> Correctly classified</span>
                     <span class="am-legend-item"><span class="am-legend-swatch am-mismatch"></span> Misclassified (audit finding)</span>
                     <span class="am-legend-item"><span class="am-legend-swatch am-zero"></span> No count</span>
                 </div>
-                <!-- Summary chips -->
                 <div class="am-summary-bar" id="amSummaryBar"></div>
-                <!-- Matrix table -->
                 <div class="am-table-wrap">
                     <table class="am-table" id="amTable">
                         <thead id="amThead"></thead>
@@ -1350,9 +1276,7 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     TOAST CONTAINER
-═══════════════════════════════════════════════════════════ -->
+<!-- TOAST CONTAINER -->
 <div id="toastContainer"></div>
 
 <!-- ═══════════════════════════════════════════════════════════
