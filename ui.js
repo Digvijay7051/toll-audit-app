@@ -850,12 +850,20 @@ function showToast(title, message, type = "info", duration = 3500) {
 
     container.appendChild(toast);
 
+    let dismissed = false;
     const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
         toast.classList.add("toast-out");
         toast.addEventListener("animationend", () => toast.remove(), { once: true });
+        /* Fallback: if animationend never fires (e.g. reduced-motion), remove after 400ms */
+        setTimeout(() => toast.remove(), 400);
     };
 
-    toast.querySelector(".ta-toast-close").addEventListener("click", dismiss);
+    toast.querySelector(".ta-toast-close").addEventListener("click", e => {
+        e.stopPropagation();
+        dismiss();
+    });
     toast.addEventListener("click", dismiss);
 
     setTimeout(dismiss, duration);
