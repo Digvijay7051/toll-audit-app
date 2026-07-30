@@ -428,7 +428,7 @@ let historyFilter = {
 
 /* Maximum transactions shown in history list at one time.
    Keeps DOM small for large audits (1 lakh+ txns). */
-const TXN_PAGE_SIZE = 80;
+const TXN_PAGE_SIZE = Infinity;
 
 function renderTransactionHistory() {
 
