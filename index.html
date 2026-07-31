@@ -640,106 +640,119 @@
     </button>
 
     <!-- ── Vehicle Tiles ── -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
-            <strong><i class="bi bi-car-front-fill"></i> Tap a Vehicle Class to Record</strong>
+    <div class="veh-section mb-4">
+        <!-- Section heading -->
+        <div class="veh-section-head">
+            <span class="veh-section-icon"><i class="bi bi-speedometer2"></i></span>
+            TAP A VEHICLE CLASS TO RECORD
         </div>
-        <div class="card-body pt-3">
-            <div id="vehicleButtons" class="veh-grid">
-                <button class="vehicle-btn" data-vehicle="Car">
-                    <i class="bi bi-car-front-fill veh-icon"></i><span>Car</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="LCV">
-                    <i class="bi bi-truck veh-icon"></i><span>LCV</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Bus 2 Axle">
-                    <i class="bi bi-bus-front-fill veh-icon"></i><span>Bus 2 Axle</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Minibus">
-                    <i class="bi bi-bus-front veh-icon"></i><span>Minibus</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Truck 2 Axle">
-                    <i class="bi bi-truck-front-fill veh-icon"></i><span>Truck 2 Axle</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Truck 3 Axle">
-                    <i class="bi bi-truck-front veh-icon"></i><span>Truck 3 Axle</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="MAV">
-                    <i class="bi bi-boxes veh-icon"></i><span>MAV</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Oversized Vehicle">
-                    <i class="bi bi-arrows-fullscreen veh-icon"></i><span>Oversized</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Tractor">
-                    <i class="bi bi-tractor veh-icon"></i><span>Tractor</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="JCB">
-                    <i class="bi bi-cone-striped veh-icon"></i><span>JCB</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Auto">
-                    <svg class="veh-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width:25px;height:25px;display:block;">
-                        <path d="M4 8.5C4 7.4 4.9 6.5 6 6.5h8.5l2.8 3H4V8.5Z"/>
-                        <rect x="14" y="6.5" width="1.2" height="3" rx="0.4"/>
-                        <rect x="4" y="9.5" width="13.5" height="5" rx="1.2"/>
-                        <path d="M17.5 11h3c.8 0 1 .6.8 1.2l-.6 2.3H17.5V11Z"/>
-                        <circle cx="7" cy="16.5" r="2"/>
-                        <circle cx="7" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
-                        <circle cx="19.5" cy="16.5" r="2"/>
-                        <circle cx="19.5" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
-                        <rect x="5.5" y="10" width="4" height="1.2" rx="0.5" fill="rgba(255,255,255,.25)"/>
-                    </svg>
-                    <span>Auto</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Bike">
-                    <i class="bi bi-bicycle veh-icon"></i><span>Bike</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Ambulance">
-                    <i class="bi bi-heart-pulse-fill veh-icon"></i><span>Ambulance</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Government Vehicle">
-                    <i class="bi bi-building-fill veh-icon"></i><span>Govt Vehicle</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Army Vehicle">
-                    <i class="bi bi-shield-fill veh-icon"></i><span>Army Vehicle</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Police">
-                    <i class="bi bi-shield-fill-check veh-icon"></i><span>Police</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Has Pass">
-                    <i class="bi bi-check-circle-fill veh-icon"></i><span>Has Pass</span>
-                </button>
-                <!-- Paid — opens payment modal -->
-                <button class="vehicle-btn veh-paid" id="paidBtn" type="button">
-                    <i class="bi bi-currency-rupee veh-icon"></i><span>Paid</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Forcefully">
-                    <i class="bi bi-x-octagon-fill veh-icon"></i><span>Forcefully</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Fake Exemption">
-                    <i class="bi bi-exclamation-diamond-fill veh-icon"></i><span>Fake Exemption</span>
-                </button>
-                <button class="vehicle-btn" data-vehicle="Fake Violation">
-                    <i class="bi bi-exclamation-triangle-fill veh-icon"></i><span>Fake Violation</span>
-                </button>
-            </div>
+
+        <!-- Main coloured vehicle tiles -->
+        <div id="vehicleButtons" class="veh-grid mb-3">
+            <button class="vehicle-btn" data-vehicle="Car">
+                <i class="bi bi-car-front-fill veh-icon"></i><span>Car</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="LCV">
+                <i class="bi bi-truck veh-icon"></i><span>LCV</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Bus 2 Axle">
+                <i class="bi bi-bus-front-fill veh-icon"></i><span>Bus 2 Axle</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Minibus">
+                <i class="bi bi-bus-front veh-icon"></i><span>Minibus</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Truck 2 Axle">
+                <i class="bi bi-truck-front-fill veh-icon"></i><span>Truck 2 Axle</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Truck 3 Axle">
+                <i class="bi bi-truck-front veh-icon"></i><span>Truck 3 Axle</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="MAV">
+                <i class="bi bi-boxes veh-icon"></i><span>MAV</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Oversized Vehicle">
+                <i class="bi bi-arrows-fullscreen veh-icon"></i><span>Oversized</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Tractor">
+                <i class="bi bi-tractor veh-icon"></i><span>Tractor</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="JCB">
+                <i class="bi bi-cone-striped veh-icon"></i><span>JCB</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Auto">
+                <svg class="veh-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width:25px;height:25px;display:block;">
+                    <path d="M4 8.5C4 7.4 4.9 6.5 6 6.5h8.5l2.8 3H4V8.5Z"/>
+                    <rect x="14" y="6.5" width="1.2" height="3" rx="0.4"/>
+                    <rect x="4" y="9.5" width="13.5" height="5" rx="1.2"/>
+                    <path d="M17.5 11h3c.8 0 1 .6.8 1.2l-.6 2.3H17.5V11Z"/>
+                    <circle cx="7" cy="16.5" r="2"/>
+                    <circle cx="7" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
+                    <circle cx="19.5" cy="16.5" r="2"/>
+                    <circle cx="19.5" cy="16.5" r="0.8" fill="rgba(0,0,0,.35)"/>
+                    <rect x="5.5" y="10" width="4" height="1.2" rx="0.5" fill="rgba(255,255,255,.25)"/>
+                </svg>
+                <span>Auto</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Bike">
+                <i class="bi bi-bicycle veh-icon"></i><span>Bike</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Ambulance">
+                <i class="bi bi-heart-pulse-fill veh-icon"></i><span>Ambulance</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Government Vehicle">
+                <i class="bi bi-building-fill veh-icon"></i><span>Govt Vehicle</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Army Vehicle">
+                <i class="bi bi-shield-fill veh-icon"></i><span>Army Vehicle</span>
+            </button>
+            <button class="vehicle-btn" data-vehicle="Police">
+                <i class="bi bi-shield-fill-check veh-icon"></i><span>Police</span>
+            </button>
+        </div>
+
+        <!-- Status tiles row (distinct dark style) -->
+        <div class="status-grid">
+            <button class="vehicle-btn status-tile" data-vehicle="Has Pass">
+                <i class="bi bi-check-circle veh-icon"></i><span>Has Pass</span>
+            </button>
+            <!-- Paid — opens payment modal -->
+            <button class="vehicle-btn status-tile veh-paid" id="paidBtn" type="button">
+                <i class="bi bi-tag-fill veh-icon"></i><span>Paid</span>
+            </button>
+            <button class="vehicle-btn status-tile" data-vehicle="Forcefully">
+                <i class="bi bi-x-circle veh-icon"></i><span>Forcefully</span>
+            </button>
+            <button class="vehicle-btn status-tile" data-vehicle="Fake Exemption">
+                <i class="bi bi-exclamation-triangle veh-icon"></i><span>Fake Exemption</span>
+            </button>
+            <button class="vehicle-btn status-tile" data-vehicle="Fake Violation">
+                <i class="bi bi-exclamation-triangle-fill veh-icon"></i><span>Fake Violation</span>
+            </button>
         </div>
     </div>
 
     <!-- ── Verify Pass ── -->
-    <div class="card shadow-sm mb-4 verify-pass-card">
-        <div class="verify-pass-header">
-            <div class="verify-pass-title-wrap">
-                <span class="verify-pass-icon"><i class="bi bi-patch-check-fill"></i></span>
+    <div class="veh-section mb-4 verify-pass-card">
+        <!-- Section heading -->
+        <div class="veh-section-head">
+            <span class="veh-section-icon"><i class="bi bi-patch-check-fill"></i></span>
+            VERIFY PASS
+        </div>
+        <!-- Search bar -->
+        <div class="vp-bar">
+            <div class="vp-bar-left">
+                <span class="vp-icon"><i class="bi bi-patch-check-fill"></i></span>
                 <div>
-                    <div class="verify-pass-title">Verify Pass</div>
-                    <div class="verify-pass-sub">Enter vehicle number to check monthly pass status</div>
+                    <div class="vp-title">Verify Pass</div>
+                    <div class="vp-sub">Enter vehicle number to check monthly pass status</div>
                 </div>
             </div>
-            <div class="pass-search-bar-wrap">
-                <div class="pass-search-icon"><i class="bi bi-search"></i></div>
-                <input type="text" id="passCheckInput" class="pass-search-input"
+            <div class="vp-search-wrap">
+                <input type="text" id="passCheckInput" class="pass-search-input vp-input"
                        placeholder="Enter Vehicle Number…" autocomplete="off" spellcheck="false">
-                <button class="pass-search-btn" id="passCheckBtn" type="button">Search</button>
+                <button class="vp-search-btn" id="passCheckBtn" type="button">
+                    <i class="bi bi-search"></i> Search
+                </button>
             </div>
         </div>
         <div id="passCheckResult" class="pass-check-result"></div>
