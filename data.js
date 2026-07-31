@@ -15,12 +15,12 @@ const AUDIT_MODES = [
 const REPORT_CATEGORIES = [
     "Car",
     "LCV",
-    "Bus 2 Axle",
     "Truck 2 Axle",
     "Truck 3 Axle",
     "MAV",
+    "Auto",
     "Tractor",
-    "Auto"
+    "Bus 2 Axle"
 ];
 
 const VEHICLE_CLASSES = [
