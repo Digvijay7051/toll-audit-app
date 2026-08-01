@@ -1109,7 +1109,25 @@ function getPendingPastDate() {
 
         const meta = bucket._meta || {};
 
+        /* Auto-resolve if every started category is fully audited */
         if (isBucketStarted(bucket) && !meta.resolved) {
+
+            const isComplete = AUDIT_MODES.every(mode =>
+                REPORT_CATEGORIES.every(cat => {
+                    const d = bucket[mode] && bucket[mode][cat];
+                    if (!d || d.reportCount === 0) return true;
+                    return d.transactions.length >= d.reportCount;
+                })
+            );
+
+            if (isComplete) {
+                bucket._meta        = bucket._meta || {};
+                bucket._meta.resolved   = true;
+                bucket._meta.resolution = "completed";
+                bucket._meta.resolvedAt = new Date().toISOString();
+                saveAuditData();
+                continue; /* not pending */
+            }
 
             return dateKey;
 
