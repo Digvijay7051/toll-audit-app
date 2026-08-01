@@ -354,7 +354,8 @@ const VC_ICONS = {
     "Paid":              "bi-currency-rupee",
     "Forcefully":        "bi-x-octagon-fill",
     "Fake Exemption":    "bi-exclamation-diamond-fill",
-    "Fake Violation":    "bi-exclamation-triangle-fill"
+    "Fake Violation":    "bi-exclamation-triangle-fill",
+    "Concessionaire":    "bi-person-badge-fill"
 };
 
 function renderVehicleCounts() {

@@ -46,7 +46,8 @@ const VEHICLE_CLASSES = [
     "Paid (Digital)",
     "Forcefully",
     "Fake Violation",
-    "Fake Exemption"
+    "Fake Exemption",
+    "Concessionaire"
 ];
 
 /* ===============================
