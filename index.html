@@ -409,8 +409,11 @@
     <div class="sb-section-label">Categories</div>
     <div id="categoryList"></div>
 
-    <div class="sb-section-label">Report History</div>
-    <div id="historyDateList" style="display:flex;flex-direction:column;gap:4px;"></div>
+    <button class="sb-section-label sb-history-toggle" id="historyToggleBtn" type="button">
+        Report History
+        <i class="bi bi-chevron-down sb-history-caret" id="historyToggleCaret"></i>
+    </button>
+    <div id="historyDateList" style="display:none;flex-direction:column;gap:4px;"></div>
 
 </div>
 </aside>

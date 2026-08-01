@@ -654,6 +654,16 @@ input  { font-family: inherit; }
   font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   color: var(--text-faint); padding: 10px 4px 5px;
 }
+.sb-history-toggle {
+  width: 100%; background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 4px 5px;
+}
+.sb-history-toggle:hover { color: var(--amber); }
+.sb-history-caret {
+  font-size: 10px; transition: transform .2s ease;
+}
+.sb-history-caret.open { transform: rotate(180deg); }
 
 /* Mode radio pills */
 .mode-pills { display: flex; gap: 6px; margin-bottom: 14px; }

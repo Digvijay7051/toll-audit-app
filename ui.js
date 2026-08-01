@@ -19,6 +19,8 @@ function initializeUI() {
 
     setupPendingAuditBanner();
 
+    initHistoryToggle();
+
 }
 
 /* ===============================
@@ -1292,6 +1294,18 @@ function renderHistoryPanel() {
 
     });
 
+}
+
+function initHistoryToggle() {
+    const btn       = document.getElementById("historyToggleBtn");
+    const list      = document.getElementById("historyDateList");
+    const caret     = document.getElementById("historyToggleCaret");
+    if (!btn || !list) return;
+    btn.addEventListener("click", function () {
+        const isOpen = list.style.display === "flex";
+        list.style.display = isOpen ? "none" : "flex";
+        if (caret) caret.classList.toggle("open", !isOpen);
+    });
 }
 
 function viewHistorySnapshot(dateKey) {
