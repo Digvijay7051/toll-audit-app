@@ -810,15 +810,41 @@ function buildAuditMatrix(mode) {
      tapping never floods the network
 =============================== */
 
-let _fsyncTimer = null;
+let _fsyncTimer    = null;
+let _chipHideTimer = null;
+
+/* ── Auto-save status chip helpers ── */
+function _showSaveChip(state, text) {
+    const chip = document.getElementById("saveStatusChip");
+    const dot  = document.getElementById("saveStatusDot");
+    const txt  = document.getElementById("saveStatusText");
+    if (!chip) return;
+    clearTimeout(_chipHideTimer);
+    chip.className = "save-status-chip " + state;
+    chip.style.display = "flex";
+    if (txt) txt.textContent = text;
+    /* Auto-hide after 4 s for non-saving states */
+    if (state !== "ss-saving") {
+        _chipHideTimer = setTimeout(() => {
+            chip.style.opacity = "0";
+            setTimeout(() => { chip.style.display = "none"; chip.style.opacity = "1"; }, 400);
+        }, 4000);
+    }
+}
 
 function saveAuditData() {
+
+    /* Show "Saving…" immediately */
+    _showSaveChip("ss-saving", "Saving…");
 
     /* 1. localStorage — always synchronous, instant */
     localStorage.setItem(
         getAuditStorageKey(),
         JSON.stringify(auditDataStore)
     );
+
+    /* Show "Saved locally" as soon as localStorage write completes */
+    _showSaveChip("ss-local", "Saved locally ✓");
 
     /* 2. Firestore — debounced, only current date's bucket */
     clearTimeout(_fsyncTimer);
@@ -856,9 +882,11 @@ async function _syncCurrentDateToFirestore() {
                 autoSavedAt: new Date().toISOString(),
                 auditBucket: JSON.stringify(bucket)  /* compressed bucket */
             }, { merge: true });
+        _showSaveChip("ss-cloud", "Synced to cloud ✓");
     } catch (e) {
         /* Silent — offline / permission errors should not interrupt work */
         console.warn("[AutoSync] Firestore sync failed:", e.code || e.message);
+        _showSaveChip("ss-offline", "Offline — saved locally");
     }
 
 }

@@ -720,6 +720,62 @@ main { min-height: 100vh; background: var(--bg-deep); }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .topbar-ctrl  { display: flex; align-items: center; }
 
+/* ── Auto-save status chip ── */
+.save-status-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 20px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  white-space: nowrap;
+  transition: background .25s, color .25s, opacity .25s;
+  opacity: 1;
+}
+.save-status-chip.ss-saving {
+  background: rgba(255,176,32,.13);
+  color: #c97c00;
+}
+[data-theme="dark"] .save-status-chip.ss-saving {
+  background: rgba(255,176,32,.18);
+  color: #fbbf24;
+}
+.save-status-chip.ss-local {
+  background: rgba(59,130,212,.10);
+  color: #2563b0;
+}
+[data-theme="dark"] .save-status-chip.ss-local {
+  background: rgba(59,130,212,.15);
+  color: #60a5fa;
+}
+.save-status-chip.ss-cloud {
+  background: rgba(34,197,94,.10);
+  color: #15803d;
+}
+[data-theme="dark"] .save-status-chip.ss-cloud {
+  background: rgba(34,197,94,.15);
+  color: #4ade80;
+}
+.save-status-chip.ss-offline {
+  background: rgba(239,68,68,.10);
+  color: #b91c1c;
+}
+[data-theme="dark"] .save-status-chip.ss-offline {
+  background: rgba(239,68,68,.15);
+  color: #f87171;
+}
+.save-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: .85;
+}
+.save-status-chip.ss-saving .save-status-dot {
+  animation: ss-pulse 1s ease-in-out infinite;
+}
+@keyframes ss-pulse {
+  0%, 100% { opacity: .3; }
+  50%       { opacity: 1;  }
+}
+
 .topbar-brand-icon {
   width: 34px; height: 34px; border-radius: 10px;
   background: linear-gradient(150deg, var(--amber), #C9781A);
