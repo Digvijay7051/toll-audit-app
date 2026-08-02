@@ -390,7 +390,8 @@
                 data-bs-toggle="modal" data-bs-target="#auditMatrixModal">
             <i class="bi bi-grid-3x3"></i> Audit Matrix
         </button>
-        <button class="sb-btn sb-office-report" id="generateOfficeReportBtn">
+        <button class="sb-btn sb-office-report" id="generateOfficeReportBtn"
+                data-bs-toggle="modal" data-bs-target="#officeReportModal">
             <i class="bi bi-file-earmark-excel-fill"></i> Office Report
         </button>
     </div>
@@ -1298,6 +1299,75 @@
                         <tfoot id="amTfoot"></tfoot>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OFFICE REPORT MODAL -->
+<div class="modal fade" id="officeReportModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content or-modal-content">
+            <div class="modal-header or-modal-header">
+                <div class="am-modal-title-wrap">
+                    <i class="bi bi-file-earmark-excel-fill am-header-icon" style="color:#217346;"></i>
+                    <div>
+                        <h5 class="modal-title am-modal-title">Office Report Preview</h5>
+                        <div class="am-modal-sub" id="orModalSubtitle">Loading…</div>
+                    </div>
+                </div>
+                <div class="am-header-actions">
+                    <button type="button" class="btn btn-sm am-export-btn am-export-xls" id="orDownloadBtn" title="Download .xlsx">
+                        <i class="bi bi-file-earmark-excel-fill"></i> Download .xlsx
+                    </button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body or-modal-body">
+
+                <!-- Summary chips -->
+                <div class="am-summary-bar" id="orSummaryBar"></div>
+
+                <!-- Report table -->
+                <div class="or-table-wrap">
+                    <table class="or-table" id="orTable">
+                        <thead>
+                            <!-- Group header row -->
+                            <tr class="or-thead-group">
+                                <th class="or-th-blank" colspan="2"></th>
+                                <th class="or-th-group-tariff" colspan="2">Tariff</th>
+                                <th class="or-th-group-viol" colspan="2">Violation</th>
+                                <th class="or-th-group-exem" colspan="2">Exemption</th>
+                                <th class="or-th-group-totals" colspan="3">Totals</th>
+                                <th class="or-th-group-paid">Paid Traffic</th>
+                            </tr>
+                            <!-- Column name row -->
+                            <tr class="or-thead-cols">
+                                <th>Sr.</th>
+                                <th>Class</th>
+                                <th>Single</th>
+                                <th>Return</th>
+                                <th>Count</th>
+                                <th>Revenue Loss</th>
+                                <th>Count</th>
+                                <th>Revenue Loss</th>
+                                <th>Total Unpaid</th>
+                                <th>Total Loss</th>
+                                <th>Total Traffic</th>
+                                <th>Paid Traffic</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orTbody"></tbody>
+                        <tfoot id="orTfoot"></tfoot>
+                    </table>
+                </div>
+
+                <p class="or-note">
+                    <i class="bi bi-info-circle"></i>
+                    Revenue Loss = Count × Single Tariff &nbsp;·&nbsp;
+                    Total Traffic = Paid Traffic + Total Unpaid &nbsp;·&nbsp;
+                    Non-Tollable tariff = 0
+                </p>
             </div>
         </div>
     </div>

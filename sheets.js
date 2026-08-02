@@ -711,225 +711,218 @@ function _buildOfficeCounts(bucket) {
     return counts;
 }
 
-/* ── Main export function ────────────────────────────────── */
-function generateOfficeReport() {
+/* ── Build xlsx workbook from counts ─────────────────────── */
+function _buildOfficeWorkbook(counts, dateKey) {
 
-    /* 1. Resolve today's bucket */
-    const dateKey = selectedAuditDate || getTodayKey();
-    const bucket  = auditDataStore && auditDataStore[dateKey];
-
-    /* Build counts (all zeros if no data yet — still valid to export) */
-    const counts = _buildOfficeCounts(bucket);
-
-    /* 2. Create workbook + worksheet */
     const wb = XLSX.utils.book_new();
     const ws = {};
 
-    /* Helper: set a cell */
+    /* Helper: value cell */
     function C(r, c, v, t) {
-        /* r, c are 0-based */
         const addr = XLSX.utils.encode_cell({ r, c });
         ws[addr] = { v, t: t || (typeof v === "number" ? "n" : "s") };
     }
 
-    /* Helper: set a formula cell */
+    /* Helper: formula cell */
     function F(r, c, formula) {
         const addr = XLSX.utils.encode_cell({ r, c });
         ws[addr] = { f: formula, t: "n" };
     }
 
-    /* ── Row 1: Toll name header ──────────────────────────── */
-    /*  Leave row 1 blank (index 0) — office will fill toll name */
+    /* Row 1: title */
     C(0, 2, "TOLL PLAZA — AUDIT REPORT");
 
-    /* ── Row 2: "Exemption & Violation" heading (I2:J2) ───── */
-    /*  Columns: A=0 B=1 C=2 D=3 E=4 F=5 G=6 H=7 I=8 J=9 K=10 L=11 */
+    /* Row 2: "Exemption & Violation" (I2:J2) */
     C(1, 8, "Exemption & Violation");
 
-    /* ── Row 3: "Tariff" heading (D3:E3) ─────────────────── */
+    /* Row 3: "Tariff" (D3:E3) */
     C(2, 3, "Tariff");
 
-    /* ── Row 4: Column headers (C to L = cols 2–11) ─────── */
-    const HDR = [
-        "Class",                 /* C4 – col 2  */
-        "Single",                /* D4 – col 3  */
-        "Return",                /* E4 – col 4  */
-        "Violation",             /* F4 – col 5  */
-        "Revenue Loss",          /* G4 – col 6  */
-        "Exemption",             /* H4 – col 7  */
-        "Revenue Loss",          /* I4 – col 8  */
-        "Total Unpaid Traffic",  /* J4 – col 9  */
-        "Total Loss",            /* K4 – col 10 */
-        "Total Traffic",         /* L4 – col 11 */
-    ];
-    HDR.forEach((h, i) => C(3, 2 + i, h));
-
-    /* ── Row 5: Sr.No. sub-header ─────────────────────────── */
-    C(4, 1, "Sr.No.");
-
-    /* ── Row 6: blank separator (index 5) ─────────────────── */
-
-    /* ── Rows 7–12 (index 6–11): data rows ─────────────────
-       Layout per row (all columns A–L):
-         B = Sr.No (1–6)
-         C = Class label
-         D = Single tariff (value)
-         E = Return tariff (value)
-         F = Violation count (value)
-         G = Revenue Loss Violation = F * D  (formula)
-         H = Exemption count (value)
-         I = Revenue Loss Exemption = H * D  (formula)
-         J = Total Unpaid = F + H            (formula)
-         K = Total Loss   = G + I            (formula)
-         L = Total Traffic = paid + J        (formula, paid written as value in col M hidden)
-             We put paid traffic in col M (index 12) as a plain number so
-             the formula is visible and the user can see the paid traffic.
-             Col M header is "Paid Traffic (ref)" at row 4.
-    ─────────────────────────────────────────────────────── */
-
-    /* Col M header */
+    /* Row 4: column headers C–L + M */
+    ["Class","Single","Return","Violation","Revenue Loss",
+     "Exemption","Revenue Loss","Total Unpaid Traffic","Total Loss","Total Traffic"]
+        .forEach((h, i) => C(3, 2 + i, h));
     C(3, 12, "Paid Traffic");
 
+    /* Row 5: Sr.No. sub-header */
+    C(4, 1, "Sr.No.");
+
+    /* Rows 7–12: data */
     OFFICE_ROWS.forEach((row, i) => {
-        const dataRow  = 6 + i;          /* 0-based row index for xlsx */
-        const excelRow = dataRow + 1;    /* 1-based row number for formulas */
+        const dr  = 6 + i;          /* 0-based */
+        const er  = dr + 1;         /* 1-based excel row */
 
-        const cnt    = counts[i];
-        const vCount = cnt.violation;
-        const eCount = cnt.exemption;
-        const pCount = cnt.paid;
+        const { violation: vCount, exemption: eCount, paid: pCount } = counts[i];
 
-        /* B: Sr.No */
-        C(dataRow, 1, i + 1, "n");
-
-        /* C: Class */
-        C(dataRow, 2, row.label);
-
-        /* D: Single tariff */
-        C(dataRow, 3, row.single, "n");
-
-        /* E: Return tariff */
-        C(dataRow, 4, row.returnT, "n");
-
-        /* F: Violation count */
-        C(dataRow, 5, vCount, "n");
-
-        /* G: Revenue Loss (Violation) = F * D */
-        const colF = `F${excelRow}`;
-        const colD = `D${excelRow}`;
-        F(dataRow, 6, `${colF}*${colD}`);
-
-        /* H: Exemption count */
-        C(dataRow, 7, eCount, "n");
-
-        /* I: Revenue Loss (Exemption) = H * D */
-        const colH = `H${excelRow}`;
-        F(dataRow, 8, `${colH}*${colD}`);
-
-        /* J: Total Unpaid Traffic = F + H */
-        F(dataRow, 9, `${colF}+${colH}`);
-
-        /* K: Total Loss = G + I */
-        const colG = `G${excelRow}`;
-        const colI = `I${excelRow}`;
-        F(dataRow, 10, `${colG}+${colI}`);
-
-        /* M: Paid traffic (reference value) */
-        C(dataRow, 12, pCount, "n");
-
-        /* L: Total Traffic = M + J (paid + total unpaid) */
-        const colM = `M${excelRow}`;
-        const colJ = `J${excelRow}`;
-        F(dataRow, 11, `${colM}+${colJ}`);
+        C(dr, 1, i + 1, "n");                   /* B: Sr.No */
+        C(dr, 2, row.label);                     /* C: Class */
+        C(dr, 3, row.single,  "n");              /* D: Single */
+        C(dr, 4, row.returnT, "n");              /* E: Return */
+        C(dr, 5, vCount,      "n");              /* F: Violation count */
+        F(dr, 6, `F${er}*D${er}`);              /* G: Rev Loss Violation */
+        C(dr, 7, eCount,      "n");              /* H: Exemption count */
+        F(dr, 8, `H${er}*D${er}`);              /* I: Rev Loss Exemption */
+        F(dr, 9, `F${er}+H${er}`);              /* J: Total Unpaid */
+        F(dr, 10, `G${er}+I${er}`);             /* K: Total Loss */
+        C(dr, 12, pCount,     "n");              /* M: Paid traffic */
+        F(dr, 11, `M${er}+J${er}`);             /* L: Total Traffic */
     });
 
-    /* ── Row 13 (index 12): TOTAL row ───────────────────── */
+    /* Row 13: TOTAL */
     C(12, 2, "TOTAL");
+    F(12, 5,  "SUM(F7:F12)");
+    F(12, 6,  "SUM(G7:G12)");
+    F(12, 7,  "SUM(H7:H12)");
+    F(12, 8,  "SUM(I7:I12)");
+    F(12, 9,  "SUM(J7:J12)");
+    F(12, 10, "SUM(K7:K12)");
+    F(12, 11, "SUM(L7:L12)");
+    F(12, 12, "SUM(M7:M12)");
 
-    /* D13: sum of single tariffs is meaningless — leave blank */
-    /* E13: same */
-
-    /* F13: total violations */
-    F(12, 5, `SUM(F7:F12)`);
-
-    /* G13: total revenue loss violation */
-    F(12, 6, `SUM(G7:G12)`);
-
-    /* H13: total exemptions */
-    F(12, 7, `SUM(H7:H12)`);
-
-    /* I13: total revenue loss exemption */
-    F(12, 8, `SUM(I7:I12)`);
-
-    /* J13: total unpaid */
-    F(12, 9, `SUM(J7:J12)`);
-
-    /* K13: total loss */
-    F(12, 10, `SUM(K7:K12)`);
-
-    /* M13: total paid */
-    F(12, 12, `SUM(M7:M12)`);
-
-    /* L13: total traffic */
-    F(12, 11, `SUM(L7:L12)`);
-
-    /* ── Row 15: metadata note ──────────────────────────── */
+    /* Row 15: metadata */
     const [yyyy, mm, dd] = dateKey.split("-");
-    const displayDate = `${dd}/${mm}/${yyyy}`;
-    C(14, 2, `Audit Date: ${displayDate}`);
+    C(14, 2, `Audit Date: ${dd}/${mm}/${yyyy}`);
     C(14, 5, `Generated: ${new Date().toLocaleString("en-IN")}`);
 
-    /* ── Merges ──────────────────────────────────────────── */
     ws["!merges"] = [
-        /* "Exemption & Violation" → I2:J2 (row 1, cols 8-9) */
-        { s: { r: 1, c: 8 }, e: { r: 1, c: 9 } },
-        /* "Tariff" → D3:E3 (row 2, cols 3-4) */
-        { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } },
-        /* "Revenue Loss" headers — G4:G4 and I4:I4 no need to merge (single cells) */
-        /* Title row C1 span */
-        { s: { r: 0, c: 2 }, e: { r: 0, c: 11 } },
+        { s: { r: 1, c: 8 }, e: { r: 1, c: 9 } },   /* I2:J2 */
+        { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } },   /* D3:E3 */
+        { s: { r: 0, c: 2 }, e: { r: 0, c: 11 } },  /* title row */
     ];
 
-    /* ── Column widths ───────────────────────────────────── */
     ws["!cols"] = [
-        { wch: 4  },   /* A */
-        { wch: 6  },   /* B  Sr.No */
-        { wch: 18 },   /* C  Class */
-        { wch: 8  },   /* D  Single */
-        { wch: 8  },   /* E  Return */
-        { wch: 10 },   /* F  Violation */
-        { wch: 13 },   /* G  Revenue Loss */
-        { wch: 10 },   /* H  Exemption */
-        { wch: 13 },   /* I  Revenue Loss */
-        { wch: 21 },   /* J  Total Unpaid Traffic */
-        { wch: 12 },   /* K  Total Loss */
-        { wch: 14 },   /* L  Total Traffic */
-        { wch: 14 },   /* M  Paid Traffic */
+        { wch: 4  }, { wch: 6  }, { wch: 18 }, { wch: 8  }, { wch: 8  },
+        { wch: 10 }, { wch: 13 }, { wch: 10 }, { wch: 13 }, { wch: 21 },
+        { wch: 12 }, { wch: 14 }, { wch: 14 },
     ];
 
-    /* ── Worksheet range ─────────────────────────────────── */
     ws["!ref"] = "A1:M15";
-
-    /* ── Add sheet and save ─────────────────────────────── */
     XLSX.utils.book_append_sheet(wb, ws, "Office Report");
+    return wb;
+}
 
+/* ── Download the xlsx directly ──────────────────────────── */
+function generateOfficeReport() {
+    const dateKey = selectedAuditDate || getTodayKey();
+    const bucket  = auditDataStore && auditDataStore[dateKey];
+    const counts  = _buildOfficeCounts(bucket);
+    const wb      = _buildOfficeWorkbook(counts, dateKey);
     const filename = `Toll_Audit_Report_${dateKey}.xlsx`;
     XLSX.writeFile(wb, filename);
-
     if (typeof showToast === "function") {
-        showToast(
-            "Report Downloaded",
-            `${filename} saved successfully.`,
-            "success",
-            4000
-        );
+        showToast("Report Downloaded", `${filename} saved.`, "success", 4000);
     }
 }
 
-/* ── Wire "Generate Office Report" button ─────────────────── */
+/* ── Render the in-app preview modal ─────────────────────── */
+function renderOfficeReportModal() {
+
+    const dateKey = selectedAuditDate || getTodayKey();
+    const bucket  = auditDataStore && auditDataStore[dateKey];
+    const counts  = _buildOfficeCounts(bucket);
+
+    /* Subtitle */
+    const [yyyy, mm, dd] = dateKey.split("-");
+    const sub = document.getElementById("orModalSubtitle");
+    if (sub) sub.textContent = `Audit Date: ${dd}/${mm}/${yyyy}`;
+
+    /* ── Summary chips ─────────────────────────────────── */
+    const bar = document.getElementById("orSummaryBar");
+    if (bar) {
+        const totV = counts.reduce((s, c) => s + c.violation, 0);
+        const totE = counts.reduce((s, c) => s + c.exemption, 0);
+        const totP = counts.reduce((s, c) => s + c.paid, 0);
+        const totRevLoss = counts.reduce((s, c, i) =>
+            s + (c.violation + c.exemption) * OFFICE_ROWS[i].single, 0);
+
+        bar.innerHTML = `
+            <span class="am-chip am-chip-wrong">
+                <i class="bi bi-x-circle-fill"></i> ${totV} Violations
+            </span>
+            <span class="am-chip am-chip-acc">
+                <i class="bi bi-exclamation-circle-fill"></i> ${totE} Exemptions
+            </span>
+            <span class="am-chip am-chip-total">
+                <i class="bi bi-currency-rupee"></i> ${totRevLoss.toLocaleString("en-IN")} Revenue Loss
+            </span>
+            <span class="am-chip am-chip-correct">
+                <i class="bi bi-car-front-fill"></i> ${totP} Paid Traffic
+            </span>`;
+    }
+
+    /* ── Helper: render number or dash ─────────────────── */
+    function num(v, cls) {
+        const zeroClass = (v === 0) ? " or-td-zero" : "";
+        return `<td class="${cls}${zeroClass}">${v === 0 ? "—" : v.toLocaleString("en-IN")}</td>`;
+    }
+
+    /* ── tbody ─────────────────────────────────────────── */
+    const tbody = document.getElementById("orTbody");
+    if (tbody) {
+        tbody.innerHTML = OFFICE_ROWS.map((row, i) => {
+            const { violation: v, exemption: e, paid: p } = counts[i];
+            const revLossV = v * row.single;
+            const revLossE = e * row.single;
+            const unpaid   = v + e;
+            const loss     = revLossV + revLossE;
+            const traffic  = p + unpaid;
+
+            return `<tr>
+                <td class="or-td-sr">${i + 1}</td>
+                <td class="or-td-class">${row.label}</td>
+                <td class="or-td-tariff">${row.single}</td>
+                <td class="or-td-tariff">${row.returnT}</td>
+                ${num(v, "or-td-viol")}
+                ${num(revLossV, "or-td-viol-loss")}
+                ${num(e, "or-td-exem")}
+                ${num(revLossE, "or-td-exem-loss")}
+                ${num(unpaid, "or-td-unpaid")}
+                ${num(loss, "or-td-loss")}
+                ${num(traffic, "or-td-traffic")}
+                ${num(p, "or-td-paid")}
+            </tr>`;
+        }).join("");
+    }
+
+    /* ── tfoot: TOTAL row ──────────────────────────────── */
+    const tfoot = document.getElementById("orTfoot");
+    if (tfoot) {
+        const tV  = counts.reduce((s, c) => s + c.violation, 0);
+        const tE  = counts.reduce((s, c) => s + c.exemption, 0);
+        const tP  = counts.reduce((s, c) => s + c.paid, 0);
+        const tRV = counts.reduce((s, c, i) => s + c.violation * OFFICE_ROWS[i].single, 0);
+        const tRE = counts.reduce((s, c, i) => s + c.exemption * OFFICE_ROWS[i].single, 0);
+        const tU  = tV + tE;
+        const tL  = tRV + tRE;
+        const tT  = tP + tU;
+
+        tfoot.innerHTML = `<tr class="or-tfoot-row">
+            <td colspan="2" style="text-align:left;font-weight:800;">TOTAL</td>
+            <td>—</td><td>—</td>
+            <td>${tV.toLocaleString("en-IN")}</td>
+            <td>${tRV.toLocaleString("en-IN")}</td>
+            <td>${tE.toLocaleString("en-IN")}</td>
+            <td>${tRE.toLocaleString("en-IN")}</td>
+            <td>${tU.toLocaleString("en-IN")}</td>
+            <td>${tL.toLocaleString("en-IN")}</td>
+            <td>${tT.toLocaleString("en-IN")}</td>
+            <td>${tP.toLocaleString("en-IN")}</td>
+        </tr>`;
+    }
+}
+
+/* ── Wire modal + download button ───────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
-    const reportBtn = document.getElementById("generateOfficeReportBtn");
-    if (reportBtn) {
-        reportBtn.addEventListener("click", generateOfficeReport);
+
+    /* Populate table every time the modal opens */
+    const modalEl = document.getElementById("officeReportModal");
+    if (modalEl) {
+        modalEl.addEventListener("show.bs.modal", renderOfficeReportModal);
+    }
+
+    /* Download button inside the modal */
+    const dlBtn = document.getElementById("orDownloadBtn");
+    if (dlBtn) {
+        dlBtn.addEventListener("click", generateOfficeReport);
     }
 });
