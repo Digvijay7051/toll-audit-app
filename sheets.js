@@ -599,7 +599,10 @@ const OFFICE_ROWS = [
     { label: "Non-Tollable",     single: 0,   returnT: 0   },
 ];
 
-/* ── Map actualVehicle → office row index ────────────────── */
+/* ── Map actual vehicle class → office row index ─────────── */
+/*    Used for both violation/exemption (by vehicle class found)
+      and paid traffic (by vehicle class found).
+      Non-tollable vehicles all map to index 5.               */
 const VEHICLE_TO_OFFICE_IDX = {
     "Car":                0,
     "LCV":                1,
@@ -619,7 +622,16 @@ const VEHICLE_TO_OFFICE_IDX = {
     "Police":             5,
 };
 
-/* ── Map audit category → office row index (fallback for status txns) */
+/* Paid-status vehicle names (no vehicle class info — use category) */
+const PAID_STATUSES = new Set([
+    "Has Pass",
+    "Paid (Cash)",
+    "Paid (ETC)",
+    "Paid (Digital)",
+    "Concessionaire",
+]);
+
+/* Map audit category → office row index (for paid-status txns) */
 const CATEGORY_TO_OFFICE_IDX = {
     "Car":          0,
     "LCV":          1,
@@ -631,46 +643,18 @@ const CATEGORY_TO_OFFICE_IDX = {
     "Tractor":      5,
 };
 
-/* Status vehicle names — these carry event info, not vehicle class */
-const STATUS_VEHICLES = new Set([
-    "Has Pass",
-    "Paid (Cash)",
-    "Paid (ETC)",
-    "Paid (Digital)",
-    "Forcefully",
-    "Fake Violation",
-    "Fake Exemption",
-    "Concessionaire",
-]);
+/* ── Build per-row counts — uses vehicleCounts (same as Audit Matrix) ─
+   Violation count  = sum of vehicleCounts per actual vehicle class
+                      across ALL categories in Violation mode.
+   Exemption count  = same in Exemption mode.
+   Paid traffic     = vehicleCounts of real vehicle classes + paid-status
+                      taps across BOTH modes.
 
-/* Paid statuses (normal paid traffic) */
-const PAID_STATUSES = new Set([
-    "Has Pass",
-    "Paid (Cash)",
-    "Paid (ETC)",
-    "Paid (Digital)",
-    "Concessionaire",
-]);
-
-/* ── Helper: determine office row index for one transaction ─ */
-function _txnOfficeIdx(actualVehicle, category) {
-    if (!STATUS_VEHICLES.has(actualVehicle)) {
-        /* It's a real vehicle class — map directly */
-        const idx = VEHICLE_TO_OFFICE_IDX[actualVehicle];
-        return (idx !== undefined) ? idx : null;
-    }
-    /* Status transaction — use the audit category as vehicle proxy */
-    const idx = CATEGORY_TO_OFFICE_IDX[category];
-    return (idx !== undefined) ? idx : null;
-}
-
-/* ── Build per-row counts from current audit date bucket ─── */
+   This mirrors exactly what the Audit Matrix rows show:
+     matrix row "Car" total in Violation mode → Car's violation count
+     matrix row "Car" total in Exemption mode → Car's exemption count  */
 function _buildOfficeCounts(bucket) {
-    /*
-      Returns array of 6 objects:
-      { violation, exemption, paid, vehicleCount }
-      where vehicleCount = actual vehicle-type taps (not status taps)
-    */
+
     const counts = OFFICE_ROWS.map(() => ({
         violation: 0,
         exemption: 0,
@@ -687,22 +671,39 @@ function _buildOfficeCounts(bucket) {
             const catData = modeData[category];
             if (!catData) return;
 
-            (catData.transactions || []).forEach(txn => {
-                const av  = txn.actualVehicle || "";
-                const idx = _txnOfficeIdx(av, category);
-                if (idx === null) return;
+            const vc = catData.vehicleCounts || {};
 
-                if (av === "Forcefully" || av === "Fake Violation") {
-                    counts[idx].violation++;
-                } else if (av === "Fake Exemption") {
-                    counts[idx].exemption++;
-                } else if (PAID_STATUSES.has(av)) {
-                    counts[idx].paid++;
+            Object.keys(vc).forEach(vehicle => {
+                const count = vc[vehicle];
+                if (!count) return;                  /* skip zeros */
+
+                /* Paid-status taps (Has Pass, Paid Cash/ETC/Digital,
+                   Concessionaire) — no vehicle class info, use category */
+                if (PAID_STATUSES.has(vehicle)) {
+                    const idx = CATEGORY_TO_OFFICE_IDX[category];
+                    if (idx !== undefined) counts[idx].paid += count;
+                    return;
                 }
-                /* plain vehicle-class taps (Car, LCV, etc.) just counted
-                   as paid traffic for the office report */
-                else {
-                    counts[idx].paid++;
+
+                /* Status-only taps that carry no vehicle class —
+                   skip them; they are not real vehicle counts */
+                if (vehicle === "Forcefully"    ||
+                    vehicle === "Fake Violation" ||
+                    vehicle === "Fake Exemption") {
+                    return;
+                }
+
+                /* Real vehicle class tap — map to office row.
+                   Violation mode  → violation count for that class.
+                   Exemption mode  → exemption count for that class.
+                   This is the same data the Audit Matrix row-totals show. */
+                const idx = VEHICLE_TO_OFFICE_IDX[vehicle];
+                if (idx === undefined) return;
+
+                if (mode === "Violation") {
+                    counts[idx].violation += count;
+                } else if (mode === "Exemption") {
+                    counts[idx].exemption += count;
                 }
             });
         });
