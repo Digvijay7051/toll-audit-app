@@ -572,3 +572,364 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 });
+
+/* ==========================================================
+   GENERATE OFFICE REPORT
+   Builds a .xlsx file matching the standard office format:
+
+   Row 1  : Toll name / blank title row
+   Row 2  : "Exemption & Violation" merged I2:J2
+   Row 3  : "Tariff" merged D3:E3
+   Row 4  : Column headers C–L
+   Row 5  : Sr. No. sub-header
+   Row 6  : Blank separator
+   Rows 7–12 : 6 office category rows
+   Row 13 : TOTAL row
+   Row 15 : Audit date + generated-by note
+========================================================== */
+
+/* ── Office category definitions ─────────────────────────── */
+
+const OFFICE_ROWS = [
+    { label: "Car",              single: 85,  returnT: 130 },
+    { label: "LCV/Mini Bus",     single: 130, returnT: 195 },
+    { label: "Truck/Bus 2 Axle", single: 255, returnT: 385 },
+    { label: "MAV 3-6 Axle",     single: 415, returnT: 625 },
+    { label: "OSV",              single: 510, returnT: 770 },
+    { label: "Non-Tollable",     single: 0,   returnT: 0   },
+];
+
+/* ── Map actualVehicle → office row index ────────────────── */
+const VEHICLE_TO_OFFICE_IDX = {
+    "Car":                0,
+    "LCV":                1,
+    "Minibus":            1,
+    "Bus 2 Axle":         2,
+    "Truck 2 Axle":       2,
+    "Truck 3 Axle":       3,
+    "MAV":                3,
+    "Oversized Vehicle":  4,
+    "Tractor":            5,
+    "JCB":                5,
+    "Auto":               5,
+    "Bike":               5,
+    "Ambulance":          5,
+    "Government Vehicle": 5,
+    "Army Vehicle":       5,
+    "Police":             5,
+};
+
+/* ── Map audit category → office row index (fallback for status txns) */
+const CATEGORY_TO_OFFICE_IDX = {
+    "Car":          0,
+    "LCV":          1,
+    "Bus 2 Axle":   2,
+    "Truck 2 Axle": 2,
+    "Truck 3 Axle": 3,
+    "MAV":          3,
+    "Auto":         5,
+    "Tractor":      5,
+};
+
+/* Status vehicle names — these carry event info, not vehicle class */
+const STATUS_VEHICLES = new Set([
+    "Has Pass",
+    "Paid (Cash)",
+    "Paid (ETC)",
+    "Paid (Digital)",
+    "Forcefully",
+    "Fake Violation",
+    "Fake Exemption",
+    "Concessionaire",
+]);
+
+/* Paid statuses (normal paid traffic) */
+const PAID_STATUSES = new Set([
+    "Has Pass",
+    "Paid (Cash)",
+    "Paid (ETC)",
+    "Paid (Digital)",
+    "Concessionaire",
+]);
+
+/* ── Helper: determine office row index for one transaction ─ */
+function _txnOfficeIdx(actualVehicle, category) {
+    if (!STATUS_VEHICLES.has(actualVehicle)) {
+        /* It's a real vehicle class — map directly */
+        const idx = VEHICLE_TO_OFFICE_IDX[actualVehicle];
+        return (idx !== undefined) ? idx : null;
+    }
+    /* Status transaction — use the audit category as vehicle proxy */
+    const idx = CATEGORY_TO_OFFICE_IDX[category];
+    return (idx !== undefined) ? idx : null;
+}
+
+/* ── Build per-row counts from current audit date bucket ─── */
+function _buildOfficeCounts(bucket) {
+    /*
+      Returns array of 6 objects:
+      { violation, exemption, paid, vehicleCount }
+      where vehicleCount = actual vehicle-type taps (not status taps)
+    */
+    const counts = OFFICE_ROWS.map(() => ({
+        violation: 0,
+        exemption: 0,
+        paid:      0,
+    }));
+
+    if (!bucket) return counts;
+
+    AUDIT_MODES.forEach(mode => {
+        const modeData = bucket[mode];
+        if (!modeData) return;
+
+        REPORT_CATEGORIES.forEach(category => {
+            const catData = modeData[category];
+            if (!catData) return;
+
+            (catData.transactions || []).forEach(txn => {
+                const av  = txn.actualVehicle || "";
+                const idx = _txnOfficeIdx(av, category);
+                if (idx === null) return;
+
+                if (av === "Forcefully" || av === "Fake Violation") {
+                    counts[idx].violation++;
+                } else if (av === "Fake Exemption") {
+                    counts[idx].exemption++;
+                } else if (PAID_STATUSES.has(av)) {
+                    counts[idx].paid++;
+                }
+                /* plain vehicle-class taps (Car, LCV, etc.) just counted
+                   as paid traffic for the office report */
+                else {
+                    counts[idx].paid++;
+                }
+            });
+        });
+    });
+
+    return counts;
+}
+
+/* ── Main export function ────────────────────────────────── */
+function generateOfficeReport() {
+
+    /* 1. Resolve today's bucket */
+    const dateKey = selectedAuditDate || getTodayKey();
+    const bucket  = auditDataStore && auditDataStore[dateKey];
+
+    /* Build counts (all zeros if no data yet — still valid to export) */
+    const counts = _buildOfficeCounts(bucket);
+
+    /* 2. Create workbook + worksheet */
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+
+    /* Helper: set a cell */
+    function C(r, c, v, t) {
+        /* r, c are 0-based */
+        const addr = XLSX.utils.encode_cell({ r, c });
+        ws[addr] = { v, t: t || (typeof v === "number" ? "n" : "s") };
+    }
+
+    /* Helper: set a formula cell */
+    function F(r, c, formula) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        ws[addr] = { f: formula, t: "n" };
+    }
+
+    /* ── Row 1: Toll name header ──────────────────────────── */
+    /*  Leave row 1 blank (index 0) — office will fill toll name */
+    C(0, 2, "TOLL PLAZA — AUDIT REPORT");
+
+    /* ── Row 2: "Exemption & Violation" heading (I2:J2) ───── */
+    /*  Columns: A=0 B=1 C=2 D=3 E=4 F=5 G=6 H=7 I=8 J=9 K=10 L=11 */
+    C(1, 8, "Exemption & Violation");
+
+    /* ── Row 3: "Tariff" heading (D3:E3) ─────────────────── */
+    C(2, 3, "Tariff");
+
+    /* ── Row 4: Column headers (C to L = cols 2–11) ─────── */
+    const HDR = [
+        "Class",                 /* C4 – col 2  */
+        "Single",                /* D4 – col 3  */
+        "Return",                /* E4 – col 4  */
+        "Violation",             /* F4 – col 5  */
+        "Revenue Loss",          /* G4 – col 6  */
+        "Exemption",             /* H4 – col 7  */
+        "Revenue Loss",          /* I4 – col 8  */
+        "Total Unpaid Traffic",  /* J4 – col 9  */
+        "Total Loss",            /* K4 – col 10 */
+        "Total Traffic",         /* L4 – col 11 */
+    ];
+    HDR.forEach((h, i) => C(3, 2 + i, h));
+
+    /* ── Row 5: Sr.No. sub-header ─────────────────────────── */
+    C(4, 1, "Sr.No.");
+
+    /* ── Row 6: blank separator (index 5) ─────────────────── */
+
+    /* ── Rows 7–12 (index 6–11): data rows ─────────────────
+       Layout per row (all columns A–L):
+         B = Sr.No (1–6)
+         C = Class label
+         D = Single tariff (value)
+         E = Return tariff (value)
+         F = Violation count (value)
+         G = Revenue Loss Violation = F * D  (formula)
+         H = Exemption count (value)
+         I = Revenue Loss Exemption = H * D  (formula)
+         J = Total Unpaid = F + H            (formula)
+         K = Total Loss   = G + I            (formula)
+         L = Total Traffic = paid + J        (formula, paid written as value in col M hidden)
+             We put paid traffic in col M (index 12) as a plain number so
+             the formula is visible and the user can see the paid traffic.
+             Col M header is "Paid Traffic (ref)" at row 4.
+    ─────────────────────────────────────────────────────── */
+
+    /* Col M header */
+    C(3, 12, "Paid Traffic");
+
+    OFFICE_ROWS.forEach((row, i) => {
+        const dataRow  = 6 + i;          /* 0-based row index for xlsx */
+        const excelRow = dataRow + 1;    /* 1-based row number for formulas */
+
+        const cnt    = counts[i];
+        const vCount = cnt.violation;
+        const eCount = cnt.exemption;
+        const pCount = cnt.paid;
+
+        /* B: Sr.No */
+        C(dataRow, 1, i + 1, "n");
+
+        /* C: Class */
+        C(dataRow, 2, row.label);
+
+        /* D: Single tariff */
+        C(dataRow, 3, row.single, "n");
+
+        /* E: Return tariff */
+        C(dataRow, 4, row.returnT, "n");
+
+        /* F: Violation count */
+        C(dataRow, 5, vCount, "n");
+
+        /* G: Revenue Loss (Violation) = F * D */
+        const colF = `F${excelRow}`;
+        const colD = `D${excelRow}`;
+        F(dataRow, 6, `${colF}*${colD}`);
+
+        /* H: Exemption count */
+        C(dataRow, 7, eCount, "n");
+
+        /* I: Revenue Loss (Exemption) = H * D */
+        const colH = `H${excelRow}`;
+        F(dataRow, 8, `${colH}*${colD}`);
+
+        /* J: Total Unpaid Traffic = F + H */
+        F(dataRow, 9, `${colF}+${colH}`);
+
+        /* K: Total Loss = G + I */
+        const colG = `G${excelRow}`;
+        const colI = `I${excelRow}`;
+        F(dataRow, 10, `${colG}+${colI}`);
+
+        /* M: Paid traffic (reference value) */
+        C(dataRow, 12, pCount, "n");
+
+        /* L: Total Traffic = M + J (paid + total unpaid) */
+        const colM = `M${excelRow}`;
+        const colJ = `J${excelRow}`;
+        F(dataRow, 11, `${colM}+${colJ}`);
+    });
+
+    /* ── Row 13 (index 12): TOTAL row ───────────────────── */
+    C(12, 2, "TOTAL");
+
+    /* D13: sum of single tariffs is meaningless — leave blank */
+    /* E13: same */
+
+    /* F13: total violations */
+    F(12, 5, `SUM(F7:F12)`);
+
+    /* G13: total revenue loss violation */
+    F(12, 6, `SUM(G7:G12)`);
+
+    /* H13: total exemptions */
+    F(12, 7, `SUM(H7:H12)`);
+
+    /* I13: total revenue loss exemption */
+    F(12, 8, `SUM(I7:I12)`);
+
+    /* J13: total unpaid */
+    F(12, 9, `SUM(J7:J12)`);
+
+    /* K13: total loss */
+    F(12, 10, `SUM(K7:K12)`);
+
+    /* M13: total paid */
+    F(12, 12, `SUM(M7:M12)`);
+
+    /* L13: total traffic */
+    F(12, 11, `SUM(L7:L12)`);
+
+    /* ── Row 15: metadata note ──────────────────────────── */
+    const [yyyy, mm, dd] = dateKey.split("-");
+    const displayDate = `${dd}/${mm}/${yyyy}`;
+    C(14, 2, `Audit Date: ${displayDate}`);
+    C(14, 5, `Generated: ${new Date().toLocaleString("en-IN")}`);
+
+    /* ── Merges ──────────────────────────────────────────── */
+    ws["!merges"] = [
+        /* "Exemption & Violation" → I2:J2 (row 1, cols 8-9) */
+        { s: { r: 1, c: 8 }, e: { r: 1, c: 9 } },
+        /* "Tariff" → D3:E3 (row 2, cols 3-4) */
+        { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } },
+        /* "Revenue Loss" headers — G4:G4 and I4:I4 no need to merge (single cells) */
+        /* Title row C1 span */
+        { s: { r: 0, c: 2 }, e: { r: 0, c: 11 } },
+    ];
+
+    /* ── Column widths ───────────────────────────────────── */
+    ws["!cols"] = [
+        { wch: 4  },   /* A */
+        { wch: 6  },   /* B  Sr.No */
+        { wch: 18 },   /* C  Class */
+        { wch: 8  },   /* D  Single */
+        { wch: 8  },   /* E  Return */
+        { wch: 10 },   /* F  Violation */
+        { wch: 13 },   /* G  Revenue Loss */
+        { wch: 10 },   /* H  Exemption */
+        { wch: 13 },   /* I  Revenue Loss */
+        { wch: 21 },   /* J  Total Unpaid Traffic */
+        { wch: 12 },   /* K  Total Loss */
+        { wch: 14 },   /* L  Total Traffic */
+        { wch: 14 },   /* M  Paid Traffic */
+    ];
+
+    /* ── Worksheet range ─────────────────────────────────── */
+    ws["!ref"] = "A1:M15";
+
+    /* ── Add sheet and save ─────────────────────────────── */
+    XLSX.utils.book_append_sheet(wb, ws, "Office Report");
+
+    const filename = `Toll_Audit_Report_${dateKey}.xlsx`;
+    XLSX.writeFile(wb, filename);
+
+    if (typeof showToast === "function") {
+        showToast(
+            "Report Downloaded",
+            `${filename} saved successfully.`,
+            "success",
+            4000
+        );
+    }
+}
+
+/* ── Wire "Generate Office Report" button ─────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+    const reportBtn = document.getElementById("generateOfficeReportBtn");
+    if (reportBtn) {
+        reportBtn.addEventListener("click", generateOfficeReport);
+    }
+});

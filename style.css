@@ -648,6 +648,8 @@ input  { font-family: inherit; }
 .sb-btn.sb-success:hover { background: var(--green-soft); color: var(--green); }
 .sb-btn.sb-matrix  { color: var(--violet); }
 .sb-btn.sb-matrix:hover  { background: var(--violet-soft); color: var(--violet); }
+.sb-btn.sb-office-report  { color: #217346; }
+.sb-btn.sb-office-report:hover  { background: rgba(33,115,70,.12); color: #217346; }
 
 .sb-section-label {
   font-family: var(--font-mono);
