@@ -180,6 +180,8 @@
   white-space: nowrap;
   vertical-align: middle;
   text-align: center;
+  background: var(--bg-mid);
+  color: var(--text);
 }
 .tlp-table th {
   background: var(--bg-panel);
@@ -283,6 +285,8 @@
   border: 1px solid var(--line);
   padding: 5px 10px;
   vertical-align: middle;
+  background: var(--bg-mid);
+  color: var(--text);
 }
 .tlp-recon-sub-table th {
   background: var(--bg-panel);
