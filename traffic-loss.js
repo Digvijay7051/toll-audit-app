@@ -37,8 +37,28 @@ const TL_VERIFY_FIELDS = [
 ───────────────────────────────────────────── */
 
 let tlDate = "";            // "YYYY-MM-DD"
-let tlData = {};            // persisted per date (localStorage)
-let tlSaveBannerTimer = null;
+let tlData = {};            // in-memory, persisted to Firestore + localStorage
+let tlAutoSaveTimer = null; // debounce handle for auto-save
+
+/* ─────────────────────────────────────────────
+   SAVE STATUS CHIP
+   Shows "Saving…" / "✓ Saved" / "Offline" in the header
+───────────────────────────────────────────── */
+
+function _tlSetStatus(state) {
+  // state: "saving" | "saved" | "offline" | "local"
+  const el = document.getElementById("tlSaveStatus");
+  if (!el) return;
+  const map = {
+    saving:  { icon: "bi-arrow-repeat", text: "Saving…",       cls: "tls-saving"  },
+    saved:   { icon: "bi-cloud-check",  text: "Saved",         cls: "tls-saved"   },
+    local:   { icon: "bi-hdd",          text: "Saved locally", cls: "tls-local"   },
+    offline: { icon: "bi-wifi-off",     text: "Offline",       cls: "tls-offline" },
+  };
+  const s = map[state] || map.saved;
+  el.className = "tl-save-status " + s.cls;
+  el.innerHTML = `<i class="bi ${s.icon}"></i> ${s.text}`;
+}
 
 /* ─────────────────────────────────────────────
    STORAGE HELPERS
@@ -48,22 +68,72 @@ function tlStorageKey(dateStr) {
   return "tl_report_" + (dateStr || tlDate);
 }
 
-function tlLoad(dateStr) {
+/* localStorage fallback — always keep a local copy */
+function _tlSaveLocal(dateStr, data) {
   try {
-    const raw = localStorage.getItem(tlStorageKey(dateStr));
-    return raw ? JSON.parse(raw) : tlEmptyData();
-  } catch {
-    return tlEmptyData();
+    localStorage.setItem(tlStorageKey(dateStr), JSON.stringify(data));
+  } catch(e) {
+    console.warn("[TL] localStorage save failed", e);
   }
 }
 
-function tlSave() {
+function _tlLoadLocal(dateStr) {
   try {
-    localStorage.setItem(tlStorageKey(tlDate), JSON.stringify(tlData));
-    _showTlSaveBanner();
-  } catch (e) {
-    console.warn("TL save failed", e);
+    const raw = localStorage.getItem(tlStorageKey(dateStr));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
+}
+
+/* Primary load: try Firestore first, fall back to localStorage */
+async function tlLoad(dateStr) {
+  // 1. try Firestore (cloud)
+  if (typeof fbLoadTlReport === "function") {
+    try {
+      const cloud = await fbLoadTlReport(dateStr);
+      if (cloud) {
+        _tlSaveLocal(dateStr, cloud); // keep local in sync
+        return cloud;
+      }
+    } catch(e) {
+      console.warn("[TL] Firestore load failed, using local", e);
+    }
+  }
+  // 2. fall back to localStorage
+  return _tlLoadLocal(dateStr) || tlEmptyData();
+}
+
+/* Primary save: Firestore + localStorage */
+async function tlSave(dateStr, data) {
+  dateStr = dateStr || tlDate;
+  data    = data    || tlData;
+
+  // Always write localStorage immediately (instant, offline-safe)
+  _tlSaveLocal(dateStr, data);
+
+  // Then write to Firestore
+  if (typeof fbSaveTlReport === "function") {
+    _tlSetStatus("saving");
+    const res = await fbSaveTlReport(dateStr, data);
+    if (res && res.ok) {
+      _tlSetStatus("saved");
+    } else {
+      _tlSetStatus("local");  // saved locally but cloud failed
+    }
+  } else {
+    _tlSetStatus("local");
+  }
+}
+
+/* Auto-save: debounced 1.2 s after last keystroke (Google-Sheets style) */
+function tlScheduleAutoSave() {
+  clearTimeout(tlAutoSaveTimer);
+  _tlSetStatus("saving");
+  tlAutoSaveTimer = setTimeout(async () => {
+    tlCollectData();
+    await tlSave();
+  }, 1200);
 }
 
 function tlEmptyData() {
@@ -83,12 +153,14 @@ function tlEmptyData() {
    PANEL LIFECYCLE
 ───────────────────────────────────────────── */
 
-function openTrafficLossPanel(dateStr) {
+async function openTrafficLossPanel(dateStr) {
   tlDate = dateStr || getTodayKey();
-  tlData = tlLoad(tlDate);
-  tlRenderPanel();
+  tlRenderPanel();                    // render shell first (instant)
+  _tlSetStatus("saving");             // show loading state
+  tlData = await tlLoad(tlDate);      // async load from Firestore / localStorage
   tlPopulateFromData();
   tlRecalcAll();
+  _tlSetStatus("saved");              // done loading
 
   document.getElementById("trafficLossPanel").classList.add("tlp-visible");
 }
@@ -121,6 +193,9 @@ function tlRenderPanel() {
         <span class="tlp-date-label"><i class="bi bi-calendar-event"></i> Report Date</span>
         <input type="date" class="tlp-date-input" id="tlDateInput" value="${tlDate}">
       </div>
+      <span class="tl-save-status tls-saved" id="tlSaveStatus">
+        <i class="bi bi-cloud-check"></i> Saved
+      </span>
       <button class="tlp-btn tlp-btn-success" id="tlSaveBtn">
         <i class="bi bi-floppy2-fill"></i> Save
       </button>
@@ -133,9 +208,6 @@ function tlRenderPanel() {
       <button class="tlp-btn tlp-btn-back" id="tlBackBtn">
         <i class="bi bi-arrow-left"></i> Back
       </button>
-      <div class="tlp-save-banner" id="tlSaveBanner">
-        <i class="bi bi-check2-circle"></i> Saved
-      </div>
     </div>
   </div>`);
 
@@ -152,21 +224,31 @@ function tlRenderPanel() {
 
   /* ── Event wiring ── */
   document.getElementById("tlBackBtn").addEventListener("click", closeTrafficLossPanel);
-  document.getElementById("tlSaveBtn").addEventListener("click", () => { tlCollectData(); tlSave(); });
-  document.getElementById("tlDateInput").addEventListener("change", e => {
-    tlCollectData(); tlSave();
+
+  // Manual Save button — immediate, no debounce
+  document.getElementById("tlSaveBtn").addEventListener("click", async () => {
+    tlCollectData();
+    await tlSave();
+  });
+
+  // Date picker — save current date data first, then load new date from cloud
+  document.getElementById("tlDateInput").addEventListener("change", async e => {
+    tlCollectData();
+    await tlSave();                     // save current date before switching
     tlDate = e.target.value;
-    tlData = tlLoad(tlDate);
+    _tlSetStatus("saving");
+    tlData = await tlLoad(tlDate);      // load new date from Firestore / local
     tlPopulateFromData();
     tlRecalcAll();
+    _tlSetStatus("saved");
   });
+
   document.getElementById("tlExportXlsBtn").addEventListener("click", tlExportExcel);
   document.getElementById("tlExportPdfBtn").addEventListener("click", tlExportPdf);
 
-  // Delegate all input events inside the panel
+  // Delegate all input events — validate + recalc + schedule auto-save
   panel.addEventListener("input", e => {
     if (e.target.matches(".tl-input")) {
-      // Clamp to non-negative integer
       const v = parseInt(e.target.value, 10);
       if (isNaN(v) || v < 0) {
         e.target.classList.add("input-err");
@@ -176,6 +258,7 @@ function tlRenderPanel() {
       }
       tlCollectData();
       tlRecalcAll();
+      tlScheduleAutoSave();   // auto-save 1.2s after last keystroke
     }
   });
 }
@@ -887,13 +970,6 @@ function _catId(cat) {
   return cat.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 }
 
-function _showTlSaveBanner() {
-  const el = document.getElementById("tlSaveBanner");
-  if (!el) return;
-  el.classList.add("tlp-save-visible");
-  clearTimeout(tlSaveBannerTimer);
-  tlSaveBannerTimer = setTimeout(() => el.classList.remove("tlp-save-visible"), 2200);
-}
 
 /* ─────────────────────────────────────────────
    SIDEBAR BUTTON INITIALISER

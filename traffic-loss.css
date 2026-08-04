@@ -369,23 +369,50 @@
   font-family: var(--font-mono);
 }
 
-/* ── Save status banner ──────────────────────────────────── */
-.tlp-save-banner {
-  display: flex;
+/* ── Auto-save status chip (replaces old banner) ─────────── */
+.tl-save-status {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .25s, color .25s;
+  border: 1px solid transparent;
+}
+/* Saving… — pulsing amber */
+.tl-save-status.tls-saving {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+.tl-save-status.tls-saving .bi {
+  animation: tls-spin 1s linear infinite;
+}
+@keyframes tls-spin {
+  to { transform: rotate(360deg); }
+}
+/* Saved — green cloud */
+.tl-save-status.tls-saved {
   background: var(--green-soft);
   color: var(--green);
-  border: 1px solid var(--green);
-  opacity: 0;
-  transition: opacity .35s;
-  flex-shrink: 0;
+  border-color: rgba(47,182,115,.3);
 }
-.tlp-save-banner.tlp-save-visible { opacity: 1; }
+/* Saved locally (offline / no account) */
+.tl-save-status.tls-local {
+  background: var(--blue-soft);
+  color: var(--blue);
+  border-color: rgba(76,141,255,.3);
+}
+/* Offline error */
+.tl-save-status.tls-offline {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: rgba(229,72,77,.3);
+}
 
 /* ── Sidebar button ──────────────────────────────────────── */
 .sb-btn.sb-traffic-loss {

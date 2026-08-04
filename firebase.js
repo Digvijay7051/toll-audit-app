@@ -822,3 +822,105 @@ async function fbLoadLockPin() {
     }
 
 }
+
+/* ===============================
+   TRAFFIC LOSS REPORT — SAVE
+   Path: users/{uid}/tlReports/{dateKey}
+   merge:true so partial updates are safe.
+=============================== */
+
+async function fbSaveTlReport(dateKey, tlData) {
+
+    if (!fbReady || !fbDb) return { ok: false, code: "sdk-not-ready" };
+
+    await fbAuthReady;
+    const uid = fbCurrentUid;
+    if (!uid) return { ok: false, code: "not-signed-in" };
+
+    try {
+
+        await fbDb
+            .collection("users").doc(uid)
+            .collection("tlReports").doc(dateKey)
+            .set({
+                dateKey,
+                savedAt: new Date().toISOString(),
+                data: JSON.stringify(tlData)
+            }, { merge: true });
+
+        return { ok: true };
+
+    } catch (err) {
+
+        console.error("[Firebase] fbSaveTlReport error:", err);
+        return { ok: false, code: err.code || "unknown", message: err.message };
+
+    }
+
+}
+
+/* ===============================
+   TRAFFIC LOSS REPORT — LOAD
+   Returns parsed data object or null.
+=============================== */
+
+async function fbLoadTlReport(dateKey) {
+
+    if (!fbReady || !fbDb) return null;
+
+    await fbAuthReady;
+    const uid = fbCurrentUid;
+    if (!uid) return null;
+
+    try {
+
+        const snap = await fbDb
+            .collection("users").doc(uid)
+            .collection("tlReports").doc(dateKey)
+            .get();
+
+        if (!snap.exists) return null;
+
+        const raw = snap.data().data;
+        return raw ? JSON.parse(raw) : null;
+
+    } catch (err) {
+
+        console.error("[Firebase] fbLoadTlReport error:", err);
+        return null;
+
+    }
+
+}
+
+/* ===============================
+   TRAFFIC LOSS REPORT — LOAD ALL DATES
+   Returns array of dateKey strings saved for this user.
+=============================== */
+
+async function fbLoadTlReportDates() {
+
+    if (!fbReady || !fbDb) return [];
+
+    await fbAuthReady;
+    const uid = fbCurrentUid;
+    if (!uid) return [];
+
+    try {
+
+        const snap = await fbDb
+            .collection("users").doc(uid)
+            .collection("tlReports")
+            .orderBy("dateKey", "desc")
+            .get();
+
+        return snap.docs.map(d => d.data().dateKey).filter(Boolean);
+
+    } catch (err) {
+
+        console.error("[Firebase] fbLoadTlReportDates error:", err);
+        return [];
+
+    }
+
+}
