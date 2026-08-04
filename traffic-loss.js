@@ -161,102 +161,129 @@ function tlEmptyData() {
 ───────────────────────────────────────────── */
 
 function tlExtractFromAudit(dateKey) {
-  const bucket = (typeof auditDataStore !== "undefined")
-    ? auditDataStore[dateKey]
-    : null;
+  if (typeof auditDataStore === "undefined") return null;
+  const bucket = auditDataStore[dateKey];
   if (!bucket) return null;
 
-  // Helper: sum vehicleCounts[vehicle] across ALL report categories for a mode
-  function sumVC(mode, vehicles) {
+  // bucket structure:
+  //   bucket["Violation"]["Car"].vehicleCounts["Car"] = n
+  //   bucket["Exemption"]["LCV"].vehicleCounts["Bike"] = n
+  // REPORT_CATEGORIES = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"]
+  // vehicleCounts keys = VEHICLE_CLASSES
+
+  // Sum a vehicle name across ALL report categories for a given mode.
+  // Uses only REPORT_CATEGORIES keys to avoid iterating _meta or other non-data keys.
+  function sumVC(mode, vehicleNames) {
     let total = 0;
-    const mb = bucket[mode];
-    if (!mb) return 0;
-    // Sum across every report category (Car, LCV, Truck 2 Axle…)
-    Object.values(mb).forEach(catData => {
-      const vc = catData.vehicleCounts || {};
-      vehicles.forEach(v => { total += vc[v] || 0; });
+    const modeData = bucket[mode];
+    if (!modeData) return 0;
+    // Only iterate known report categories — skip _meta and any other keys
+    const CATS = typeof REPORT_CATEGORIES !== "undefined"
+      ? REPORT_CATEGORIES
+      : ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
+    CATS.forEach(cat => {
+      const catData = modeData[cat];
+      if (!catData || !catData.vehicleCounts) return;
+      vehicleNames.forEach(v => { total += catData.vehicleCounts[v] || 0; });
     });
     return total;
   }
 
-  // Helper: sum vehicleCounts for a specific reportCategory + mode + vehicles
-  function sumCatVC(mode, cat, vehicles) {
-    const mb = bucket[mode];
-    if (!mb || !mb[cat]) return 0;
-    const vc = mb[cat].vehicleCounts || {};
-    return vehicles.reduce((s, v) => s + (vc[v] || 0), 0);
-  }
-
   const out = { tableA: {}, tableB: {} };
 
-  // ── TABLE A: viol & exem per vehicle class ──────────────────
-  // Violation = audited "Violation" mode transactions
-  // Exemption = audited "Exemption" mode transactions
-  // Each TL class maps to one or more audit VEHICLE_CLASSES rows
+  // ── TABLE A ─────────────────────────────────────────────────
+  // viol = count in "Violation" mode for that vehicle class
+  // exem = count in "Exemption" mode for that vehicle class
+  //
+  // Mapping: TL class key → which VEHICLE_CLASSES rows to sum
+  // Note: "Auto" and "Tractor" appear in REPORT_CATEGORIES (system
+  // categories the inspector audits under) AND in VEHICLE_CLASSES
+  // (what the actual vehicle is). An auditor records "Auto" vehicle
+  // under "Auto" category. So sumVC works correctly.
 
   const CLASS_MAP = {
-    // tlKey : { viol: [audit vehicle names], exem: [audit vehicle names] }
-    car:     {
-      viol: ["Car"],
-      exem: ["Car"],
-    },
-    lcv:     {
-      viol: ["LCV", "Minibus"],
-      exem: ["LCV", "Minibus"],
-    },
-    truck2:  {
-      viol: ["Truck 2 Axle", "Bus 2 Axle"],
-      exem: ["Truck 2 Axle", "Bus 2 Axle"],
-    },
-    mav:     {
-      viol: ["Truck 3 Axle", "MAV"],
-      exem: ["Truck 3 Axle", "MAV"],
-    },
-    osv:     {
-      viol: ["Oversized Vehicle"],
-      exem: ["Oversized Vehicle"],
-    },
-    nontoll: {
-      viol: ["Ambulance", "Auto", "Bike", "Tractor", "JCB",
-             "Government Vehicle", "Army Vehicle", "Police", "Forcefully"],
-      exem: ["Ambulance", "Auto", "Bike", "Tractor", "JCB",
-             "Government Vehicle", "Army Vehicle", "Police"],
-    },
+    car:     { viol: ["Car"],                                    exem: ["Car"]                                    },
+    lcv:     { viol: ["LCV", "Minibus"],                         exem: ["LCV", "Minibus"]                         },
+    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],             exem: ["Truck 2 Axle", "Bus 2 Axle"]             },
+    mav:     { viol: ["Truck 3 Axle", "MAV"],                    exem: ["Truck 3 Axle", "MAV"]                    },
+    osv:     { viol: ["Oversized Vehicle"],                      exem: ["Oversized Vehicle"]                      },
+    // nontoll viol/exem are driven entirely by Table B totals (auto-injected in tlRecalcAll)
+    nontoll: { viol: [], exem: [] },
   };
 
   TL_CLASSES.forEach(c => {
-    const map  = CLASS_MAP[c.key] || { viol: [], exem: [] };
+    const map = CLASS_MAP[c.key] || { viol: [], exem: [] };
     out.tableA[c.key] = {
       viol: sumVC("Violation", map.viol),
       exem: sumVC("Exemption", map.exem),
     };
   });
 
-  // ── TABLE B: Non-Tollable breakdown ─────────────────────────
-  // TL_NONTOLL_CATS: "Ambulance","Auto","Bike","Tractor","JCB","Govt","Police","Forcefully"
-  // Violation = Forcefully (forced passage)
-  // Exemption = all exempt non-toll categories
+  // ── TABLE B ─────────────────────────────────────────────────
+  // Exemption mode: Ambulance/Auto/Bike/Tractor/JCB/Govt/Police
+  // Violation mode: Forcefully
+  // Note: "Auto" and "Tractor" are both REPORT_CATEGORIES and VEHICLE_CLASSES.
+  // The user audits them under "Auto"/"Tractor" category with actual vehicle = "Auto"/"Tractor".
+  // sumVC sums vehicleCounts["Auto"] across ALL categories — which correctly
+  // picks up e.g. bucket["Exemption"]["Auto"].vehicleCounts["Auto"]
 
   const NONTOLL_MAP = {
-    "Ambulance":   { viol: [],            exem: ["Ambulance"]                           },
-    "Auto":        { viol: [],            exem: ["Auto"]                                },
-    "Bike":        { viol: [],            exem: ["Bike"]                                },
-    "Tractor":     { viol: [],            exem: ["Tractor"]                             },
-    "JCB":         { viol: [],            exem: ["JCB"]                                 },
-    "Govt":        { viol: [],            exem: ["Government Vehicle", "Army Vehicle"]  },
-    "Police":      { viol: [],            exem: ["Police"]                              },
-    "Forcefully":  { viol: ["Forcefully"], exem: []                                     },
+    "Ambulance":  { viol: [],              exem: ["Ambulance"]                          },
+    "Auto":       { viol: [],              exem: ["Auto"]                               },
+    "Bike":       { viol: [],              exem: ["Bike"]                               },
+    "Tractor":    { viol: [],              exem: ["Tractor"]                            },
+    "JCB":        { viol: [],              exem: ["JCB"]                                },
+    "Govt":       { viol: [],              exem: ["Government Vehicle", "Army Vehicle"] },
+    "Police":     { viol: [],              exem: ["Police"]                             },
+    "Forcefully": { viol: ["Forcefully"],  exem: []                                     },
   };
 
   TL_NONTOLL_CATS.forEach(cat => {
     const map = NONTOLL_MAP[cat] || { viol: [], exem: [] };
     out.tableB[cat] = {
-      viol: sumVC("Violation", map.viol),
-      exem: sumVC("Exemption", map.exem),
+      viol: sumVC("Violation",  map.viol),
+      exem: sumVC("Exemption",  map.exem),
     };
   });
 
   return out;
+}
+
+/* ─────────────────────────────────────────────
+   APPLY AUDIT FILL — shared helper
+   Merges tlExtractFromAudit result into tlData,
+   repopulates inputs, recalcs, and marks cells.
+   Safe to call multiple times (idempotent).
+───────────────────────────────────────────── */
+
+function _tlApplyAuditFill(dateKey) {
+  const auditFill = tlExtractFromAudit(dateKey);
+  if (!auditFill) return false;
+
+  TL_CLASSES.forEach(c => {
+    if (!tlData.tableA[c.key]) tlData.tableA[c.key] = {};
+    if (auditFill.tableA[c.key]) {
+      tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
+      tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
+    }
+  });
+  TL_NONTOLL_CATS.forEach(cat => {
+    if (auditFill.tableB[cat]) {
+      tlData.tableB[cat] = { ...auditFill.tableB[cat] };
+    }
+  });
+
+  tlPopulateFromData();
+  tlRecalcAll();
+  _tlMarkAuditFilled();
+  return true;
+}
+
+/* Called from data.js _mergeAllDatesFromFirestore after cloud data lands */
+function tlRefreshAuditFill() {
+  const panel = document.getElementById("trafficLossPanel");
+  if (!panel || !panel.classList.contains("tlp-visible")) return;
+  _tlApplyAuditFill(tlDate);
 }
 
 /* ─────────────────────────────────────────────
@@ -269,33 +296,21 @@ async function openTrafficLossPanel(dateStr) {
   _tlSetStatus("saving");             // show loading state
   tlData = await tlLoad(tlDate);      // async load from Firestore / localStorage
 
-  // Merge audit data into viol/exem fields (audit data is source of truth)
-  const auditFill = tlExtractFromAudit(tlDate);
-  if (auditFill) {
-    // tableA: overwrite only viol & exem — preserve user-entered paid counts
-    TL_CLASSES.forEach(c => {
-      if (!tlData.tableA[c.key]) tlData.tableA[c.key] = {};
-      if (auditFill.tableA[c.key]) {
-        tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
-        tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
-      }
-    });
-    // tableB: fully overwrite from audit
-    TL_NONTOLL_CATS.forEach(cat => {
-      if (auditFill.tableB[cat]) {
-        tlData.tableB[cat] = { ...auditFill.tableB[cat] };
-      }
-    });
-  }
+  // Apply audit fill immediately from whatever data is in memory
+  _tlApplyAuditFill(tlDate);
 
-  tlPopulateFromData();
-  tlRecalcAll();
-  _tlSetStatus("saved");              // done loading
-
-  // Mark auto-filled cells visually
-  if (auditFill) _tlMarkAuditFilled();
+  _tlSetStatus("saved");
 
   document.getElementById("trafficLossPanel").classList.add("tlp-visible");
+
+  // Second pass after a short delay — in case auditDataStore was still loading
+  // from Firestore when the panel opened (background merge may not be done yet)
+  setTimeout(() => {
+    if (document.getElementById("trafficLossPanel")
+        .classList.contains("tlp-visible")) {
+      _tlApplyAuditFill(tlDate);
+    }
+  }, 2500);
 }
 
 function closeTrafficLossPanel() {
@@ -371,26 +386,8 @@ function tlRenderPanel() {
     tlDate = e.target.value;
     _tlSetStatus("saving");
     tlData = await tlLoad(tlDate);      // load new date from Firestore / local
-
-    // Re-merge audit data for the new date
-    const auditFill = tlExtractFromAudit(tlDate);
-    if (auditFill) {
-      TL_CLASSES.forEach(c => {
-        if (!tlData.tableA[c.key]) tlData.tableA[c.key] = {};
-        if (auditFill.tableA[c.key]) {
-          tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
-          tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
-        }
-      });
-      TL_NONTOLL_CATS.forEach(cat => {
-        if (auditFill.tableB[cat]) tlData.tableB[cat] = { ...auditFill.tableB[cat] };
-      });
-    }
-
-    tlPopulateFromData();
-    tlRecalcAll();
+    _tlApplyAuditFill(tlDate);
     _tlSetStatus("saved");
-    if (auditFill) _tlMarkAuditFilled();
   });
 
   document.getElementById("tlExportXlsBtn").addEventListener("click", tlExportExcel);

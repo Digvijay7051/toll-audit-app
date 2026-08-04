@@ -968,8 +968,10 @@ async function _mergeAllDatesFromFirestore() {
             localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
             migrateAuditDataStore();
             setActiveAuditDate(selectedAuditDate || getTodayKey());
-            if (typeof renderHistoryPanel === "function") renderHistoryPanel();
-            if (typeof refreshUI          === "function") refreshUI();
+            if (typeof renderHistoryPanel    === "function") renderHistoryPanel();
+            if (typeof refreshUI             === "function") refreshUI();
+            // Re-fill Traffic Loss panel if it's open (data may have been stale)
+            if (typeof tlRefreshAuditFill    === "function") tlRefreshAuditFill();
         }
 
     } catch (e) {
