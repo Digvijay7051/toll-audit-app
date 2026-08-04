@@ -150,6 +150,11 @@ function initializeEvents() {
 
         });
 
+    /* Traffic Loss Report */
+    if (typeof initTrafficLossReport === "function") {
+        initTrafficLossReport();
+    }
+
 }
 
 /* ===============================
