@@ -91,13 +91,10 @@ function openTrafficLossPanel(dateStr) {
   tlRecalcAll();
 
   document.getElementById("trafficLossPanel").classList.add("tlp-visible");
-  // Hide the main audit content
-  document.getElementById("mainAuditContent").style.display = "none";
 }
 
 function closeTrafficLossPanel() {
   document.getElementById("trafficLossPanel").classList.remove("tlp-visible");
-  document.getElementById("mainAuditContent").style.display = "";
 }
 
 /* ─────────────────────────────────────────────
