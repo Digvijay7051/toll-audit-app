@@ -193,13 +193,49 @@ function tlExtractFromAudit(dateKey) {
   const out = { tableA: {}, tableB: {} };
 
   // ── TABLE A ─────────────────────────────────────────────────
+  // pass = "Has Pass" vehicles — recorded in either mode, so sum both.
+  // "Has Pass" is a cross-mode status tag (like "Forcefully") — the
+  // auditor taps it regardless of which Violation/Exemption mode is active.
   const CLASS_MAP = {
-    car:     { viol: ["Car"],                            exem: ["Car"]                            },
-    lcv:     { viol: ["LCV", "Minibus"],                 exem: ["LCV", "Minibus"]                 },
-    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],     exem: ["Truck 2 Axle", "Bus 2 Axle"]     },
-    mav:     { viol: ["Truck 3 Axle", "MAV"],            exem: ["Truck 3 Axle", "MAV"]            },
-    osv:     { viol: ["Oversized Vehicle"],              exem: ["Oversized Vehicle"]              },
-    nontoll: { viol: [],                                 exem: []                                 },
+    //         viol                                   exem                                  pass vehicles (both modes)
+    car:     { viol: ["Car"],                         exem: ["Car"],                         pass: ["Car"]              },
+    lcv:     { viol: ["LCV", "Minibus"],              exem: ["LCV", "Minibus"],              pass: ["LCV", "Minibus"]   },
+    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],  exem: ["Truck 2 Axle", "Bus 2 Axle"],  pass: ["Truck 2 Axle", "Bus 2 Axle"] },
+    mav:     { viol: ["Truck 3 Axle", "MAV"],         exem: ["Truck 3 Axle", "MAV"],         pass: ["Truck 3 Axle", "MAV"]        },
+    osv:     { viol: ["Oversized Vehicle"],           exem: ["Oversized Vehicle"],           pass: ["Oversized Vehicle"]          },
+    nontoll: { viol: [],                              exem: [],                              pass: []                             },
+  };
+
+  // "Has Pass" count per vehicle class:
+  // In the audit matrix, when a vehicle with a pass is tapped, it logs
+  // vehicleCounts["Has Pass"]++ under the current reportCategory bucket.
+  // So we can't split "Has Pass" by vehicle class from vehicleCounts alone —
+  // instead we use the REPORT_CATEGORY as a proxy for the vehicle class:
+  //   bucket[mode]["Car"].vehicleCounts["Has Pass"]     → Car pass count
+  //   bucket[mode]["LCV"].vehicleCounts["Has Pass"]     → LCV pass count
+  //   bucket[mode]["MAV"].vehicleCounts["Has Pass"]     → MAV pass count  etc.
+  function sumPassForCat(reportCats) {
+    // Sum "Has Pass" taps recorded under the given report categories, both modes
+    let total = 0;
+    ["Violation", "Exemption"].forEach(mode => {
+      const modeData = bucket[mode];
+      if (!modeData) return;
+      reportCats.forEach(cat => {
+        const vc = (modeData[cat] && modeData[cat].vehicleCounts) || {};
+        total += vc["Has Pass"] || 0;
+      });
+    });
+    return total;
+  }
+
+  // Map each TL class key to the REPORT_CATEGORIES that correspond to it
+  const CLASS_TO_REPORT_CATS = {
+    car:     ["Car"],
+    lcv:     ["LCV"],
+    truck2:  ["Truck 2 Axle", "Bus 2 Axle"],
+    mav:     ["Truck 3 Axle", "MAV"],
+    osv:     [],          // OSV has no direct report category — included in MAV
+    nontoll: [],
   };
 
   TL_CLASSES.forEach(c => {
@@ -207,6 +243,7 @@ function tlExtractFromAudit(dateKey) {
     out.tableA[c.key] = {
       viol: sumVC("Violation", map.viol),
       exem: sumVC("Exemption", map.exem),
+      pass: sumPassForCat(CLASS_TO_REPORT_CATS[c.key] || []),
     };
   });
 
@@ -264,6 +301,7 @@ function _tlApplyAuditFill(dateKey) {
     if (auditFill.tableA[c.key]) {
       tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
       tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
+      tlData.tableA[c.key].pass = auditFill.tableA[c.key].pass;
     }
   });
   TL_NONTOLL_CATS.forEach(cat => {
@@ -417,9 +455,9 @@ function tlRenderPanel() {
 ───────────────────────────────────────────── */
 
 function _tlMarkAuditFilled() {
-  // Mark Table A viol/exem cells
+  // Mark Table A viol/exem/pass cells
   TL_CLASSES.forEach(c => {
-    ["viol", "exem"].forEach(field => {
+    ["viol", "exem", "pass"].forEach(field => {
       const el = document.querySelector(
         `.tl-input[data-table="a"][data-class="${c.key}"][data-field="${field}"]`
       );
