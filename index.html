@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="analytics.css">
 </head>
 <body>
 
@@ -379,6 +380,12 @@
         </button>
         <button class="sb-btn" id="openBackupBtn" data-bs-toggle="modal" data-bs-target="#backupModal">
             <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
+        </button>
+        <button class="sb-btn sb-analytics" id="analyticsSettingsBtn">
+            <i class="bi bi-gear-fill"></i> Analytics Settings
+        </button>
+        <button class="sb-btn sb-analytics" id="analyticsOpenDashboardBtn">
+            <i class="bi bi-bar-chart-line-fill"></i> Analytics Dashboard
         </button>
         <button class="sb-btn sb-success" id="submitAuditLogBtn">
             <i class="bi bi-cloud-upload-fill"></i> Save Audit Log
@@ -1377,6 +1384,218 @@
 <div id="toastContainer"></div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     ANALYTICS SETTINGS MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="analyticsSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-gear-fill" style="color:var(--amber)"></i> Analytics Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="analytics-settings-field">
+                    <label><i class="bi bi-calendar-event me-1"></i> Analytics Start Date</label>
+                    <input type="date" id="analyticsStartDate">
+                    <small class="text-muted">Only audit dates on or after this date will be included in analytics. Leave blank to include all dates.</small>
+                </div>
+                <div class="analytics-settings-field">
+                    <label><i class="bi bi-arrow-left-right me-1"></i> Comparison Mode</label>
+                    <div class="analytics-cmode-group">
+                        <label class="analytics-cmode-option">
+                            <input type="radio" name="analyticsCmode" value="prevDay">
+                            <div>
+                                <div class="analytics-cmode-label">Previous Day</div>
+                                <div class="analytics-cmode-desc">Compare with the most recent previous audit</div>
+                            </div>
+                        </label>
+                        <label class="analytics-cmode-option">
+                            <input type="radio" name="analyticsCmode" value="weeklyAvg">
+                            <div>
+                                <div class="analytics-cmode-label">Weekly Average</div>
+                                <div class="analytics-cmode-desc">Compare with the average of the past 7 days</div>
+                            </div>
+                        </label>
+                        <label class="analytics-cmode-option">
+                            <input type="radio" name="analyticsCmode" value="monthlyAvg">
+                            <div>
+                                <div class="analytics-cmode-label">Monthly Average</div>
+                                <div class="analytics-cmode-desc">Compare with the average of the previous calendar month</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="analytics-save-btn" id="analyticsSettingsSaveBtn">
+                    <i class="bi bi-floppy2-fill"></i> Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ANALYTICS DASHBOARD MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="analyticsDashboardModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <!-- Sticky Header -->
+            <div class="an-modal-header modal-header">
+                <div class="an-modal-title-wrap">
+                    <i class="bi bi-bar-chart-line-fill an-header-icon"></i>
+                    <div>
+                        <div class="an-modal-title">Advanced Analytics Dashboard</div>
+                        <div class="text-muted" style="font-size:12px;font-family:var(--font-mono)">Toll Audit Intelligence</div>
+                    </div>
+                </div>
+                <div class="an-header-controls">
+                    <div class="an-tab-bar">
+                        <button class="an-tab active" data-tab="overview" type="button">Overview</button>
+                        <button class="an-tab" data-tab="vehicles"  type="button">Vehicles</button>
+                        <button class="an-tab" data-tab="insights"  type="button">Insights</button>
+                        <button class="an-tab" data-tab="compare"   type="button">Compare</button>
+                        <button class="an-tab" data-tab="monthly"   type="button">Monthly</button>
+                    </div>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+
+            <div class="modal-body an-modal-body">
+
+                <!-- Date Filter Bar (shared across panels) -->
+                <div class="an-filter-bar">
+                    <span class="an-filter-label"><i class="bi bi-funnel-fill"></i> Date Range</span>
+                    <input type="date" id="anFilterStart" title="Start Date">
+                    <input type="date" id="anFilterEnd"   title="End Date">
+                    <button class="an-apply-btn" id="anFilterApplyBtn" type="button">
+                        <i class="bi bi-play-fill"></i> Apply
+                    </button>
+                </div>
+
+                <!-- ── OVERVIEW PANEL ── -->
+                <div class="an-panel active" id="anPanel_overview">
+
+                    <div class="an-section-hd"><i class="bi bi-speedometer2"></i> KPI Summary</div>
+                    <div class="an-kpi-grid" id="anKpiGrid">
+                        <div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div>
+                    </div>
+
+                    <div class="an-section-hd mt-4"><i class="bi bi-graph-up"></i> Trend Charts</div>
+                    <div class="an-charts-grid">
+                        <div class="an-chart-card">
+                            <div class="an-chart-title"><i class="bi bi-bar-chart-fill"></i> Daily Traffic Trend</div>
+                            <div id="anChartTraffic"><div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div></div>
+                        </div>
+                        <div class="an-chart-card">
+                            <div class="an-chart-title"><i class="bi bi-exclamation-octagon-fill" style="color:var(--red)"></i> Daily Violation Trend</div>
+                            <div id="anChartViol"><div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div></div>
+                        </div>
+                        <div class="an-chart-card">
+                            <div class="an-chart-title"><i class="bi bi-patch-check-fill" style="color:var(--green)"></i> Daily Exemption Trend</div>
+                            <div id="anChartExem"><div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div></div>
+                        </div>
+                    </div>
+
+                </div><!-- /#anPanel_overview -->
+
+                <!-- ── VEHICLES PANEL ── -->
+                <div class="an-panel" id="anPanel_vehicles">
+                    <div class="an-section-hd"><i class="bi bi-car-front-fill"></i> Vehicle Category Analytics</div>
+                    <div class="an-veh-table-wrap">
+                        <table class="an-veh-table">
+                            <thead>
+                                <tr>
+                                    <th>Vehicle Class</th>
+                                    <th style="text-align:center">Today Count</th>
+                                    <th style="text-align:center">Previous Count</th>
+                                    <th style="text-align:center">Difference</th>
+                                    <th style="text-align:center">% Change</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anVehicleTableBody">
+                                <tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div><!-- /#anPanel_vehicles -->
+
+                <!-- ── INSIGHTS PANEL ── -->
+                <div class="an-panel" id="anPanel_insights">
+
+                    <div class="an-section-hd"><i class="bi bi-lightbulb-fill"></i> Smart Insights</div>
+                    <div class="an-insights-list" id="anInsightsList">
+                        <div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div>
+                    </div>
+
+                    <div class="an-section-hd mt-4"><i class="bi bi-calendar-day-fill"></i> Highest &amp; Lowest Traffic Day</div>
+                    <div id="anHighLowDays">
+                        <div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div>
+                    </div>
+
+                    <div class="an-section-hd mt-4"><i class="bi bi-trophy-fill" style="color:#ffd700"></i> Violation Leaderboard</div>
+                    <div class="an-leaderboard" id="anLeaderboard">
+                        <div class="an-empty"><i class="bi bi-hourglass-split"></i><p>Loading…</p></div>
+                    </div>
+
+                </div><!-- /#anPanel_insights -->
+
+                <!-- ── COMPARE PANEL ── -->
+                <div class="an-panel" id="anPanel_compare">
+                    <div class="an-section-hd"><i class="bi bi-calendar2-range-fill"></i> Compare Any Two Dates</div>
+                    <div class="an-compare-wrap">
+                        <div class="an-compare-date-card">
+                            <h6><i class="bi bi-calendar-event"></i> Date A</h6>
+                            <input type="date" id="anCompareDate1">
+                        </div>
+                        <div class="an-compare-date-card">
+                            <h6><i class="bi bi-calendar-event"></i> Date B</h6>
+                            <input type="date" id="anCompareDate2">
+                        </div>
+                    </div>
+                    <button class="an-apply-btn mb-4" id="anCompareRunBtn" type="button" style="width:100%;justify-content:center;">
+                        <i class="bi bi-arrow-left-right"></i> Compare Dates
+                    </button>
+                    <div id="anCompareResult">
+                        <div class="an-empty"><i class="bi bi-calendar2-range"></i><p>Select two dates above and click Compare.</p></div>
+                    </div>
+                </div><!-- /#anPanel_compare -->
+
+                <!-- ── MONTHLY PANEL ── -->
+                <div class="an-panel" id="anPanel_monthly">
+                    <div class="an-section-hd"><i class="bi bi-calendar-month-fill"></i> Monthly Analytics</div>
+                    <select class="an-monthly-select" id="anMonthSelect">
+                        <option value="">-- Select Month --</option>
+                    </select>
+                    <div id="anMonthlyContent">
+                        <div class="an-empty"><i class="bi bi-calendar-month"></i><p>Select a month to view statistics.</p></div>
+                    </div>
+                </div><!-- /#anPanel_monthly -->
+
+            </div><!-- /.modal-body -->
+
+            <div class="modal-footer" style="gap:8px;flex-wrap:wrap;">
+                <div class="an-export-row me-auto">
+                    <button class="an-export-btn an-export-btn-excel" id="anExportXlsBtn" type="button">
+                        <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+                    </button>
+                    <button class="an-export-btn an-export-btn-pdf" id="anExportPdfBtn" type="button">
+                        <i class="bi bi-file-earmark-pdf-fill"></i> Export PDF
+                    </button>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /#analyticsDashboardModal -->
+
+<!-- ═══════════════════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1399,6 +1618,7 @@
 <script src="avatar.js"></script>
 <script src="sheets.js"></script>
 <script src="motion.js"></script>
+<script src="analytics.js"></script>
 
 </body>
 </html>
