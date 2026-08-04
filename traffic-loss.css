@@ -7,20 +7,21 @@
 #trafficLossPanel {
   display: none;
   flex-direction: column;
-  gap: 0;
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   z-index: 1200;
   background: var(--bg-deep);
-  overflow-y: auto;
+  /* Panel itself does NOT scroll — .tlp-body scrolls */
+  overflow: hidden;
 }
 #trafficLossPanel.tlp-visible { display: flex; }
 
 /* ── Header bar ──────────────────────────────────────────── */
 .tlp-header {
+  flex-shrink: 0;
   background: var(--bg-mid);
   border-bottom: 1px solid var(--line);
   padding: 14px 20px 12px;
@@ -134,7 +135,9 @@
 /* ── Body scroll container ───────────────────────────────── */
 .tlp-body {
   flex: 1;
-  overflow-x: auto;
+  min-height: 0;    /* crucial: lets flex child shrink below content size */
+  overflow-y: auto;
+  overflow-x: auto; /* allow body-level horizontal scroll on small screens */
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -165,7 +168,7 @@
 .tlp-section-head i { font-size: 14px; }
 
 /* ── Tables ──────────────────────────────────────────────── */
-.tlp-table-wrap { overflow-x: auto; }
+.tlp-table-wrap { overflow-x: auto; overflow-y: visible; }
 
 .tlp-table {
   width: 100%;
@@ -192,7 +195,7 @@
   text-transform: uppercase;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
 }
 /* Class name column — left-aligned */
 .tlp-table td:first-child,

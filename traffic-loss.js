@@ -185,12 +185,20 @@ function tlRenderPanel() {
 ───────────────────────────────────────────── */
 
 function tlBuildTableA() {
-  const paidCols = ["Cash","Return","Barcode","Digital","ETC","Pass"];
+  // field keys must match tlData keys: cash, ret, barcode, digital, etc, pass
+  const paidCols = [
+    { label: "Cash",    field: "cash"    },
+    { label: "Return",  field: "ret"     },
+    { label: "Barcode", field: "barcode" },
+    { label: "Digital", field: "digital" },
+    { label: "ETC",     field: "etc"     },
+    { label: "Pass",    field: "pass"    },
+  ];
   let rows = "";
   TL_CLASSES.forEach(c => {
     rows += `<tr data-class="${c.key}">
       <td>${c.label}</td>
-      ${paidCols.map(col => `<td><input type="number" class="tl-input" data-table="a" data-class="${c.key}" data-field="${col.toLowerCase()}" min="0" value="0"></td>`).join("")}
+      ${paidCols.map(col => `<td><input type="number" class="tl-input" data-table="a" data-class="${c.key}" data-field="${col.field}" min="0" value="0"></td>`).join("")}
       <td class="tlp-auto" id="tla_total_${c.key}">0</td>
       <td><input type="number" class="tl-input" data-table="a" data-class="${c.key}" data-field="viol" min="0" value="0"></td>
       <td class="tlp-auto" id="tla_viol_loss_${c.key}">₹0</td>
