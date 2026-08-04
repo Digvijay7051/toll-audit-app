@@ -964,10 +964,14 @@ async function _mergeAllDatesFromFirestore() {
             }
         });
 
+        // Always persist + re-point auditData, even if only some dates merged.
+        // This fixes the case where auditData was pointing to an empty placeholder
+        // bucket created before Firestore data arrived.
+        localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
+        migrateAuditDataStore();
+        setActiveAuditDate(selectedAuditDate || getTodayKey());
+
         if (merged) {
-            localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
-            migrateAuditDataStore();
-            setActiveAuditDate(selectedAuditDate || getTodayKey());
             if (typeof renderHistoryPanel    === "function") renderHistoryPanel();
             if (typeof refreshUI             === "function") refreshUI();
             // Re-fill Traffic Loss panel if it's open (data may have been stale)

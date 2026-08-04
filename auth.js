@@ -750,6 +750,16 @@ function setupDateScreen() {
 
             showMainApp();
 
+            /* If Firestore merge hasn't arrived yet for this date,
+               schedule a re-merge and re-render after a short delay */
+            setTimeout(async () => {
+                if (typeof _mergeAllDatesFromFirestore === "function") {
+                    await _mergeAllDatesFromFirestore();
+                }
+                setActiveAuditDate(dateInput.value);
+                if (typeof refreshUI === "function") refreshUI();
+            }, 1500);
+
         });
 
     document
