@@ -211,20 +211,39 @@ function tlExtractFromAudit(dateKey) {
   });
 
   // ── TABLE B ─────────────────────────────────────────────────
-  // "Forcefully" is a cross-mode status tag — auditor can tap it
-  // while in either Violation OR Exemption mode, so sum BOTH modes.
-  // All other non-tollable categories are genuine Exemption entries.
-  out.tableB = {
-    "Ambulance":  { viol: 0, exem: sumVC("Exemption", ["Ambulance"])                          },
-    "Auto":       { viol: 0, exem: sumVC("Exemption", ["Auto"])                               },
-    "Bike":       { viol: 0, exem: sumVC("Exemption", ["Bike"])                               },
-    "Tractor":    { viol: 0, exem: sumVC("Exemption", ["Tractor"])                            },
-    "JCB":        { viol: 0, exem: sumVC("Exemption", ["JCB"])                                },
-    "Govt":       { viol: 0, exem: sumVC("Exemption", ["Government Vehicle", "Army Vehicle"]) },
-    "Police":     { viol: 0, exem: sumVC("Exemption", ["Police"])                             },
-    // Forcefully: sum BOTH modes — it's a status tag, not mode-specific
-    "Forcefully": { viol: sumAllModes(["Forcefully"]),  exem: 0                               },
+  // IMPORTANT: Non-tollable vehicles (Ambulance, Bike, Police etc.)
+  // can be recorded under EITHER mode depending on which mode the
+  // auditor had active at the time of tapping.
+  //   - bucket["Violation"]["Car"].vehicleCounts["Ambulance"] → viol column
+  //   - bucket["Exemption"]["Auto"].vehicleCounts["Ambulance"] → exem column
+  // So: viol = sumVC("Violation", vehicles), exem = sumVC("Exemption", vehicles)
+  // "Forcefully" is a cross-mode status tag — sum both modes for its viol count.
+
+  const NONTOLL_VEHICLES = {
+    "Ambulance":  ["Ambulance"],
+    "Auto":       ["Auto"],
+    "Bike":       ["Bike"],
+    "Tractor":    ["Tractor"],
+    "JCB":        ["JCB"],
+    "Govt":       ["Government Vehicle", "Army Vehicle"],
+    "Police":     ["Police"],
   };
+
+  TL_NONTOLL_CATS.forEach(cat => {
+    if (cat === "Forcefully") {
+      // Forcefully can be tapped in any mode — sum both
+      out.tableB["Forcefully"] = {
+        viol: sumAllModes(["Forcefully"]),
+        exem: 0,
+      };
+    } else {
+      const vehicles = NONTOLL_VEHICLES[cat] || [];
+      out.tableB[cat] = {
+        viol: sumVC("Violation", vehicles),   // recorded while in Violation mode
+        exem: sumVC("Exemption", vehicles),   // recorded while in Exemption mode
+      };
+    }
+  });
 
   return out;
 }
