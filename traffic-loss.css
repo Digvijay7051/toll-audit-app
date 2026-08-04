@@ -232,6 +232,36 @@
   z-index: 3;
   background: var(--bg-panel);
 }
+/* ── Auto-filled inputs (from audit data) ───────────────────── */
+.tlp-table td input.tl-audit-filled {
+  background: rgba(76, 141, 255, 0.12);
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 700;
+  cursor: default;
+}
+.tlp-table td input.tl-audit-filled:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(76,141,255,.2);
+  outline: none;
+}
+
+/* ── Audit data source banner ────────────────────────────────── */
+.tlp-audit-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 6px 12px;
+  background: rgba(76,141,255,.1);
+  border: 1px solid rgba(76,141,255,.3);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.tlp-audit-banner i { font-size: 13px; }
+
 /* Editable inputs inside cells — compact */
 .tlp-table td input[type="number"] {
   width: 62px;

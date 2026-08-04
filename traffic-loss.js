@@ -150,6 +150,116 @@ function tlEmptyData() {
 }
 
 /* ─────────────────────────────────────────────
+   AUTO-FILL FROM AUDIT DATA
+   Reads auditDataStore[dateKey] and returns a
+   partial tlData object with violation/exemption
+   counts and non-tollable breakdown extracted
+   from the audited vehicle counts.
+   Only fills viol/exem fields — paid counts
+   (cash/ret/barcode/digital/etc/pass) are left
+   for the user to enter manually.
+───────────────────────────────────────────── */
+
+function tlExtractFromAudit(dateKey) {
+  const bucket = (typeof auditDataStore !== "undefined")
+    ? auditDataStore[dateKey]
+    : null;
+  if (!bucket) return null;
+
+  // Helper: sum vehicleCounts[vehicle] across ALL report categories for a mode
+  function sumVC(mode, vehicles) {
+    let total = 0;
+    const mb = bucket[mode];
+    if (!mb) return 0;
+    // Sum across every report category (Car, LCV, Truck 2 Axle…)
+    Object.values(mb).forEach(catData => {
+      const vc = catData.vehicleCounts || {};
+      vehicles.forEach(v => { total += vc[v] || 0; });
+    });
+    return total;
+  }
+
+  // Helper: sum vehicleCounts for a specific reportCategory + mode + vehicles
+  function sumCatVC(mode, cat, vehicles) {
+    const mb = bucket[mode];
+    if (!mb || !mb[cat]) return 0;
+    const vc = mb[cat].vehicleCounts || {};
+    return vehicles.reduce((s, v) => s + (vc[v] || 0), 0);
+  }
+
+  const out = { tableA: {}, tableB: {} };
+
+  // ── TABLE A: viol & exem per vehicle class ──────────────────
+  // Violation = audited "Violation" mode transactions
+  // Exemption = audited "Exemption" mode transactions
+  // Each TL class maps to one or more audit VEHICLE_CLASSES rows
+
+  const CLASS_MAP = {
+    // tlKey : { viol: [audit vehicle names], exem: [audit vehicle names] }
+    car:     {
+      viol: ["Car"],
+      exem: ["Car"],
+    },
+    lcv:     {
+      viol: ["LCV", "Minibus"],
+      exem: ["LCV", "Minibus"],
+    },
+    truck2:  {
+      viol: ["Truck 2 Axle", "Bus 2 Axle"],
+      exem: ["Truck 2 Axle", "Bus 2 Axle"],
+    },
+    mav:     {
+      viol: ["Truck 3 Axle", "MAV"],
+      exem: ["Truck 3 Axle", "MAV"],
+    },
+    osv:     {
+      viol: ["Oversized Vehicle"],
+      exem: ["Oversized Vehicle"],
+    },
+    nontoll: {
+      viol: ["Ambulance", "Auto", "Bike", "Tractor", "JCB",
+             "Government Vehicle", "Army Vehicle", "Police", "Forcefully"],
+      exem: ["Ambulance", "Auto", "Bike", "Tractor", "JCB",
+             "Government Vehicle", "Army Vehicle", "Police"],
+    },
+  };
+
+  TL_CLASSES.forEach(c => {
+    const map  = CLASS_MAP[c.key] || { viol: [], exem: [] };
+    out.tableA[c.key] = {
+      viol: sumVC("Violation", map.viol),
+      exem: sumVC("Exemption", map.exem),
+    };
+  });
+
+  // ── TABLE B: Non-Tollable breakdown ─────────────────────────
+  // TL_NONTOLL_CATS: "Ambulance","Auto","Bike","Tractor","JCB","Govt","Police","Forcefully"
+  // Violation = Forcefully (forced passage)
+  // Exemption = all exempt non-toll categories
+
+  const NONTOLL_MAP = {
+    "Ambulance":   { viol: [],            exem: ["Ambulance"]                           },
+    "Auto":        { viol: [],            exem: ["Auto"]                                },
+    "Bike":        { viol: [],            exem: ["Bike"]                                },
+    "Tractor":     { viol: [],            exem: ["Tractor"]                             },
+    "JCB":         { viol: [],            exem: ["JCB"]                                 },
+    "Govt":        { viol: [],            exem: ["Government Vehicle", "Army Vehicle"]  },
+    "Police":      { viol: [],            exem: ["Police"]                              },
+    "Forcefully":  { viol: ["Forcefully"], exem: []                                     },
+  };
+
+  TL_NONTOLL_CATS.forEach(cat => {
+    const map = NONTOLL_MAP[cat] || { viol: [], exem: [] };
+    out.tableB[cat] = {
+      viol: sumVC("Violation", map.viol),
+      exem: sumVC("Exemption", map.exem),
+    };
+  });
+
+  return out;
+}
+
+/* ─────────────────────────────────────────────
    PANEL LIFECYCLE
 ───────────────────────────────────────────── */
 
@@ -158,9 +268,32 @@ async function openTrafficLossPanel(dateStr) {
   tlRenderPanel();                    // render shell first (instant)
   _tlSetStatus("saving");             // show loading state
   tlData = await tlLoad(tlDate);      // async load from Firestore / localStorage
+
+  // Merge audit data into viol/exem fields (audit data is source of truth)
+  const auditFill = tlExtractFromAudit(tlDate);
+  if (auditFill) {
+    // tableA: overwrite only viol & exem — preserve user-entered paid counts
+    TL_CLASSES.forEach(c => {
+      if (!tlData.tableA[c.key]) tlData.tableA[c.key] = {};
+      if (auditFill.tableA[c.key]) {
+        tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
+        tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
+      }
+    });
+    // tableB: fully overwrite from audit
+    TL_NONTOLL_CATS.forEach(cat => {
+      if (auditFill.tableB[cat]) {
+        tlData.tableB[cat] = { ...auditFill.tableB[cat] };
+      }
+    });
+  }
+
   tlPopulateFromData();
   tlRecalcAll();
   _tlSetStatus("saved");              // done loading
+
+  // Mark auto-filled cells visually
+  if (auditFill) _tlMarkAuditFilled();
 
   document.getElementById("trafficLossPanel").classList.add("tlp-visible");
 }
@@ -238,9 +371,26 @@ function tlRenderPanel() {
     tlDate = e.target.value;
     _tlSetStatus("saving");
     tlData = await tlLoad(tlDate);      // load new date from Firestore / local
+
+    // Re-merge audit data for the new date
+    const auditFill = tlExtractFromAudit(tlDate);
+    if (auditFill) {
+      TL_CLASSES.forEach(c => {
+        if (!tlData.tableA[c.key]) tlData.tableA[c.key] = {};
+        if (auditFill.tableA[c.key]) {
+          tlData.tableA[c.key].viol = auditFill.tableA[c.key].viol;
+          tlData.tableA[c.key].exem = auditFill.tableA[c.key].exem;
+        }
+      });
+      TL_NONTOLL_CATS.forEach(cat => {
+        if (auditFill.tableB[cat]) tlData.tableB[cat] = { ...auditFill.tableB[cat] };
+      });
+    }
+
     tlPopulateFromData();
     tlRecalcAll();
     _tlSetStatus("saved");
+    if (auditFill) _tlMarkAuditFilled();
   });
 
   document.getElementById("tlExportXlsBtn").addEventListener("click", tlExportExcel);
@@ -260,6 +410,40 @@ function tlRenderPanel() {
       tlRecalcAll();
       tlScheduleAutoSave();   // auto-save 1.2s after last keystroke
     }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   MARK AUTO-FILLED CELLS
+   Adds a visual "from audit" badge to viol/exem
+   inputs and Table B inputs that were filled
+   automatically from the audit data.
+───────────────────────────────────────────── */
+
+function _tlMarkAuditFilled() {
+  // Mark Table A viol/exem cells
+  TL_CLASSES.forEach(c => {
+    ["viol", "exem"].forEach(field => {
+      const el = document.querySelector(
+        `.tl-input[data-table="a"][data-class="${c.key}"][data-field="${field}"]`
+      );
+      if (el) {
+        el.classList.add("tl-audit-filled");
+        el.title = "Auto-filled from audit data";
+      }
+    });
+  });
+  // Mark Table B cells
+  TL_NONTOLL_CATS.forEach(cat => {
+    ["viol", "exem"].forEach(field => {
+      const el = document.querySelector(
+        `.tl-input[data-table="b"][data-cat="${cat}"][data-field="${field}"]`
+      );
+      if (el) {
+        el.classList.add("tl-audit-filled");
+        el.title = "Auto-filled from audit data";
+      }
+    });
   });
 }
 
@@ -299,6 +483,10 @@ function tlBuildTableA() {
     <div class="tlp-section-head">
       <i class="bi bi-table"></i>
       Table A — Classwise Traffic (Paid &amp; Unpaid)
+    </div>
+    <div class="tlp-audit-banner">
+      <i class="bi bi-magic"></i>
+      Violation &amp; Exemption counts are <strong>auto-filled from today's audit data</strong>. Paid counts (Cash, Return, Barcode, Digital, ETC, Pass) must be entered manually.
     </div>
     <div class="tlp-table-wrap">
     <table class="tlp-table" id="tableA">
@@ -372,6 +560,10 @@ function tlBuildTableB() {
     <div class="tlp-section-head">
       <i class="bi bi-list-check"></i>
       Table B — Non-Tollable: Exemption &amp; Violation Breakdown
+    </div>
+    <div class="tlp-audit-banner">
+      <i class="bi bi-magic"></i>
+      All counts are <strong>auto-filled from audit data</strong> — Ambulance/Bike/Tractor/JCB/Govt/Police from Exemption mode, Forcefully from Violation mode.
     </div>
     <div class="tlp-table-wrap">
     <table class="tlp-table" id="tableB">
