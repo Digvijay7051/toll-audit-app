@@ -3,6 +3,7 @@
    analytics.js
    Depends on: data.js (auditDataStore, AUDIT_MODES, REPORT_CATEGORIES, VEHICLE_CLASSES, getTodayKey)
    Depends on: ui.js  (showToast)
+   Depends on: firebase.js (fbLoadAuditLogByDate, fbLoadAuditLogDates)
    Depends on: sheets.js / xlsx (for Excel export)
 ========================================================== */
 
@@ -16,6 +17,82 @@ let analyticsSettings = {
     startDate:      "",          // "YYYY-MM-DD" — only dates >= this are included
     comparisonMode: "prevDay"    // "prevDay" | "weeklyAvg" | "monthlyAvg"
 };
+
+/* ══════════════════════════════════════════════
+   SAVED AUDIT LOG CACHE
+   Populated on demand from Firestore (fbLoadAuditLogByDate).
+   Keyed by YYYY-MM-DD. Used as fallback when auditDataStore
+   bucket is empty (happens after Save Audit Log clears the
+   working bucket, or on a fresh device load).
+══════════════════════════════════════════════ */
+
+const _analyticsLogCache = {};   // { dateKey: logData } from fbLoadAuditLogByDate
+let   _analyticsLogDates = null; // null = not yet fetched; array once fetched
+
+/* Fetch the full list of saved audit log dates from Firestore and
+   warm the cache. Called lazily before any analytics render. */
+async function _ensureLogDatesLoaded() {
+    if (_analyticsLogDates !== null) return;
+    if (typeof fbLoadAuditLogDates !== "function") { _analyticsLogDates = []; return; }
+    try {
+        const entries = await fbLoadAuditLogDates();   // [{dateKey, savedAt}]
+        _analyticsLogDates = entries.map(e => e.dateKey);
+    } catch (_) {
+        _analyticsLogDates = [];
+    }
+}
+
+/* Fetch one date's saved log from Firestore (cached) */
+async function _fetchLogForDate(dateKey) {
+    if (_analyticsLogCache[dateKey] !== undefined) return _analyticsLogCache[dateKey];
+    if (typeof fbLoadAuditLogByDate !== "function") { _analyticsLogCache[dateKey] = null; return null; }
+    try {
+        const data = await fbLoadAuditLogByDate(dateKey);
+        _analyticsLogCache[dateKey] = data || null;
+        return _analyticsLogCache[dateKey];
+    } catch (_) {
+        _analyticsLogCache[dateKey] = null;
+        return null;
+    }
+}
+
+/* Build a summary object from a saved audit log's reportCounts snapshot.
+   reportCounts = { Violation: { Car: { reportCount, checkedCount, vehicleCounts } } } */
+function _summaryFromReportCounts(dateKey, reportCounts) {
+    if (!reportCounts) return null;
+    let violations = 0, exemptions = 0;
+    const vehBreakdown = {};
+    const vehModeBreakdown = { Violation: {}, Exemption: {} };
+    const catBreakdown = {};
+    VEHICLE_CLASSES.forEach(v => {
+        vehBreakdown[v] = 0;
+        vehModeBreakdown.Violation[v] = 0;
+        vehModeBreakdown.Exemption[v] = 0;
+    });
+    REPORT_CATEGORIES.forEach(c => { catBreakdown[c] = 0; });
+
+    AUDIT_MODES.forEach(mode => {
+        const modeData = reportCounts[mode];
+        if (!modeData) return;
+        REPORT_CATEGORIES.forEach(cat => {
+            const rc = modeData[cat];
+            if (!rc) return;
+            const txnCount = rc.checkedCount || 0;
+            if (mode === "Violation") { violations += txnCount; catBreakdown[cat] = (catBreakdown[cat] || 0) + txnCount; }
+            if (mode === "Exemption")   exemptions += txnCount;
+            // vehicleCounts from snapshot
+            const vc = rc.vehicleCounts || {};
+            VEHICLE_CLASSES.forEach(v => {
+                const cnt = vc[v] || 0;
+                vehBreakdown[v]           = (vehBreakdown[v] || 0) + cnt;
+                vehModeBreakdown[mode][v] = (vehModeBreakdown[mode][v] || 0) + cnt;
+            });
+        });
+    });
+
+    const traffic = violations + exemptions;
+    return { dateKey, traffic, violations, exemptions, vehBreakdown, vehModeBreakdown, catBreakdown };
+}
 
 function loadAnalyticsSettings() {
     try {
@@ -37,17 +114,30 @@ function saveAnalyticsSettings() {
    — no duplicate data storage needed.
 ══════════════════════════════════════════════ */
 
-/* Returns all date keys in auditDataStore that have at least one
-   transaction, sorted ascending, filtered by analytics start date. */
+/* Returns all date keys that have at least one transaction —
+   from auditDataStore (live/auto-saved) PLUS any dates that
+   exist in the saved audit log Firestore collection.
+   Sorted ascending, filtered by analytics start date. */
 function _getAnalyticsDates(overrideStart, overrideEnd) {
     const start = overrideStart || analyticsSettings.startDate || null;
     const end   = overrideEnd   || null;
 
-    return Object.keys(auditDataStore)
-        .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    // Dates from live auditDataStore (auto-save)
+    const liveSet = new Set(
+        Object.keys(auditDataStore)
+            .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+            .filter(d => _isBucketNonEmpty(auditDataStore[d]))
+    );
+
+    // Dates from cached saved audit logs (from Firestore via fbLoadAuditLogDates)
+    const logSet = new Set(_analyticsLogDates || []);
+
+    // Union of both sources
+    const all = [...new Set([...liveSet, ...logSet])];
+
+    return all
         .filter(d => !start || d >= start)
         .filter(d => !end   || d <= end)
-        .filter(d => _isBucketNonEmpty(auditDataStore[d]))
         .sort();
 }
 
@@ -68,48 +158,46 @@ function _isBucketNonEmpty(bucket) {
    exemptions = transactions in Exemption mode */
 function _summariseDate(dateKey) {
     const bucket = auditDataStore[dateKey];
-    if (!bucket) return null;
 
-    let violations = 0, exemptions = 0;
-    const vehBreakdown = {};   // vehicle class → total count across all modes+cats
-    const catBreakdown = {};   // report category → total count (violations mode)
-    const vehModeBreakdown = { Violation: {}, Exemption: {} };
+    // Primary path: live auditDataStore has real transaction data
+    if (_isBucketNonEmpty(bucket)) {
+        let violations = 0, exemptions = 0;
+        const vehBreakdown = {};
+        const catBreakdown = {};
+        const vehModeBreakdown = { Violation: {}, Exemption: {} };
 
-    VEHICLE_CLASSES.forEach(v => { vehBreakdown[v] = 0; });
-    REPORT_CATEGORIES.forEach(c => { catBreakdown[c] = 0; });
-    VEHICLE_CLASSES.forEach(v => {
-        vehModeBreakdown.Violation[v] = 0;
-        vehModeBreakdown.Exemption[v] = 0;
-    });
+        VEHICLE_CLASSES.forEach(v => { vehBreakdown[v] = 0; });
+        REPORT_CATEGORIES.forEach(c => { catBreakdown[c] = 0; });
+        VEHICLE_CLASSES.forEach(v => {
+            vehModeBreakdown.Violation[v] = 0;
+            vehModeBreakdown.Exemption[v] = 0;
+        });
 
-    AUDIT_MODES.forEach(mode => {
-        REPORT_CATEGORIES.forEach(cat => {
-            const c = bucket[mode] && bucket[mode][cat];
-            if (!c) return;
-            const txnCount = (c.transactions || []).length;
-            if (mode === "Violation")  violations += txnCount;
-            if (mode === "Exemption")  exemptions += txnCount;
-            if (mode === "Violation")  catBreakdown[cat] = (catBreakdown[cat] || 0) + txnCount;
-            // aggregate vehicle counts
-            VEHICLE_CLASSES.forEach(v => {
-                const cnt = (c.vehicleCounts && c.vehicleCounts[v]) || 0;
-                vehBreakdown[v]              = (vehBreakdown[v] || 0) + cnt;
-                vehModeBreakdown[mode][v]    = (vehModeBreakdown[mode][v] || 0) + cnt;
+        AUDIT_MODES.forEach(mode => {
+            REPORT_CATEGORIES.forEach(cat => {
+                const c = bucket[mode] && bucket[mode][cat];
+                if (!c) return;
+                const txnCount = (c.transactions || []).length;
+                if (mode === "Violation") { violations += txnCount; catBreakdown[cat] = (catBreakdown[cat] || 0) + txnCount; }
+                if (mode === "Exemption")   exemptions += txnCount;
+                VEHICLE_CLASSES.forEach(v => {
+                    const cnt = (c.vehicleCounts && c.vehicleCounts[v]) || 0;
+                    vehBreakdown[v]           = (vehBreakdown[v] || 0) + cnt;
+                    vehModeBreakdown[mode][v] = (vehModeBreakdown[mode][v] || 0) + cnt;
+                });
             });
         });
-    });
 
-    const traffic = violations + exemptions;
+        return { dateKey, traffic: violations + exemptions, violations, exemptions, vehBreakdown, vehModeBreakdown, catBreakdown };
+    }
 
-    return {
-        dateKey,
-        traffic,
-        violations,
-        exemptions,
-        vehBreakdown,
-        vehModeBreakdown,
-        catBreakdown
-    };
+    // Fallback path: use cached saved audit log (reportCounts snapshot from Firestore)
+    const cached = _analyticsLogCache[dateKey];
+    if (cached && cached.reportCounts) {
+        return _summaryFromReportCounts(dateKey, cached.reportCounts);
+    }
+
+    return null;
 }
 
 /* Returns the summary for the "previous" date relative to referenceDate,
@@ -352,10 +440,18 @@ function _generateInsights(dates) {
    TODAY'S AUDIT SUMMARY POPUP
 ══════════════════════════════════════════════ */
 
-function showAuditSummaryPopup(dateKey) {
+async function showAuditSummaryPopup(dateKey) {
     // Remove any existing overlay
     const existing = document.getElementById("auditSummaryOverlay");
     if (existing) existing.remove();
+
+    // Ensure the saved log for this date is in cache (needed if auditDataStore
+    // bucket was already cleared/overwritten after Save Audit Log)
+    await _ensureLogDatesLoaded();
+    await _fetchLogForDate(dateKey);
+    // Also pre-fetch the previous date's log for comparison
+    const prevDateKey = (_analyticsLogDates || []).filter(d => d < dateKey).slice(-1)[0];
+    if (prevDateKey) await _fetchLogForDate(prevDateKey);
 
     const today = _summariseDate(dateKey);
     const prev  = _getPreviousSummary(dateKey);
@@ -548,6 +644,21 @@ function openAnalyticsDashboard() {
     const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
     bsModal.show();
     _renderAnalyticsDashboard();
+}
+
+/* Pre-fetches all saved audit logs from Firestore into the local cache,
+   then re-renders whichever dashboard panel is currently active.
+   Call this once before any render so _summariseDate has data to work with. */
+async function _loadAllLogsIntoCache() {
+    await _ensureLogDatesLoaded();
+    if (!_analyticsLogDates || _analyticsLogDates.length === 0) return;
+
+    // Fetch any un-cached dates (parallel, batched to avoid rate-limiting)
+    const uncached = _analyticsLogDates.filter(d => _analyticsLogCache[d] === undefined);
+    const BATCH = 20;
+    for (let i = 0; i < uncached.length; i += BATCH) {
+        await Promise.all(uncached.slice(i, i + BATCH).map(_fetchLogForDate));
+    }
 }
 
 function _renderAnalyticsDashboard() {
@@ -1196,16 +1307,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const exportPdfBtn = document.getElementById("anExportPdfBtn");
     if (exportPdfBtn) exportPdfBtn.addEventListener("click", () => exportAnalyticsPdf(null));
 
-    /* ── Dashboard modal shown event — render fresh ── */
+    /* ── Dashboard modal shown event — load Firestore logs then render ── */
     const dashModal = document.getElementById("analyticsDashboardModal");
     if (dashModal) {
         dashModal.addEventListener("show.bs.modal", function () {
-            // Populate month selector fresh on open
-            setTimeout(() => {
+            // Show loading state immediately
+            const kpiGrid = document.getElementById("anKpiGrid");
+            if (kpiGrid) kpiGrid.innerHTML = `<div class="an-empty" style="grid-column:1/-1"><i class="bi bi-hourglass-split"></i><p>Loading audit data from cloud…</p></div>`;
+
+            // Load all Firestore audit logs into cache, then render
+            _loadAllLogsIntoCache().then(() => {
                 _renderMonthlyPanel();
                 _switchAnalyticsTab("overview");
                 _renderAnalyticsDashboard();
-            }, 100);
+            });
         });
     }
 

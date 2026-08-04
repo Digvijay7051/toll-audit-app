@@ -357,15 +357,37 @@ async function fbSaveAuditLog(dateKey, logData) {
             ? currentUsername
             : ((fbAuth && fbAuth.currentUser && fbAuth.currentUser.displayName) || "unknown");
 
-        await fbDb.collection("userAuditLogs").doc(_auditDocId(uid, dateKey)).set({
+        /* Build the audit bucket JSON to keep alongside the flat log.
+           This ensures _mergeAllDatesFromFirestore can still reconstruct
+           auditDataStore from this document after a Save Audit Log. */
+        const auditBucketJson = (
+            typeof auditDataStore !== "undefined" &&
+            auditDataStore[dateKey]
+        ) ? JSON.stringify(auditDataStore[dateKey]) : undefined;
+
+        const payload = {
             uid,
             dateKey,
             savedAt:      new Date().toISOString(),
+            autoSavedAt:  new Date().toISOString(),
             auditor,
             rows:         logData.rows         || [],
             notes:        logData.notes        || "",
             reportCounts: logData.reportCounts || {}
-        });
+        };
+
+        /* Only write auditBucket if we have live data — avoids wiping a
+           previously written bucket when saving from a different session. */
+        if (auditBucketJson) {
+            payload.auditBucket = auditBucketJson;
+        }
+
+        /* merge:true so we never accidentally clear fields written by
+           the auto-save path (e.g. auditBucket on a concurrent device) */
+        await fbDb.collection("userAuditLogs").doc(_auditDocId(uid, dateKey)).set(
+            payload,
+            { merge: true }
+        );
 
         console.log("[Firebase] Audit log saved ✓", dateKey, uid);
         return { ok: true };
