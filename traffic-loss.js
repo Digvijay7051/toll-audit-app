@@ -165,50 +165,41 @@ function tlExtractFromAudit(dateKey) {
   const bucket = auditDataStore[dateKey];
   if (!bucket) return null;
 
-  // bucket structure:
-  //   bucket["Violation"]["Car"].vehicleCounts["Car"] = n
-  //   bucket["Exemption"]["LCV"].vehicleCounts["Bike"] = n
-  // REPORT_CATEGORIES = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"]
-  // vehicleCounts keys = VEHICLE_CLASSES
+  // Safe list of report categories — never iterates _meta or other keys
+  const CATS = typeof REPORT_CATEGORIES !== "undefined"
+    ? REPORT_CATEGORIES
+    : ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
 
-  // Sum a vehicle name across ALL report categories for a given mode.
-  // Uses only REPORT_CATEGORIES keys to avoid iterating _meta or other non-data keys.
+  // Sum vehicleNames across all report categories for ONE specific mode
   function sumVC(mode, vehicleNames) {
+    if (!vehicleNames.length) return 0;
     let total = 0;
     const modeData = bucket[mode];
     if (!modeData) return 0;
-    // Only iterate known report categories — skip _meta and any other keys
-    const CATS = typeof REPORT_CATEGORIES !== "undefined"
-      ? REPORT_CATEGORIES
-      : ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
     CATS.forEach(cat => {
-      const catData = modeData[cat];
-      if (!catData || !catData.vehicleCounts) return;
-      vehicleNames.forEach(v => { total += catData.vehicleCounts[v] || 0; });
+      const vc = (modeData[cat] && modeData[cat].vehicleCounts) || {};
+      vehicleNames.forEach(v => { total += vc[v] || 0; });
     });
     return total;
+  }
+
+  // Sum vehicleNames across ALL modes (Violation + Exemption combined).
+  // Used for status-tags like "Forcefully" that can be recorded under
+  // either mode depending on which mode was active at the time.
+  function sumAllModes(vehicleNames) {
+    return sumVC("Violation", vehicleNames) + sumVC("Exemption", vehicleNames);
   }
 
   const out = { tableA: {}, tableB: {} };
 
   // ── TABLE A ─────────────────────────────────────────────────
-  // viol = count in "Violation" mode for that vehicle class
-  // exem = count in "Exemption" mode for that vehicle class
-  //
-  // Mapping: TL class key → which VEHICLE_CLASSES rows to sum
-  // Note: "Auto" and "Tractor" appear in REPORT_CATEGORIES (system
-  // categories the inspector audits under) AND in VEHICLE_CLASSES
-  // (what the actual vehicle is). An auditor records "Auto" vehicle
-  // under "Auto" category. So sumVC works correctly.
-
   const CLASS_MAP = {
-    car:     { viol: ["Car"],                                    exem: ["Car"]                                    },
-    lcv:     { viol: ["LCV", "Minibus"],                         exem: ["LCV", "Minibus"]                         },
-    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],             exem: ["Truck 2 Axle", "Bus 2 Axle"]             },
-    mav:     { viol: ["Truck 3 Axle", "MAV"],                    exem: ["Truck 3 Axle", "MAV"]                    },
-    osv:     { viol: ["Oversized Vehicle"],                      exem: ["Oversized Vehicle"]                      },
-    // nontoll viol/exem are driven entirely by Table B totals (auto-injected in tlRecalcAll)
-    nontoll: { viol: [], exem: [] },
+    car:     { viol: ["Car"],                            exem: ["Car"]                            },
+    lcv:     { viol: ["LCV", "Minibus"],                 exem: ["LCV", "Minibus"]                 },
+    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],     exem: ["Truck 2 Axle", "Bus 2 Axle"]     },
+    mav:     { viol: ["Truck 3 Axle", "MAV"],            exem: ["Truck 3 Axle", "MAV"]            },
+    osv:     { viol: ["Oversized Vehicle"],              exem: ["Oversized Vehicle"]              },
+    nontoll: { viol: [],                                 exem: []                                 },
   };
 
   TL_CLASSES.forEach(c => {
@@ -220,31 +211,20 @@ function tlExtractFromAudit(dateKey) {
   });
 
   // ── TABLE B ─────────────────────────────────────────────────
-  // Exemption mode: Ambulance/Auto/Bike/Tractor/JCB/Govt/Police
-  // Violation mode: Forcefully
-  // Note: "Auto" and "Tractor" are both REPORT_CATEGORIES and VEHICLE_CLASSES.
-  // The user audits them under "Auto"/"Tractor" category with actual vehicle = "Auto"/"Tractor".
-  // sumVC sums vehicleCounts["Auto"] across ALL categories — which correctly
-  // picks up e.g. bucket["Exemption"]["Auto"].vehicleCounts["Auto"]
-
-  const NONTOLL_MAP = {
-    "Ambulance":  { viol: [],              exem: ["Ambulance"]                          },
-    "Auto":       { viol: [],              exem: ["Auto"]                               },
-    "Bike":       { viol: [],              exem: ["Bike"]                               },
-    "Tractor":    { viol: [],              exem: ["Tractor"]                            },
-    "JCB":        { viol: [],              exem: ["JCB"]                                },
-    "Govt":       { viol: [],              exem: ["Government Vehicle", "Army Vehicle"] },
-    "Police":     { viol: [],              exem: ["Police"]                             },
-    "Forcefully": { viol: ["Forcefully"],  exem: []                                     },
+  // "Forcefully" is a cross-mode status tag — auditor can tap it
+  // while in either Violation OR Exemption mode, so sum BOTH modes.
+  // All other non-tollable categories are genuine Exemption entries.
+  out.tableB = {
+    "Ambulance":  { viol: 0, exem: sumVC("Exemption", ["Ambulance"])                          },
+    "Auto":       { viol: 0, exem: sumVC("Exemption", ["Auto"])                               },
+    "Bike":       { viol: 0, exem: sumVC("Exemption", ["Bike"])                               },
+    "Tractor":    { viol: 0, exem: sumVC("Exemption", ["Tractor"])                            },
+    "JCB":        { viol: 0, exem: sumVC("Exemption", ["JCB"])                                },
+    "Govt":       { viol: 0, exem: sumVC("Exemption", ["Government Vehicle", "Army Vehicle"]) },
+    "Police":     { viol: 0, exem: sumVC("Exemption", ["Police"])                             },
+    // Forcefully: sum BOTH modes — it's a status tag, not mode-specific
+    "Forcefully": { viol: sumAllModes(["Forcefully"]),  exem: 0                               },
   };
-
-  TL_NONTOLL_CATS.forEach(cat => {
-    const map = NONTOLL_MAP[cat] || { viol: [], exem: [] };
-    out.tableB[cat] = {
-      viol: sumVC("Violation",  map.viol),
-      exem: sumVC("Exemption",  map.exem),
-    };
-  });
 
   return out;
 }
