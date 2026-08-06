@@ -460,6 +460,10 @@
     <!-- ── Topbar ── -->
     <header class="topbar">
         <div class="topbar-left">
+            <!-- Hamburger: visible only on narrow screens -->
+            <button class="topbar-hamburger" id="sidebarHamburgerBtn" type="button" aria-label="Open menu">
+                <i class="bi bi-list"></i>
+            </button>
             <div class="topbar-brand-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gate"/></svg>
             </div>
@@ -1642,6 +1646,9 @@
 <script src="motion.js?v=3"></script>
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
+
+<!-- Sidebar backdrop overlay (mobile) -->
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
 </body>
 </html>

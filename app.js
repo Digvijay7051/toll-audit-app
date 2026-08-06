@@ -685,6 +685,40 @@ window.TollAudit = {
 };
 
 /* ===============================
+   HAMBURGER / MOBILE SIDEBAR
+=============================== */
+
+(function () {
+    const hamburger = document.getElementById('sidebarHamburgerBtn');
+    const backdrop  = document.getElementById('sidebarBackdrop');
+    const sidebar   = document.querySelector('.sidebar');
+    if (!hamburger || !sidebar) return;
+
+    function openSidebar() {
+        sidebar.classList.add('show');
+        if (backdrop) backdrop.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        if (backdrop) backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    hamburger.addEventListener('click', () => {
+        sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
+    });
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+    /* Close sidebar on nav-button click (mobile UX) */
+    sidebar.querySelectorAll('.sb-btn, .category-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (window.innerWidth < 992) closeSidebar();
+        });
+    });
+})();
+
+/* ===============================
    SIDEBAR COLLAPSE
 =============================== */
 

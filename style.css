@@ -2150,79 +2150,233 @@ body.dark-theme .card-header,
 body.dark-theme .card-body  { background: var(--bg-dark) !important; }
 
 /* ══════════════════════════════════════
-   RESPONSIVE
+   HAMBURGER BUTTON (hidden on wide screens)
 ══════════════════════════════════════ */
-@media (max-width:991px) {
-  .sidebar {
-    position: fixed; left: -280px; z-index: 50;
-    transition: left .2s; box-shadow: 0 0 40px rgba(0,0,0,.7);
-    width: 264px;
-  }
-  .sidebar.show { left: 0; }
-  .stat-cards   { grid-template-columns: repeat(2,1fr); }
+.topbar-hamburger {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-lift);
+  color: var(--text); cursor: pointer; flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition);
+  font-size: 20px; padding: 0;
+}
+.topbar-hamburger:hover { background: var(--bg-mid); border-color: var(--amber); color: var(--amber); }
+
+/* Sidebar backdrop (mobile) */
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 49;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+  transition: opacity .2s;
+}
+.sidebar-backdrop.active { display: block; }
+
+/* ══════════════════════════════════════
+   RESPONSIVE — 1200px  (large laptop / split-screen)
+══════════════════════════════════════ */
+@media (max-width:1200px) {
+  .main-inner          { padding: 18px 18px; }
+  .topbar              { padding: 0 18px; }
+  .hero-title          { font-size: 22px; }
+  .stat-card-value     { font-size: 32px; }
+  .counts-history-grid { grid-template-columns: 300px 1fr; }
 }
 
-/* Tablet — tighten the card, keep animations */
+/* ══════════════════════════════════════
+   RESPONSIVE — 991px  (tablet / narrow window)
+   Sidebar slides off-canvas; hamburger appears
+══════════════════════════════════════ */
+@media (max-width:991px) {
+  /* Layout: sidebar no longer takes a column */
+  .col-lg-2.sidebar { position: fixed; left: -280px; top: 0; bottom: 0;
+    z-index: 50; width: 264px; min-height: 100%;
+    transition: left .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: none; }
+  .col-lg-2.sidebar.show {
+    left: 0;
+    box-shadow: 4px 0 40px rgba(0,0,0,.7); }
+  .col-lg-10.col-lg-10 { width: 100% !important; max-width: 100% !important; flex: 0 0 100% !important; }
+
+  /* Show hamburger */
+  .topbar-hamburger { display: flex; }
+
+  /* Topbar tighter */
+  .topbar { padding: 0 14px; height: 54px; border-radius: 14px; gap: 10px; }
+  .topbar-separator, .topbar-audit-date { display: none; }
+  .topbar-brand-icon { display: none; }
+
+  /* Main padding */
+  .main-inner { padding: 14px 14px; }
+
+  /* Stat cards: 2 cols */
+  .stat-cards { grid-template-columns: repeat(2,1fr); gap: 10px; }
+
+  /* Hero */
+  .hero-body { padding: 16px 16px 12px; gap: 12px; }
+  .hero-title { font-size: 20px; }
+  .hero-gantry-strip { padding: 8px 16px; font-size: 11px; gap: 12px; }
+  .gantry-lane { display: none; }
+
+  /* Counts grid */
+  .counts-history-grid { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — 768px  (tablet portrait)
+══════════════════════════════════════ */
 @media (max-width:768px) {
+  /* Auth screens */
   .card-flip-wrapper { max-width: 96vw; }
   .auth-card         { max-width: 96vw; border-radius: 14px; }
   .welcome-card      { max-width: 96vw; }
   .gate-screen       { padding: 16px 12px; align-items: center; }
-
-  /* Slow float slightly on tablet so it doesn't look jittery */
   .auth-card, .welcome-card {
     animation: cardIn .55s cubic-bezier(.2,.8,.2,1) forwards,
                cardFloat 7s ease-in-out 0.6s infinite;
   }
-
-  /* Slightly smaller road grid on narrow viewports */
   .road-scene::before { width: 400vw; }
+
+  /* Main padding tighter */
+  .main-inner { padding: 12px 10px; }
+  .topbar     { border-radius: 12px; margin-bottom: 14px; }
+
+  /* Stat cards: 2 cols */
+  .stat-cards { grid-template-columns: repeat(2,1fr); gap: 8px; }
+  .stat-card  { padding: 14px 10px; }
+  .stat-card-value { font-size: 28px; }
+  .stat-card-label { font-size: 9px; }
+
+  /* Hero compacts vertically */
+  .dashboard-hero { border-radius: 14px; }
+  .hero-title     { font-size: 18px; gap: 8px; }
+  .hero-gate-glyph { width: 28px; height: 22px; }
+  .hero-stats     { gap: 6px; }
+  .hero-stat      { min-width: 64px; padding: 8px 10px; }
+  .hero-stat-val  { font-size: 22px; }
+
+  /* Vehicle tiles */
+  .veh-grid   { grid-template-columns: repeat(4,1fr); gap: 8px; }
+  .vehicle-btn { min-height: 76px; font-size: 11px; }
+  .veh-icon   { font-size: 22px; }
+  .status-grid { grid-template-columns: repeat(3,1fr); gap: 8px; }
+
+  /* Verify pass bar */
+  .vp-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .vp-search-wrap { min-width: unset; }
+
+  /* Topbar profile — hide name */
+  .topbar-profile-name { display: none; }
+  /* Theme toggle — hide text */
+  .theme-ctrl-text { display: none; }
 }
 
-/* Mobile */
+/* ══════════════════════════════════════
+   RESPONSIVE — 600px  (large phone)
+══════════════════════════════════════ */
 @media (max-width:600px) {
+  /* Auth cards */
   .auth-card-body, .welcome-card-body { padding: 24px 18px 20px; }
-  .stat-cards   { grid-template-columns: repeat(2,1fr); }
-  .hero-stats   { gap: 6px; }
-  .hero-stat    { min-width: 68px; padding: 8px 12px; }
-  .hero-stat-val { font-size: 24px; }
+  .logo-badge { width: 48px; height: 48px; border-radius: 13px; }
+  .wordmark   { font-size: 22px; letter-spacing: 2px; }
 
-  /* Logo slightly smaller */
-  .logo-badge   { width: 48px; height: 48px; border-radius: 13px; }
-  .wordmark     { font-size: 22px; letter-spacing: 2px; }
-
-  /* Reduce float travel so card stays on screen */
+  /* Reduce float travel */
   @keyframes cardFloat {
-    0%,100% {
-      transform: translateY(0px) translateZ(0);
-      box-shadow: 0 24px 60px -16px rgba(0,0,0,.75),
-                  0 0 0 1px rgba(255,255,255,.03) inset,
-                  0 0 30px -8px rgba(255,176,32,.18);
-    }
-    50% {
-      transform: translateY(-5px) translateZ(0);
-      box-shadow: 0 32px 80px -16px rgba(0,0,0,.65),
-                  0 0 0 1px rgba(255,255,255,.05) inset,
-                  0 0 40px -4px rgba(255,176,32,.28);
-    }
+    0%,100% { transform: translateY(0px) translateZ(0);
+      box-shadow: 0 24px 60px -16px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.03) inset,0 0 30px -8px rgba(255,176,32,.18); }
+    50%     { transform: translateY(-5px) translateZ(0);
+      box-shadow: 0 32px 80px -16px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.05) inset,0 0 40px -4px rgba(255,176,32,.28); }
   }
-
-  /* Speed up road on small screen so it still feels alive */
   @keyframes roadScroll {
     from { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(0); }
     to   { transform: translateX(-50%) perspective(520px) rotateX(64deg) translateY(50%); }
   }
   .road-scene::before { animation-duration: 2.4s; width: 500vw; }
+
+  /* Stat cards: still 2 col but smaller */
+  .stat-cards     { grid-template-columns: repeat(2,1fr); gap: 7px; }
+  .stat-card      { padding: 12px 8px; }
+  .stat-card-value { font-size: 24px; }
+
+  /* Hero */
+  .hero-stats     { gap: 5px; flex-wrap: wrap; }
+  .hero-stat      { min-width: 60px; padding: 7px 10px; }
+  .hero-stat-val  { font-size: 20px; }
+  .hero-gantry-strip { gap: 8px; font-size: 10px; }
+
+  /* Vehicle buttons */
+  .veh-grid   { grid-template-columns: repeat(3,1fr); gap: 7px; }
+  .vehicle-btn { min-height: 70px; font-size: 10px; padding: 8px 4px; }
+  .veh-icon   { font-size: 20px; }
+  .status-grid { grid-template-columns: repeat(3,1fr); gap: 7px; }
+
+  /* Main inner */
+  .main-inner { padding: 10px 8px; }
+  .topbar     { height: 50px; border-radius: 10px; margin-bottom: 10px; }
+
+  /* Progress bar */
+  .progress { height: 22px; }
+
+  /* Pending banner wraps cleanly */
+  .pending-audit-banner { padding: 10px 12px; gap: 10px; }
+  .pending-audit-actions { flex-wrap: wrap; gap: 6px; }
 }
 
-/* Very small — phones like SE */
+/* ══════════════════════════════════════
+   RESPONSIVE — 480px  (small phone)
+══════════════════════════════════════ */
+@media (max-width:480px) {
+  /* Stat cards: 2 col compact */
+  .stat-cards     { gap: 6px; }
+  .stat-card-value { font-size: 22px; }
+
+  /* Vehicle buttons 3 col */
+  .veh-grid  { grid-template-columns: repeat(3,1fr); gap: 6px; }
+  .vehicle-btn { min-height: 64px; font-size: 10px; }
+  .veh-icon  { font-size: 18px; }
+
+  /* Hero stats wrap to 2 per row */
+  .hero-stats     { display: grid; grid-template-columns: repeat(2,1fr); }
+  .hero-stat      { text-align: center; padding: 8px 6px; }
+
+  /* Topbar: hide brand icon too */
+  .topbar-brand-icon { display: none; }
+  .topbar { height: 48px; gap: 8px; padding: 0 10px; }
+
+  /* Card padding */
+  .card-body { padding: 12px; }
+  .veh-section { padding: 12px 10px 14px; }
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — 390px  (iPhone SE)
+══════════════════════════════════════ */
 @media (max-width:390px) {
   .auth-card-body, .welcome-card-body { padding: 20px 14px 16px; }
   .wordmark  { font-size: 20px; letter-spacing: 1.5px; }
   .tagline   { font-size: 11.5px; }
+
+  .veh-grid  { grid-template-columns: repeat(2,1fr); gap: 6px; }
+  .vehicle-btn { min-height: 70px; font-size: 11px; }
+  .status-grid { grid-template-columns: repeat(2,1fr); }
+
+  .stat-card-value { font-size: 20px; }
+  .stat-card-label { font-size: 8.5px; }
+  .main-inner { padding: 8px 6px; }
 }
 
-/* Respect reduced-motion: keep layout but remove movement */
+/* ══════════════════════════════════════
+   NO HORIZONTAL OVERFLOW — global guard
+══════════════════════════════════════ */
+html, body { max-width: 100%; overflow-x: hidden; }
+#mainApp, .container-fluid, .row { max-width: 100%; overflow-x: hidden; }
+.main-inner { min-width: 0; }
+main.col-lg-10 { min-width: 0; overflow-x: hidden; }
+
+/* ══════════════════════════════════════
+   REDUCED MOTION
+══════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .road-scene::before    { animation: none; }
   .gantry-glow           { animation: none; }
