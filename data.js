@@ -717,6 +717,7 @@ function buildAuditMatrix(mode) {
         "Paid (Cash)",
         "Paid (ETC)",
         "Paid (Digital)",
+        "Concessionaire",
     ];
 
     /* "Already paid / found in another txn" — maps to Paid variants */

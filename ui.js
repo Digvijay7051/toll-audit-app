@@ -1695,6 +1695,7 @@ const AM_ROW_LABELS = {
     "Paid (Cash)":       "Already Paid — Cash",
     "Paid (ETC)":        "Already Paid — ETC",
     "Paid (Digital)":    "Already Paid — Digital",
+    "Concessionaire":    "Concessionaire",
 };
 
 function renderAuditMatrix(mode) {
