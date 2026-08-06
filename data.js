@@ -739,21 +739,19 @@ function buildAuditMatrix(mode) {
         reportCounts[cat] = (bucket[cat] && bucket[cat].reportCount) || 0;
     });
 
-    /* Build cell matrix: cells[col][row] = count */
+    /* Build cell matrix: cells[col][row] = count
+       Always count from the transactions array — it is the only field
+       that is never corrupted by NaN/null/stale-save race conditions.
+       vehicleCounts is a derived cache and cannot be trusted here. */
     const cells = {};
     cols.forEach(cat => {
         cells[cat] = {};
         rows.forEach(r => { cells[cat][r] = 0; });
-        const vc  = (bucket[cat] && bucket[cat].vehicleCounts) || {};
-        const txns = (bucket[cat] && bucket[cat].transactions)  || [];
-        rows.forEach(vehicle => {
-            const stored = vc[vehicle];
-            /* Use stored count only if it is a valid non-NaN number;
-               otherwise fall back to counting transactions directly */
-            if (typeof stored === "number" && !isNaN(stored)) {
-                cells[cat][vehicle] = stored;
-            } else {
-                cells[cat][vehicle] = txns.filter(t => t.actualVehicle === vehicle).length;
+        const txns = (bucket[cat] && bucket[cat].transactions) || [];
+        txns.forEach(t => {
+            const v = t.actualVehicle;
+            if (v && cells[cat][v] !== undefined) {
+                cells[cat][v]++;
             }
         });
     });
