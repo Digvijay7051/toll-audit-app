@@ -504,6 +504,10 @@ function addTransaction(vehicleName) {
 
     data.transactions.push(transaction);
 
+    /* Guard: if key is missing or was previously corrupted to NaN, reset to 0 first */
+    if (typeof data.vehicleCounts[vehicleName] !== "number" || isNaN(data.vehicleCounts[vehicleName])) {
+        data.vehicleCounts[vehicleName] = 0;
+    }
     data.vehicleCounts[vehicleName]++;
 
     return true;
