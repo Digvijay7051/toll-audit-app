@@ -369,6 +369,11 @@
     </div>
 
     <!-- Nav buttons -->
+    <button class="sb-history-toggle" id="sbNavToggle" onclick="(function(){var w=document.getElementById('sbNavWrap');var c=document.getElementById('sbNavCaret');var open=w.style.display!=='none';w.style.display=open?'none':'flex';c.classList.toggle('open',!open);})()">
+        <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);">Menu</span>
+        <i class="bi bi-chevron-up sb-history-caret open" id="sbNavCaret"></i>
+    </button>
+    <div id="sbNavWrap" style="display:flex;flex-direction:column;gap:0;">
     <div class="sb-nav">
         <button class="sb-btn" id="setPinBtn">
             <i class="bi bi-key"></i> Set Lock PIN
@@ -408,6 +413,7 @@
         <button class="sb-btn sb-traffic-loss" id="trafficLossReportBtn">
             <i class="bi bi-speedometer2"></i> Traffic Loss Report
         </button>
+    </div>
     </div>
 
     <div class="sb-section-label">Audit Type</div>
