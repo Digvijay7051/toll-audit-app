@@ -604,7 +604,7 @@ input  { font-family: inherit; }
 .sidebar-brand {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 4px 18px;
-  border-bottom: 1px solid var(--line-soft); margin-bottom: 18px;
+  border-bottom: 1px solid var(--line-soft); margin-bottom: 0;
 }
 .sidebar-brand-icon {
   width: 40px; height: 40px; border-radius: 12px;
@@ -613,6 +613,7 @@ input  { font-family: inherit; }
   color: #1a1200; flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(255,176,32,.35);
 }
+.sidebar-brand-words { flex: 1; min-width: 0; overflow: hidden; }
 .sidebar-brand-text {
   font-family: var(--font-display); font-size: 16px; font-weight: 700;
   color: var(--text); letter-spacing: 1px; text-transform: uppercase;
@@ -620,6 +621,44 @@ input  { font-family: inherit; }
 .sidebar-brand-sub {
   font-family: var(--font-mono); font-size: 9px;
   color: var(--amber); letter-spacing: 2px; font-weight: 700;
+}
+
+/* Sidebar collapse toggle button */
+.sidebar-collapse-btn {
+  flex-shrink: 0; width: 28px; height: 28px;
+  border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg-lift); color: var(--text-faint);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background var(--transition), color var(--transition), border-color var(--transition);
+  padding: 0;
+}
+.sidebar-collapse-btn:hover { background: var(--bg-mid); color: var(--amber); border-color: var(--amber-dim); }
+.sidebar-collapse-btn i { font-size: 13px; transition: transform .3s cubic-bezier(.4,0,.2,1); }
+
+/* Collapsed state — icon flips to point right */
+.sidebar--collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+
+/* Collapsible nav content */
+.sidebar-collapsible {
+  overflow: hidden;
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 18px;
+  transition: max-height .35s cubic-bezier(.4,0,.2,1),
+              opacity .25s cubic-bezier(.4,0,.2,1),
+              margin-top .3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar--collapsed .sidebar-collapsible {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
+
+/* Suppress transition on initial load to avoid flash */
+.sidebar--no-transition .sidebar-collapsible,
+.sidebar--no-transition .sidebar-collapse-btn i {
+  transition: none !important;
 }
 
 /* Date badge */

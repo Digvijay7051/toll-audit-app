@@ -683,3 +683,34 @@ window.TollAudit = {
     update: updateApplication
 
 };
+
+/* ===============================
+   SIDEBAR COLLAPSE
+=============================== */
+
+(function () {
+    const STORAGE_KEY = 'sidebarCollapsed';
+    const sidebar     = document.querySelector('.sidebar');
+    const btn         = document.getElementById('sidebarCollapseBtn');
+
+    if (!sidebar || !btn) return;
+
+    function setCollapsed(collapsed) {
+        sidebar.classList.toggle('sidebar--collapsed', collapsed);
+        btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch (_) {}
+    }
+
+    /* Restore saved state immediately (before paint) */
+    const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; } })();
+    if (saved === '1') {
+        /* Apply without transition on initial load */
+        sidebar.classList.add('sidebar--no-transition');
+        setCollapsed(true);
+        requestAnimationFrame(() => sidebar.classList.remove('sidebar--no-transition'));
+    }
+
+    btn.addEventListener('click', () => {
+        setCollapsed(!sidebar.classList.contains('sidebar--collapsed'));
+    });
+})();
