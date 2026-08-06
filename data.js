@@ -316,15 +316,19 @@ function migrateAuditDataStore() {
 
                 VEHICLE_CLASSES.forEach(vehicle => {
 
-                    if (
+                    const cur = bucket[mode][category]
+                        .vehicleCounts[vehicle];
+
+                    /* Heal missing OR corrupted (NaN) counts by recomputing
+                       from the transactions array — the true source of truth. */
+                    if (cur === undefined || cur === null ||
+                            typeof cur !== "number" || isNaN(cur)) {
 
                         bucket[mode][category]
-                            .vehicleCounts[vehicle] === undefined
-
-                    ) {
-
-                        bucket[mode][category]
-                            .vehicleCounts[vehicle] = 0;
+                            .vehicleCounts[vehicle] =
+                                (bucket[mode][category].transactions || [])
+                                    .filter(t => t.actualVehicle === vehicle)
+                                    .length;
 
                     }
 
@@ -740,11 +744,16 @@ function buildAuditMatrix(mode) {
     cols.forEach(cat => {
         cells[cat] = {};
         rows.forEach(r => { cells[cat][r] = 0; });
-        /* Pull vehicle counts from this category bucket */
-        const vc = (bucket[cat] && bucket[cat].vehicleCounts) || {};
-        Object.keys(vc).forEach(vehicle => {
-            if (rows.includes(vehicle)) {
-                cells[cat][vehicle] = vc[vehicle] || 0;
+        const vc  = (bucket[cat] && bucket[cat].vehicleCounts) || {};
+        const txns = (bucket[cat] && bucket[cat].transactions)  || [];
+        rows.forEach(vehicle => {
+            const stored = vc[vehicle];
+            /* Use stored count only if it is a valid non-NaN number;
+               otherwise fall back to counting transactions directly */
+            if (typeof stored === "number" && !isNaN(stored)) {
+                cells[cat][vehicle] = stored;
+            } else {
+                cells[cat][vehicle] = txns.filter(t => t.actualVehicle === vehicle).length;
             }
         });
     });
