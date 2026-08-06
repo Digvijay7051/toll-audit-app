@@ -733,17 +733,6 @@ function buildAuditMatrix(mode) {
 
     const bucket = auditData[mode];
 
-    /* DEBUG — remove after confirming fix */
-    console.group("[AuditMatrix] buildAuditMatrix(" + mode + ")");
-    REPORT_CATEGORIES.forEach(cat => {
-        const txns = (bucket[cat] && bucket[cat].transactions) || [];
-        const vc   = (bucket[cat] && bucket[cat].vehicleCounts) || {};
-        if (txns.length > 0) {
-            console.log("  cat=" + cat, "txns:", txns.map(t => t.actualVehicle), "vc.Concessionaire=", vc["Concessionaire"]);
-        }
-    });
-    console.groupEnd();
-
     /* reportCounts — what the system said */
     const reportCounts = {};
     cols.forEach(cat => {

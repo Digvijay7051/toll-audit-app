@@ -1748,8 +1748,9 @@ function renderAuditMatrix(mode) {
         let html = "";
         m.rows.forEach(row => {
             const rowTotal = m.rowTotals[row] || 0;
-            /* Skip rows that have zero in every cell AND zero row total */
-            const hasAny = rowTotal > 0;
+            /* Always show Concessionaire; fade other zero rows */
+            const alwaysShow = (row === "Concessionaire");
+            const hasAny = rowTotal > 0 || alwaysShow;
             html += `<tr${!hasAny ? ' class="am-row-empty"' : ""}>`;
             html += `<td class="am-row-label">${AM_ROW_LABELS[row] || row}</td>`;
             m.cols.forEach(cat => {
