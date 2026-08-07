@@ -1,5 +1,5 @@
 /* ==========================================================
-   motion.js  —  EXTREME PREMIUM MOTION ENGINE  v2
+   motion.js  —  EXTREME PREMIUM MOTION ENGINE  v3
    Every button, card, tile, sidebar item, topbar, hero,
    stat tile, vehicle button, input gets treated.
 
@@ -11,6 +11,15 @@
    • Magnetic cursor tracking       =  drag-constrained
    • Shimmer on hover               =  layoutId shared element
    • Reduced-motion: all disabled
+
+   v3 additions:
+   • §21 Traffic Loss Report Panel  (tlp-*)
+   • §22 Analytics Dashboard Modal  (asc-*, an-*)
+   • §23 Avatar sticker grid        (avatar-sticker-option)
+   • §24 Audit Complete modal       (audit-complete-btn-*)
+   • §25 Sheets / Audit Log         (audit-log-delete-btn, am-chip)
+   • §26 Pass-check result cards    (prc-close-btn, prc-status-card)
+   • §27 Auth btn-forgot + Backup status
 ========================================================== */
 
 (function () {
@@ -104,6 +113,36 @@
             0%   { transform: scale(1); }
             40%  { transform: scale(.93); }
             100% { transform: scale(1); }
+        }
+        /* §21 — Traffic Loss panel slide-up entrance */
+        @keyframes pmPanelSlideUp {
+            from { opacity: 0; transform: translateY(40px) scale(.98); }
+            to   { opacity: 1; transform: translateY(0)    scale(1);   }
+        }
+        /* §21 — diff-row pulse (match = green, mismatch = red) */
+        @keyframes pmDiffPulse {
+            0%   { transform: scale(1); }
+            30%  { transform: scale(1.03); }
+            60%  { transform: scale(.98); }
+            100% { transform: scale(1); }
+        }
+        /* §21 — tl-save-status saved bounce-in */
+        @keyframes pmSavedBounce {
+            0%   { opacity: 0; transform: scale(.72) translateY(-6px); }
+            60%  { transform: scale(1.10) translateY(2px); }
+            100% { opacity: 1; transform: scale(1)    translateY(0);   }
+        }
+        /* §24 — audit-complete modal entrance */
+        @keyframes pmCompleteIn {
+            from { opacity: 0; transform: translateY(32px) scale(.93); }
+            to   { opacity: 1; transform: translateY(0)    scale(1);   }
+        }
+        /* §23 — sticker select scale-punch (reuses pmPillActive feel) */
+        @keyframes pmStickerPick {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(.86); }
+            70%  { transform: scale(1.14); }
+            100% { transform: scale(1.05); }
         }
         `;
         document.head.appendChild(s);
@@ -743,11 +782,10 @@
     }
 
     /* ════════════════════════════════════════════════════════
-       20.  PASS-CHECK RESULT CARD
+       20.  PASS-CHECK RESULT CARD  (MutationObserver)
     ════════════════════════════════════════════════════════ */
     const _passCheckResult = document.getElementById('passCheckResult');
     if (_passCheckResult) {
-        const origSetInner = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set;
         const io = new MutationObserver(() => {
             if (NO_MOTION || !_passCheckResult.children.length) return;
             Array.from(_passCheckResult.children).forEach((child, i) => {
@@ -755,6 +793,455 @@
             });
         });
         io.observe(_passCheckResult, { childList: true });
+    }
+
+    /* ════════════════════════════════════════════════════════
+       21.  TRAFFIC LOSS REPORT PANEL
+    ════════════════════════════════════════════════════════ */
+    function initTrafficLossPanel() {
+        const panel = document.getElementById('trafficLossPanel');
+        if (!panel) return;
+
+        /* Panel open — watch for .tlp-visible being added */
+        const panelObserver = new MutationObserver(() => {
+            if (NO_MOTION) return;
+            if (!panel.classList.contains('tlp-visible')) return;
+
+            /* Header slides down like pmHeroIn */
+            const header = panel.querySelector('.tlp-header');
+            if (header) header.style.animation = `pmTopbarIn .38s ${SPRING.out} both`;
+
+            /* Body children stagger up */
+            const body = panel.querySelector('.tlp-body');
+            if (body) {
+                const sections = body.querySelectorAll('.tlp-section');
+                stagger(Array.from(sections), 'pmFadeUp', { dur: '.46s', ease: SPRING.soft, step: 60, baseDelay: 80 });
+            }
+
+            /* Re-wire dynamic elements after render */
+            _wireTlpBtns();
+            _wireTlpInputs();
+            _wireTlpDiffRows();
+        });
+        panelObserver.observe(panel, { attributes: true, attributeFilter: ['class'] });
+
+        /* Wire buttons — called immediately too in case panel is already open */
+        _wireTlpBtns();
+        _wireTlpInputs();
+    }
+
+    function _wireTlpBtns() {
+        document.querySelectorAll('.tlp-btn').forEach(btn => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+            btn.style.transition = `transform .22s ${SPRING.bouncy}, box-shadow .20s ${SPRING.out}, filter .14s ease`;
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = 'translateY(-3px) scale(1.04)';
+                btn.style.boxShadow = '0 8px 22px rgba(0,0,0,.22)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = '';
+                btn.style.boxShadow = '';
+            });
+            btn.addEventListener('pointerdown', e => {
+                const isSuccess = btn.classList.contains('tlp-btn-success');
+                const isPrimary = btn.classList.contains('tlp-btn-primary');
+                const color = isSuccess ? 'rgba(110,231,183,.28)'
+                            : isPrimary ? 'rgba(255,255,255,.28)'
+                            :             'rgba(245,158,11,.22)';
+                spawnRipple(btn, e, color);
+                btn.style.transform = 'scale(.93)';
+                btn.style.transition = `transform .08s ${SPRING.in}`;
+                setTimeout(() => {
+                    btn.style.transition = `transform .26s ${SPRING.bouncy}`;
+                    btn.style.transform = '';
+                }, 90);
+            });
+        });
+    }
+
+    function _wireTlpInputs() {
+        /* tlp-verify-field inputs — focus scale (not matched by generic form-control handler) */
+        document.querySelectorAll('.tlp-verify-field input, .tlp-date-input').forEach(inp => {
+            if (NO_MOTION || inp._pmDone) return;
+            inp._pmDone = true;
+            inp.style.transition = `transform .20s ${SPRING.soft}, box-shadow .20s ${SPRING.out}, border-color .18s ease`;
+            inp.addEventListener('focus', () => { inp.style.transform = 'scale(1.012)'; });
+            inp.addEventListener('blur',  () => { inp.style.transform = ''; });
+        });
+    }
+
+    function _wireTlpDiffRows() {
+        /* diff-row: pulse when class changes to tlp-diff-ok / tlp-diff-err */
+        document.querySelectorAll('.tlp-diff-row').forEach(row => {
+            if (NO_MOTION || row._pmDiffWired) return;
+            row._pmDiffWired = true;
+            const diffObserver = new MutationObserver(() => {
+                if (NO_MOTION) return;
+                row.style.animation = 'none';
+                requestAnimationFrame(() => {
+                    row.style.animation = `pmDiffPulse .40s ${SPRING.bouncy} both`;
+                });
+            });
+            diffObserver.observe(row, { attributes: true, attributeFilter: ['class'] });
+        });
+    }
+
+    /* tl-save-status bounce when state becomes "saved" */
+    (function _wireTlSaveStatus() {
+        const statusEl = document.getElementById('tlSaveStatus');
+        if (!statusEl) return;
+        const obs = new MutationObserver(() => {
+            if (NO_MOTION) return;
+            if (statusEl.classList.contains('tls-saved')) {
+                statusEl.style.animation = 'none';
+                requestAnimationFrame(() => {
+                    statusEl.style.animation = `pmSavedBounce .46s ${SPRING.bouncy} both`;
+                });
+            }
+        });
+        obs.observe(statusEl, { attributes: true, attributeFilter: ['class'] });
+    })();
+
+    /* ════════════════════════════════════════════════════════
+       22.  ANALYTICS DASHBOARD MODAL
+    ════════════════════════════════════════════════════════ */
+    function initAnalyticsDashboard() {
+        const modal = document.getElementById('analyticsDashboardModal');
+        if (!modal) return;
+
+        modal.addEventListener('show.bs.modal', () => {
+            if (NO_MOTION) return;
+            /* modal-dialog spring entrance already handled by §13 initModals,
+               but we add staggered KPI + highlight card reveals after content renders */
+            setTimeout(_wireAnalyticsContent, 180);
+        });
+
+        /* Also wire on motionRefresh (analytics re-renders after data load) */
+        _wireAnalyticsContent();
+    }
+
+    function _wireAnalyticsContent() {
+        /* KPI tiles — pmStatPop stagger */
+        const kpis = document.querySelectorAll('.asc-kpi');
+        if (kpis.length) {
+            stagger(Array.from(kpis), 'pmStatPop', { dur: '.44s', ease: SPRING.bouncy, step: 55, baseDelay: 60 });
+            kpis.forEach(kpi => {
+                if (NO_MOTION || kpi._pmDone) return;
+                kpi._pmDone = true;
+                setSpring(kpi, { props: ['transform', 'box-shadow', 'border-color'], dur: '.24s', ease: SPRING.soft });
+                kpi.addEventListener('mouseenter', () => {
+                    kpi.style.transform   = 'translateY(-6px) scale(1.05)';
+                    kpi.style.boxShadow   = '0 14px 32px rgba(0,0,0,.28)';
+                    kpi.style.borderColor = 'rgba(245,158,11,.40)';
+                });
+                kpi.addEventListener('mouseleave', () => {
+                    kpi.style.transform   = '';
+                    kpi.style.boxShadow   = '';
+                    kpi.style.borderColor = '';
+                });
+            });
+        }
+
+        /* Highlight cards — pmFadeUp stagger */
+        const highlights = document.querySelectorAll('.asc-highlight-card');
+        if (highlights.length) {
+            stagger(Array.from(highlights), 'pmFadeUp', { dur: '.42s', ease: SPRING.soft, step: 50, baseDelay: 80 });
+            highlights.forEach(card => {
+                if (NO_MOTION || card._pmDone) return;
+                card._pmDone = true;
+                setSpring(card, { props: ['transform', 'box-shadow'], dur: '.24s', ease: SPRING.soft });
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-5px) scale(1.02)';
+                    card.style.boxShadow = '0 12px 28px rgba(0,0,0,.22)';
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = '';
+                    card.style.boxShadow = '';
+                });
+            });
+        }
+
+        /* asc-btn (primary / secondary / ghost) + asc-close-btn — ripple + magnetic */
+        document.querySelectorAll('.asc-btn, .asc-close-btn').forEach(btn => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+            const isCTA = btn.classList.contains('asc-btn-primary');
+            if (isCTA) { addShimmer(btn); addMagnetic(btn, 0.15); }
+            btn.style.transition = `transform .22s ${SPRING.bouncy}, box-shadow .20s ${SPRING.out}, filter .14s ease`;
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = isCTA ? 'translateY(-3px) scale(1.04)' : 'scale(1.06)';
+                btn.style.boxShadow = isCTA ? '0 8px 24px rgba(245,158,11,.35)' : '0 4px 12px rgba(0,0,0,.18)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = '';
+                btn.style.boxShadow = '';
+            });
+            btn.addEventListener('pointerdown', e => {
+                spawnRipple(btn, e, isCTA ? 'rgba(255,255,255,.28)' : 'rgba(245,158,11,.18)');
+                btn.style.transform = 'scale(.93)';
+                btn.style.transition = `transform .08s ${SPRING.in}`;
+                setTimeout(() => {
+                    btn.style.transition = `transform .26s ${SPRING.bouncy}`;
+                    btn.style.transform = '';
+                }, 90);
+            });
+        });
+
+        /* Compare table rows — staggered pmFadeUp */
+        const compareRows = document.querySelectorAll('.asc-compare-row');
+        if (compareRows.length) {
+            stagger(Array.from(compareRows), 'pmFadeUp', { dur: '.34s', ease: SPRING.soft, step: 28, baseDelay: 60 });
+        }
+
+        /* Leaderboard items */
+        const lbItems = document.querySelectorAll('#anLeaderboard li, #anLeaderboard .an-lb-row');
+        if (lbItems.length) {
+            stagger(Array.from(lbItems), 'pmFadeLeft', { dur: '.34s', ease: SPRING.soft, step: 30, baseDelay: 40 });
+        }
+    }
+
+    /* Insights list — new items pop in one-by-one via MutationObserver */
+    (function _wireInsightsList() {
+        const insightsEl = document.getElementById('anInsightsList');
+        if (!insightsEl) return;
+        const obs = new MutationObserver(mutations => {
+            if (NO_MOTION) return;
+            mutations.forEach(m => {
+                m.addedNodes.forEach((node, i) => {
+                    if (node.nodeType !== 1) return;
+                    node.style.animation = `pmFadeUp .38s ${SPRING.bouncy} ${i * 45}ms both`;
+                });
+            });
+        });
+        obs.observe(insightsEl, { childList: true });
+    })();
+
+    /* ════════════════════════════════════════════════════════
+       23.  AVATAR STICKER GRID
+    ════════════════════════════════════════════════════════ */
+    function initAvatarStickers() {
+        document.querySelectorAll('.avatar-sticker-option').forEach((btn, i) => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+
+            /* Staggered entrance when grid first appears */
+            btn.style.opacity = '0';
+            btn.style.animation = `pmFadeUp .36s ${SPRING.bouncy} ${i * 22}ms both`;
+
+            btn.style.transition = `transform .20s ${SPRING.bouncy}, box-shadow .18s ${SPRING.out}, border-color .18s ease`;
+            btn.addEventListener('mouseenter', () => {
+                if (!btn.classList.contains('selected')) {
+                    btn.style.transform = 'scale(1.14) rotate(-4deg)';
+                    btn.style.boxShadow = '0 8px 20px rgba(0,0,0,.22)';
+                }
+            });
+            btn.addEventListener('mouseleave', () => {
+                if (!btn.classList.contains('selected')) {
+                    btn.style.transform = '';
+                    btn.style.boxShadow = '';
+                }
+            });
+            btn.addEventListener('pointerdown', e => {
+                spawnRipple(btn, e, 'rgba(245,158,11,.22)');
+                /* scale-punch on select */
+                btn.style.animation = 'none';
+                requestAnimationFrame(() => {
+                    btn.style.animation = `pmStickerPick .38s ${SPRING.bouncy} both`;
+                });
+            });
+        });
+
+        /* When .selected is toggled, ensure transform resets cleanly */
+        document.querySelectorAll('.avatar-sticker-option').forEach(btn => {
+            if (NO_MOTION) return;
+            const selObs = new MutationObserver(() => {
+                if (btn.classList.contains('selected')) {
+                    btn.style.transform = 'scale(1.08)';
+                    btn.style.boxShadow = '0 6px 18px rgba(245,158,11,.30)';
+                } else {
+                    btn.style.transform = '';
+                    btn.style.boxShadow = '';
+                }
+            });
+            selObs.observe(btn, { attributes: true, attributeFilter: ['class'] });
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════
+       24.  AUDIT COMPLETE MODAL  (audit-complete-btn-*)
+    ════════════════════════════════════════════════════════ */
+    function initAuditCompleteModal() {
+        /* The overlay is injected into DOM dynamically; use MutationObserver */
+        const observer = new MutationObserver(() => {
+            const overlay = document.querySelector('.audit-complete-overlay');
+            if (!overlay || overlay._pmDone) return;
+            overlay._pmDone = true;
+
+            /* Watch for .active being added to trigger entrance */
+            const activeObs = new MutationObserver(() => {
+                if (NO_MOTION) return;
+                if (!overlay.classList.contains('active')) return;
+                const card = overlay.querySelector('.audit-complete-card');
+                if (card) card.style.animation = `pmCompleteIn .50s ${SPRING.bouncy} both`;
+            });
+            activeObs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+
+            /* Primary button */
+            const primary = overlay.querySelector('.audit-complete-btn-primary');
+            if (primary && !NO_MOTION) {
+                addShimmer(primary);
+                addMagnetic(primary, 0.14);
+                primary.style.transition = `transform .24s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}, filter .14s ease`;
+                primary.addEventListener('mouseenter', () => {
+                    primary.style.transform = 'translateY(-4px) scale(1.02)';
+                    primary.style.boxShadow = '0 14px 36px rgba(217,119,6,.55)';
+                });
+                primary.addEventListener('mouseleave', () => {
+                    primary.style.transform = '';
+                    primary.style.boxShadow = '';
+                });
+                primary.addEventListener('pointerdown', e => {
+                    spawnRipple(primary, e, 'rgba(255,255,255,.28)');
+                    primary.style.transform = 'scale(.94)';
+                    primary.style.transition = `transform .08s ${SPRING.in}`;
+                    setTimeout(() => {
+                        primary.style.transition = `transform .28s ${SPRING.bouncy}`;
+                        primary.style.transform = '';
+                    }, 100);
+                });
+            }
+
+            /* Secondary button */
+            const secondary = overlay.querySelector('.audit-complete-btn-secondary');
+            if (secondary && !NO_MOTION) {
+                secondary.style.transition = `transform .22s ${SPRING.bouncy}, border-color .18s ease, color .18s ease`;
+                secondary.addEventListener('mouseenter', () => { secondary.style.transform = 'scale(1.03)'; });
+                secondary.addEventListener('mouseleave', () => { secondary.style.transform = ''; });
+                secondary.addEventListener('pointerdown', e => spawnRipple(secondary, e, 'rgba(245,158,11,.18)'));
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: false });
+
+        /* Also wire immediately if already in DOM */
+        const overlay = document.querySelector('.audit-complete-overlay');
+        if (overlay && !NO_MOTION) {
+            const primary   = overlay.querySelector('.audit-complete-btn-primary');
+            const secondary = overlay.querySelector('.audit-complete-btn-secondary');
+            if (primary && !primary._pmDone) {
+                primary._pmDone = true;
+                addShimmer(primary);
+                primary.style.transition = `transform .24s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}`;
+                primary.addEventListener('mouseenter', () => { primary.style.transform = 'translateY(-4px) scale(1.02)'; primary.style.boxShadow = '0 14px 36px rgba(217,119,6,.55)'; });
+                primary.addEventListener('mouseleave', () => { primary.style.transform = ''; primary.style.boxShadow = ''; });
+                primary.addEventListener('pointerdown', e => spawnRipple(primary, e, 'rgba(255,255,255,.28)'));
+            }
+            if (secondary && !secondary._pmDone) {
+                secondary._pmDone = true;
+                secondary.style.transition = `transform .22s ${SPRING.bouncy}`;
+                secondary.addEventListener('mouseenter', () => { secondary.style.transform = 'scale(1.03)'; });
+                secondary.addEventListener('mouseleave', () => { secondary.style.transform = ''; });
+                secondary.addEventListener('pointerdown', e => spawnRipple(secondary, e, 'rgba(245,158,11,.18)'));
+            }
+        }
+    }
+
+    /* ════════════════════════════════════════════════════════
+       25.  SHEETS / AUDIT LOG BUTTONS + AM-CHIPS
+    ════════════════════════════════════════════════════════ */
+    function initSheetsBtns() {
+        /* audit-log-delete-btn — hover scale + ripple */
+        document.querySelectorAll('.audit-log-delete-btn').forEach(btn => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+            btn.style.transition = `transform .20s ${SPRING.bouncy}, box-shadow .18s ${SPRING.out}, border-color .16s ease, color .16s ease`;
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = 'scale(1.14) rotate(8deg)';
+                btn.style.boxShadow = '0 4px 14px rgba(229,72,77,.28)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = '';
+                btn.style.boxShadow = '';
+            });
+            btn.addEventListener('pointerdown', e => spawnRipple(btn, e, 'rgba(229,72,77,.25)'));
+        });
+
+        /* am-chip value-change number-pop via MutationObserver on text nodes */
+        document.querySelectorAll('.am-chip').forEach(chip => {
+            if (NO_MOTION || chip._pmDone) return;
+            chip._pmDone = true;
+            const chipObs = new MutationObserver(() => {
+                if (NO_MOTION) return;
+                const strong = chip.querySelector('strong');
+                const target = strong || chip;
+                target.style.animation = 'none';
+                requestAnimationFrame(() => {
+                    target.style.animation = `pmNumPop .40s ${SPRING.bouncy} both`;
+                });
+            });
+            chipObs.observe(chip, { childList: true, subtree: true, characterData: true });
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════
+       26.  PASS-CHECK RESULT CARDS (prc-close-btn + prc-status-card)
+    ════════════════════════════════════════════════════════ */
+    function initPassCheckCards() {
+        /* prc-close-btn */
+        document.querySelectorAll('.prc-close-btn').forEach(btn => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+            btn.style.transition = `transform .20s ${SPRING.bouncy}, background .16s ease, border-color .16s ease`;
+            btn.addEventListener('mouseenter', () => { btn.style.transform = 'scale(1.14) rotate(90deg)'; });
+            btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+            btn.addEventListener('pointerdown', e => spawnRipple(btn, e, 'rgba(229,72,77,.25)'));
+        });
+
+        /* prc-status-card hover lift + pulse */
+        document.querySelectorAll('.prc-status-card').forEach(card => {
+            if (NO_MOTION || card._pmDone) return;
+            card._pmDone = true;
+            card.style.transition = `transform .24s ${SPRING.soft}, box-shadow .22s ${SPRING.out}`;
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px) scale(1.015)';
+                const isActive = card.classList.contains('prc-status-active');
+                card.style.boxShadow = isActive
+                    ? '0 8px 24px rgba(47,182,115,.22)'
+                    : '0 8px 24px rgba(255,176,32,.18)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            });
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════
+       27.  AUTH btn-forgot  +  BACKUP STATUS fade-in
+    ════════════════════════════════════════════════════════ */
+    function initAuthAndBackup() {
+        /* .btn-forgot links */
+        document.querySelectorAll('.btn-forgot').forEach(btn => {
+            if (NO_MOTION || btn._pmDone) return;
+            btn._pmDone = true;
+            btn.style.transition = `transform .20s ${SPRING.bouncy}, opacity .16s ease`;
+            btn.addEventListener('mouseenter', () => { btn.style.transform = 'translateY(-2px) scale(1.04)'; });
+            btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+            btn.addEventListener('pointerdown', e => spawnRipple(btn, e, 'rgba(245,158,11,.18)'));
+        });
+
+        /* backupStatus element — fade-in when text is set */
+        const backupStatusEl = document.getElementById('backupStatus');
+        if (backupStatusEl && !NO_MOTION) {
+            const bsObs = new MutationObserver(() => {
+                if (!backupStatusEl.textContent.trim()) return;
+                backupStatusEl.style.animation = 'none';
+                requestAnimationFrame(() => {
+                    backupStatusEl.style.animation = `pmFadeUp .38s ${SPRING.soft} both`;
+                });
+            });
+            bsObs.observe(backupStatusEl, { childList: true, characterData: true, subtree: true });
+        }
     }
 
     /* ════════════════════════════════════════════════════════
@@ -779,6 +1266,14 @@
         initAvatar();
         initCTABtns();
         initVcRows();
+        /* v3 additions */
+        initTrafficLossPanel();
+        initAnalyticsDashboard();
+        initAvatarStickers();
+        initAuditCompleteModal();
+        initSheetsBtns();
+        initPassCheckCards();
+        initAuthAndBackup();
     }
 
     if (document.readyState === 'loading') {
@@ -797,6 +1292,15 @@
         initAllBtns();
         initVerifyPass();
         initStatCards();
+        /* v3 refresh targets */
+        _wireTlpBtns();
+        _wireTlpInputs();
+        _wireTlpDiffRows();
+        _wireAnalyticsContent();
+        initAvatarStickers();
+        initSheetsBtns();
+        initPassCheckCards();
+        initAuthAndBackup();
     };
 
 })();
