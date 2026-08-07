@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toll Audit — App Icon</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0c0d13;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    gap: 48px;
+  }
+
+  .label {
+    color: rgba(255,255,255,.32);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-top: -32px;
+  }
+
+  .showcase {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+
+  /* ── Icon wrap ── */
+  .icon-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Pulsing ambient ring */
+  .icon-ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 32px;
+    border: 1.5px solid rgba(246,196,103,.28);
+    animation: ringBreath 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes ringBreath {
+    0%,100% { transform: scale(1);    opacity: .55; }
+    50%      { transform: scale(1.06); opacity: .18; }
+  }
+
+  /* Outer glow */
+  .icon-glow {
+    position: absolute;
+    inset: -14px;
+    border-radius: 42px;
+    background: radial-gradient(ellipse at center,
+      rgba(246,164,46,.26) 0%,
+      rgba(246,164,46,.10) 45%,
+      transparent 75%
+    );
+    animation: glowPulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes glowPulse {
+    0%,100% { opacity: .7; transform: scale(1); }
+    50%      { opacity: 1;  transform: scale(1.04); }
+  }
+
+  /* Badge */
+  .icon-badge {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 26px;
+    background: linear-gradient(148deg, #f6c467 0%, #ec9f2e 100%);
+    overflow: hidden;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -2px 6px rgba(0,0,0,.18);
+  }
+  .icon-badge::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 26px;
+    background: linear-gradient(160deg, rgba(255,255,255,.28) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Scan line */
+  .scan-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    transform: translateY(-50%);
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(28,18,6,.55) 20%,
+      rgba(28,18,6,.55) 80%,
+      transparent 100%
+    );
+    opacity: 0;
+    animation: scanFlash 3s ease-in-out infinite;
+    z-index: 5;
+    pointer-events: none;
+  }
+  @keyframes scanFlash {
+    0%   { opacity: 0; }
+    48%  { opacity: 0; }
+    54%  { opacity: .7; }
+    70%  { opacity: .7; }
+    76%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* SVG */
+  .icon-svg {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Barrier arm rotation */
+  .barrier-arm {
+    transform-origin: 14px 38px;
+    animation: armCycle 3s cubic-bezier(.45,0,.45,1) infinite;
+  }
+  @keyframes armCycle {
+    0%,15%  { transform: rotate(0deg); }
+    30%,70% { transform: rotate(-72deg); }
+    85%,100%{ transform: rotate(0deg); }
+  }
+
+  /* Car slide */
+  .car-dot {
+    animation: carSlide 3s ease-in-out infinite;
+  }
+  @keyframes carSlide {
+    0%,28%  { transform: translateX(-18px); opacity: 0; }
+    35%     { transform: translateX(-12px); opacity: 1; }
+    65%     { transform: translateX(58px);  opacity: 1; }
+    72%     { transform: translateX(66px);  opacity: 0; }
+    100%    { transform: translateX(-18px); opacity: 0; }
+  }
+
+  /* ── Size variants ── */
+  .icon-badge--sm { width: 48px; height: 48px; border-radius: 14px; }
+  .icon-badge--sm::before { border-radius: 14px; }
+  .icon-wrap--sm .icon-ring { inset: -4px; border-radius: 18px; }
+  .icon-wrap--sm .icon-glow { inset: -10px; border-radius: 22px; }
+
+  .icon-badge--lg { width: 128px; height: 128px; border-radius: 34px; }
+  .icon-badge--lg::before { border-radius: 34px; }
+  .icon-wrap--lg .icon-ring { inset: -7px; border-radius: 40px; }
+  .icon-wrap--lg .icon-glow { inset: -18px; border-radius: 50px; }
+
+  .size-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .size-lbl {
+    color: rgba(255,255,255,.22);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Spec table ── */
+  .spec-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    color: rgba(255,255,255,.45);
+    width: 340px;
+  }
+  .spec-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .spec-table td:first-child { color: rgba(255,255,255,.22); width: 140px; }
+  .spec-table td:last-child  { font-family: "JetBrains Mono", monospace; font-size: 11px; color: #f6c467; }
+
+  footer {
+    font-size: 11px;
+    color: rgba(255,255,255,.12);
+    letter-spacing: .04em;
+    border-top: 1px solid rgba(255,255,255,.06);
+    padding-top: 14px;
+    width: 340px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Three sizes ── -->
+<div class="showcase">
+
+  <!-- 48 px -->
+  <div class="size-col">
+    <div class="icon-wrap icon-wrap--sm">
+      <div class="icon-ring"></div>
+      <div class="icon-glow"></div>
+      <div class="icon-badge icon-badge--sm">
+        <div class="scan-line"></div>
+        <svg class="icon-svg" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="11" y="34" width="6" height="48" rx="2.5" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="4" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="2" fill="#f6c467"/>
+          <g class="barrier-arm">
+            <rect x="14" y="35" width="62" height="6" rx="3" fill="#1c1206"/>
+            <rect x="22" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="37" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="52" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="67" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="74" y="36" width="3" height="4" rx="1.5" fill="#1c1206" opacity=".5"/>
+          </g>
+          <g class="car-dot">
+            <rect x="20" y="53" width="14" height="8" rx="2.5" fill="#1c1206" opacity=".82"/>
+            <rect x="22" y="50" width="8" height="5" rx="1.5" fill="#1c1206" opacity=".65"/>
+            <rect x="32" y="55" width="2.5" height="2" rx="1" fill="#f6c467" opacity=".8"/>
+            <rect x="20" y="55" width="2.5" height="2" rx="1" fill="#1c1206" opacity=".5"/>
+            <circle cx="23.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+            <circle cx="31.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <span class="size-lbl">48 px</span>
+  </div>
+
+  <!-- 96 px -->
+  <div class="size-col">
+    <div class="icon-wrap">
+      <div class="icon-ring"></div>
+      <div class="icon-glow"></div>
+      <div class="icon-badge">
+        <div class="scan-line"></div>
+        <svg class="icon-svg" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="11" y="34" width="6" height="48" rx="2.5" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="4" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="2" fill="#f6c467"/>
+          <g class="barrier-arm">
+            <rect x="14" y="35" width="62" height="6" rx="3" fill="#1c1206"/>
+            <rect x="22" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="37" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="52" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="67" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="74" y="36" width="3" height="4" rx="1.5" fill="#1c1206" opacity=".5"/>
+          </g>
+          <g class="car-dot">
+            <rect x="20" y="53" width="14" height="8" rx="2.5" fill="#1c1206" opacity=".82"/>
+            <rect x="22" y="50" width="8" height="5" rx="1.5" fill="#1c1206" opacity=".65"/>
+            <rect x="32" y="55" width="2.5" height="2" rx="1" fill="#f6c467" opacity=".8"/>
+            <rect x="20" y="55" width="2.5" height="2" rx="1" fill="#1c1206" opacity=".5"/>
+            <circle cx="23.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+            <circle cx="31.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <span class="size-lbl">96 px</span>
+  </div>
+
+  <!-- 128 px -->
+  <div class="size-col">
+    <div class="icon-wrap icon-wrap--lg">
+      <div class="icon-ring"></div>
+      <div class="icon-glow"></div>
+      <div class="icon-badge icon-badge--lg">
+        <div class="scan-line"></div>
+        <svg class="icon-svg" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="11" y="34" width="6" height="48" rx="2.5" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="4" fill="#1c1206"/>
+          <circle cx="14" cy="38" r="2" fill="#f6c467"/>
+          <g class="barrier-arm">
+            <rect x="14" y="35" width="62" height="6" rx="3" fill="#1c1206"/>
+            <rect x="22" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="37" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="52" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="67" y="35" width="7" height="6" rx="1" fill="#f6c467" opacity=".75"/>
+            <rect x="74" y="36" width="3" height="4" rx="1.5" fill="#1c1206" opacity=".5"/>
+          </g>
+          <g class="car-dot">
+            <rect x="20" y="53" width="14" height="8" rx="2.5" fill="#1c1206" opacity=".82"/>
+            <rect x="22" y="50" width="8" height="5" rx="1.5" fill="#1c1206" opacity=".65"/>
+            <rect x="32" y="55" width="2.5" height="2" rx="1" fill="#f6c467" opacity=".8"/>
+            <rect x="20" y="55" width="2.5" height="2" rx="1" fill="#1c1206" opacity=".5"/>
+            <circle cx="23.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+            <circle cx="31.5" cy="62" r="2.5" fill="#1c1206" opacity=".75"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <span class="size-lbl">128 px</span>
+  </div>
+
+</div>
+
+<p class="label">Toll Audit — App Icon</p>
+
+<!-- ── Design spec ── -->
+<table class="spec-table">
+  <tr><td>Background</td><td>#f6c467 → #ec9f2e (148°)</td></tr>
+  <tr><td>Foreground</td><td>#1c1206</td></tr>
+  <tr><td>Accent stripes</td><td>#f6c467 @ 75% opacity</td></tr>
+  <tr><td>Corner radius</td><td>26 px (96 px badge)</td></tr>
+  <tr><td>Loop duration</td><td>3 s  ·  cubic-bezier(.45,0,.45,1)</td></tr>
+  <tr><td>Arm rotation</td><td>0° → −72° → 0°</td></tr>
+  <tr><td>Glow blur</td><td>radial-gradient, ~26 px spread</td></tr>
+</table>
+
+<footer>Made with IBM Bob</footer>
+
+</body>
+</html>
