@@ -359,6 +359,9 @@ function closeTrafficLossPanel() {
    (called once on open; inputs are re-bound each open)
 ───────────────────────────────────────────── */
 
+/* Active tab: "daily" | "monthly" */
+let _tlActiveTab = "daily";
+
 function tlRenderPanel() {
   const panel = document.getElementById("trafficLossPanel");
   panel.innerHTML = "";
@@ -370,13 +373,25 @@ function tlRenderPanel() {
       <div class="tlp-header-icon"><i class="bi bi-speedometer2"></i></div>
       <div>
         <div class="tlp-header-title">Traffic Loss Report</div>
-        <div class="tlp-header-sub">Total Actual Traffic Loss Classwise — Daily</div>
+        <div class="tlp-header-sub">Total Actual Traffic Loss Classwise</div>
       </div>
     </div>
+    <div class="tlp-tab-bar">
+      <button class="tlp-tab ${_tlActiveTab==="daily"?"tlp-tab-active":""}" id="tlTabDaily" type="button">
+        <i class="bi bi-calendar-day"></i> Daily Report
+      </button>
+      <button class="tlp-tab ${_tlActiveTab==="monthly"?"tlp-tab-active":""}" id="tlTabMonthly" type="button">
+        <i class="bi bi-calendar3"></i> Monthly Master
+      </button>
+    </div>
     <div class="tlp-header-right">
-      <div class="tlp-date-wrap">
+      <div class="tlp-date-wrap" id="tlDailyDateWrap">
         <span class="tlp-date-label"><i class="bi bi-calendar-event"></i> Report Date</span>
         <input type="date" class="tlp-date-input" id="tlDateInput" value="${tlDate}">
+      </div>
+      <div class="tlp-date-wrap" id="tlMonthlyMonthWrap" style="display:none;">
+        <span class="tlp-date-label"><i class="bi bi-calendar-month"></i> Month</span>
+        <input type="month" class="tlp-date-input" id="tlMonthInput" value="${tlDate.slice(0,7)}">
       </div>
       <span class="tl-save-status tls-saved" id="tlSaveStatus">
         <i class="bi bi-cloud-check"></i> Saved
@@ -396,41 +411,67 @@ function tlRenderPanel() {
     </div>
   </div>`);
 
-  /* ── Body ── */
-  const body = document.createElement("div");
-  body.className = "tlp-body";
-  body.id = "tlBody";
-  panel.appendChild(body);
+  /* ── Daily body ── */
+  const dailyBody = document.createElement("div");
+  dailyBody.className = "tlp-body";
+  dailyBody.id = "tlDailyBody";
+  dailyBody.style.display = _tlActiveTab === "daily" ? "block" : "none";
+  dailyBody.insertAdjacentHTML("beforeend", tlBuildTableA());
+  dailyBody.insertAdjacentHTML("beforeend", tlBuildTableB());
+  dailyBody.insertAdjacentHTML("beforeend", tlBuildTableC());
+  dailyBody.insertAdjacentHTML("beforeend", tlBuildRecon());
+  panel.appendChild(dailyBody);
 
-  body.insertAdjacentHTML("beforeend", tlBuildTableA());
-  body.insertAdjacentHTML("beforeend", tlBuildTableB());
-  body.insertAdjacentHTML("beforeend", tlBuildTableC());
-  body.insertAdjacentHTML("beforeend", tlBuildRecon());
+  /* ── Monthly Master body ── */
+  const mmBody = document.createElement("div");
+  mmBody.className = "tlp-body";
+  mmBody.id = "tlMonthlyBody";
+  mmBody.style.display = _tlActiveTab === "monthly" ? "block" : "none";
+  panel.appendChild(mmBody);
 
   /* ── Event wiring ── */
   document.getElementById("tlBackBtn").addEventListener("click", closeTrafficLossPanel);
 
-  // Manual Save button — immediate, no debounce
+  // Tab switching
+  document.getElementById("tlTabDaily").addEventListener("click", () => _tlSwitchTab("daily"));
+  document.getElementById("tlTabMonthly").addEventListener("click", () => _tlSwitchTab("monthly"));
+
+  // Manual Save button — only active on daily tab
   document.getElementById("tlSaveBtn").addEventListener("click", async () => {
-    tlCollectData();
-    await tlSave();
+    if (_tlActiveTab === "daily") {
+      tlCollectData();
+      await tlSave();
+    } else {
+      tlRenderMonthlyMaster(document.getElementById("tlMonthInput").value);
+    }
   });
 
-  // Date picker — save current date data first, then load new date from cloud
+  // Date picker
   document.getElementById("tlDateInput").addEventListener("change", async e => {
     tlCollectData();
-    await tlSave();                     // save current date before switching
+    await tlSave();
     tlDate = e.target.value;
     _tlSetStatus("saving");
-    tlData = await tlLoad(tlDate);      // load new date from Firestore / local
+    tlData = await tlLoad(tlDate);
     _tlApplyAuditFill(tlDate);
     _tlSetStatus("saved");
   });
 
-  document.getElementById("tlExportXlsBtn").addEventListener("click", tlExportExcel);
-  document.getElementById("tlExportPdfBtn").addEventListener("click", tlExportPdf);
+  // Month picker for monthly master
+  document.getElementById("tlMonthInput").addEventListener("change", e => {
+    tlRenderMonthlyMaster(e.target.value);
+  });
 
-  // Delegate all input events — validate + recalc + schedule auto-save
+  document.getElementById("tlExportXlsBtn").addEventListener("click", () => {
+    if (_tlActiveTab === "daily") tlExportExcel();
+    else tlExportMonthlyExcel();
+  });
+  document.getElementById("tlExportPdfBtn").addEventListener("click", () => {
+    if (_tlActiveTab === "daily") tlExportPdf();
+    else tlExportMonthlyPdf();
+  });
+
+  // Delegate all input events (daily tab)
   panel.addEventListener("input", e => {
     if (e.target.matches(".tl-input")) {
       const v = parseInt(e.target.value, 10);
@@ -442,9 +483,47 @@ function tlRenderPanel() {
       }
       tlCollectData();
       tlRecalcAll();
-      tlScheduleAutoSave();   // auto-save 1.2s after last keystroke
+      tlScheduleAutoSave();
     }
   });
+
+  // If starting on monthly tab, render it now
+  if (_tlActiveTab === "monthly") {
+    tlRenderMonthlyMaster(tlDate.slice(0, 7));
+  }
+}
+
+function _tlSwitchTab(tab) {
+  _tlActiveTab = tab;
+  const daily   = document.getElementById("tlDailyBody");
+  const monthly = document.getElementById("tlMonthlyBody");
+  const tDaily  = document.getElementById("tlTabDaily");
+  const tMon    = document.getElementById("tlTabMonthly");
+  const dateWrap  = document.getElementById("tlDailyDateWrap");
+  const monthWrap = document.getElementById("tlMonthlyMonthWrap");
+  const saveBtn   = document.getElementById("tlSaveBtn");
+  const pdfBtn    = document.getElementById("tlExportPdfBtn");
+
+  if (tab === "daily") {
+    daily.style.display   = "block";
+    monthly.style.display = "none";
+    tDaily.classList.add("tlp-tab-active");
+    tMon.classList.remove("tlp-tab-active");
+    dateWrap.style.display  = "";
+    monthWrap.style.display = "none";
+    saveBtn.innerHTML = '<i class="bi bi-floppy2-fill"></i> Save';
+    pdfBtn.style.display = "";
+  } else {
+    daily.style.display   = "none";
+    monthly.style.display = "block";
+    tDaily.classList.remove("tlp-tab-active");
+    tMon.classList.add("tlp-tab-active");
+    dateWrap.style.display  = "none";
+    monthWrap.style.display = "";
+    saveBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Refresh';
+    pdfBtn.style.display = "none";
+    tlRenderMonthlyMaster(document.getElementById("tlMonthInput").value);
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -1040,6 +1119,552 @@ function tlRecalcAll() {
   );
   _setText("tlp_verify_total", verifySum);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MONTHLY MASTER REGISTER
+   One row per calendar day — aggregates each day's saved
+   Traffic Loss Report into the exact spreadsheet format:
+     Paid Traffic (by class) | Exempted Tollable | Non-Toll |
+     Violation Tollable | Non-Toll | Total Traffic Classwise | Total
+═══════════════════════════════════════════════════════════ */
+
+const MM_COL_CLASSES = [
+  { key: "car",    label: "Car"          },
+  { key: "lcv",    label: "LCV/Mini Bus" },
+  { key: "truck2", label: "Bus"          },
+  { key: "mav",    label: "MAV 3-6 Axl" },
+  { key: "osv",    label: "OS V"         },
+];
+
+const MM_DAY_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MM_MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
+
+/* Extract per-day summary from a saved tlData object */
+function _mmSummarise(data) {
+  if (!data || !data.tableA) return null;
+  const paid = {}, exem = {}, viol = {}, classTotal = {};
+  let paidTotal = 0, exemTotal = 0, violTotal = 0, classGrand = 0;
+  MM_COL_CLASSES.forEach(c => {
+    const row = data.tableA[c.key] || {};
+    const p = (row.cash||0)+(row.ret||0)+(row.barcode||0)+(row.digital||0)+(row.etc||0)+(row.pass||0);
+    paid[c.key] = p;  paidTotal += p;
+    exem[c.key] = row.exem || 0;  exemTotal += exem[c.key];
+    viol[c.key] = row.viol || 0;  violTotal += viol[c.key];
+  });
+  paid.total = paidTotal;
+  exem.total = exemTotal;
+  viol.total = violTotal;
+  let nontollExem = 0, nontollViol = 0;
+  if (data.tableB) {
+    TL_NONTOLL_CATS.forEach(cat => {
+      const row = data.tableB[cat] || {};
+      nontollViol += row.viol || 0;
+      nontollExem += row.exem || 0;
+    });
+  }
+  MM_COL_CLASSES.forEach(c => {
+    classTotal[c.key] = (paid[c.key]||0) + (exem[c.key]||0) + (viol[c.key]||0);
+    classGrand += classTotal[c.key];
+  });
+  classTotal.total = classGrand;
+  const grandTotal = classGrand + nontollExem + nontollViol;
+  exem.pct = grandTotal > 0 ? (exemTotal / grandTotal * 100) : 0;
+  viol.pct = grandTotal > 0 ? (violTotal / grandTotal * 100) : 0;
+  return { paid, exem, nontollExem, viol, nontollViol, classTotal, grandTotal };
+}
+
+/* Collect all saved daily TL reports for a given YYYY-MM */
+function _mmCollectMonth(yearMonth) {
+  const [y, m]      = yearMonth.split("-").map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const rows = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey   = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const raw       = _tlLoadLocal(dateKey);
+    const summary   = raw ? _mmSummarise(raw) : null;
+    const dayOfWeek = new Date(y, m - 1, d).getDay();
+    rows.push({ dateKey, d, dayOfWeek, summary });
+  }
+  return rows;
+}
+
+/* Total column count */
+function _mmColCount() {
+  const n = MM_COL_CLASSES.length;
+  return 2 + (n+1) + (n+2) + 1 + (n+2) + 1 + (n+1) + 1;
+}
+
+function _mmEmptyTotals() {
+  const t = {
+    paid: { total:0 }, exem: { total:0, pct:0 },
+    viol: { total:0, pct:0 },
+    nontollExem: 0, nontollViol: 0,
+    classTotal: { total:0 }, grandTotal: 0
+  };
+  MM_COL_CLASSES.forEach(c => {
+    t.paid[c.key] = t.exem[c.key] = t.viol[c.key] = t.classTotal[c.key] = 0;
+  });
+  return t;
+}
+
+function _mmAccumulate(tot, s) {
+  MM_COL_CLASSES.forEach(c => {
+    tot.paid[c.key]       += s.paid[c.key]       || 0;
+    tot.exem[c.key]       += s.exem[c.key]       || 0;
+    tot.viol[c.key]       += s.viol[c.key]       || 0;
+    tot.classTotal[c.key] += s.classTotal[c.key] || 0;
+  });
+  tot.paid.total       += s.paid.total       || 0;
+  tot.exem.total       += s.exem.total       || 0;
+  tot.viol.total       += s.viol.total       || 0;
+  tot.classTotal.total += s.classTotal.total || 0;
+  tot.nontollExem      += s.nontollExem      || 0;
+  tot.nontollViol      += s.nontollViol      || 0;
+  tot.grandTotal       += s.grandTotal       || 0;
+  tot.exem.pct = tot.grandTotal > 0 ? (tot.exem.total / tot.grandTotal * 100) : 0;
+  tot.viol.pct = tot.grandTotal > 0 ? (tot.viol.total / tot.grandTotal * 100) : 0;
+}
+
+function _mmDivTotals(t, div) {
+  const a = _mmEmptyTotals();
+  const r = v => Math.round(v / div);
+  MM_COL_CLASSES.forEach(c => {
+    a.paid[c.key]       = r(t.paid[c.key]);
+    a.exem[c.key]       = r(t.exem[c.key]);
+    a.viol[c.key]       = r(t.viol[c.key]);
+    a.classTotal[c.key] = r(t.classTotal[c.key]);
+  });
+  a.paid.total       = r(t.paid.total);
+  a.exem.total       = r(t.exem.total);
+  a.viol.total       = r(t.viol.total);
+  a.classTotal.total = r(t.classTotal.total);
+  a.nontollExem      = r(t.nontollExem);
+  a.nontollViol      = r(t.nontollViol);
+  a.grandTotal       = r(t.grandTotal);
+  a.exem.pct         = t.exem.pct;
+  a.viol.pct         = t.viol.pct;
+  return a;
+}
+
+function _mmCalcStat(yearMonth, stat) {
+  const summaries = _mmCollectMonth(yearMonth).map(r => r.summary).filter(Boolean);
+  if (!summaries.length) return null;
+  const fn   = stat === "max" ? Math.max : Math.min;
+  const init = stat === "max" ? -Infinity : Infinity;
+  const s    = _mmEmptyTotals();
+  MM_COL_CLASSES.forEach(c => {
+    s.paid[c.key]       = summaries.reduce((a,x) => fn(a, x.paid[c.key]||0), init);
+    s.exem[c.key]       = summaries.reduce((a,x) => fn(a, x.exem[c.key]||0), init);
+    s.viol[c.key]       = summaries.reduce((a,x) => fn(a, x.viol[c.key]||0), init);
+    s.classTotal[c.key] = summaries.reduce((a,x) => fn(a, x.classTotal[c.key]||0), init);
+  });
+  s.paid.total       = summaries.reduce((a,x) => fn(a, x.paid.total||0),       init);
+  s.exem.total       = summaries.reduce((a,x) => fn(a, x.exem.total||0),       init);
+  s.exem.pct         = summaries.reduce((a,x) => fn(a, x.exem.pct||0),         init);
+  s.viol.total       = summaries.reduce((a,x) => fn(a, x.viol.total||0),       init);
+  s.viol.pct         = summaries.reduce((a,x) => fn(a, x.viol.pct||0),         init);
+  s.classTotal.total = summaries.reduce((a,x) => fn(a, x.classTotal.total||0), init);
+  s.nontollExem      = summaries.reduce((a,x) => fn(a, x.nontollExem||0),      init);
+  s.nontollViol      = summaries.reduce((a,x) => fn(a, x.nontollViol||0),      init);
+  s.grandTotal       = summaries.reduce((a,x) => fn(a, x.grandTotal||0),       init);
+  return s;
+}
+
+function _mmSafe(v)    { return (!isFinite(v)) ? 0 : v; }
+function _mmSafePct(v) { return (!isFinite(v)) ? "0.00%" : v.toFixed(2) + "%"; }
+
+function _mmStatCells(s) {
+  const cols = [];
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${_mmSafe(s.paid[c.key])}</td>`));
+  cols.push(`<td>${_mmSafe(s.paid.total)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${_mmSafe(s.exem[c.key])}</td>`));
+  cols.push(`<td>${_mmSafe(s.exem.total)}</td>`, `<td>${_mmSafePct(s.exem.pct)}</td>`);
+  cols.push(`<td>${_mmSafe(s.nontollExem)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${_mmSafe(s.viol[c.key])}</td>`));
+  cols.push(`<td>${_mmSafe(s.viol.total)}</td>`, `<td>${_mmSafePct(s.viol.pct)}</td>`);
+  cols.push(`<td>${_mmSafe(s.nontollViol)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${_mmSafe(s.classTotal[c.key])}</td>`));
+  cols.push(`<td>${_mmSafe(s.classTotal.total)}</td>`, `<td>${_mmSafe(s.grandTotal)}</td>`);
+  return cols.join("");
+}
+
+function _mmDataCells(summary) {
+  const { paid, exem, viol, nontollExem, nontollViol, classTotal, grandTotal } = summary;
+  const cols = [];
+  MM_COL_CLASSES.forEach(c => cols.push(`<td class="mm-td-paid">${paid[c.key]||0}</td>`));
+  cols.push(`<td class="mm-td-paid mm-td-subtotal">${paid.total||0}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td class="mm-td-exem">${exem[c.key]||0}</td>`));
+  cols.push(`<td class="mm-td-exem mm-td-subtotal">${exem.total||0}</td>`,
+            `<td class="mm-td-exem mm-td-pct">${exem.pct.toFixed(2)}%</td>`);
+  cols.push(`<td class="mm-td-nontoll">${nontollExem||0}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td class="mm-td-viol">${viol[c.key]||0}</td>`));
+  cols.push(`<td class="mm-td-viol mm-td-subtotal">${viol.total||0}</td>`,
+            `<td class="mm-td-viol mm-td-pct">${viol.pct.toFixed(2)}%</td>`);
+  cols.push(`<td class="mm-td-nontoll">${nontollViol||0}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td class="mm-td-cls">${classTotal[c.key]||0}</td>`));
+  cols.push(`<td class="mm-td-cls mm-td-subtotal">${classTotal.total||0}</td>`,
+            `<td class="mm-td-grand">${grandTotal||0}</td>`);
+  return cols.join("");
+}
+
+function _mmEmptyDataCells() {
+  const n = _mmColCount() - 2;
+  return Array(n).fill(`<td class="mm-td-empty">—</td>`).join("");
+}
+
+function _mmFooterDataCells(s, isAvg) {
+  const fmt = v => isAvg ? Math.round(v) : v;
+  const cols = [];
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${fmt(s.paid[c.key]||0)}</td>`));
+  cols.push(`<td>${fmt(s.paid.total||0)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${fmt(s.exem[c.key]||0)}</td>`));
+  cols.push(`<td>${fmt(s.exem.total||0)}</td>`, `<td>${_mmSafePct(s.exem.pct)}</td>`);
+  cols.push(`<td>${fmt(s.nontollExem||0)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${fmt(s.viol[c.key]||0)}</td>`));
+  cols.push(`<td>${fmt(s.viol.total||0)}</td>`, `<td>${_mmSafePct(s.viol.pct)}</td>`);
+  cols.push(`<td>${fmt(s.nontollViol||0)}</td>`);
+  MM_COL_CLASSES.forEach(c => cols.push(`<td>${fmt(s.classTotal[c.key]||0)}</td>`));
+  cols.push(`<td>${fmt(s.classTotal.total||0)}</td>`, `<td>${fmt(s.grandTotal||0)}</td>`);
+  return cols.join("");
+}
+
+/* ── RENDER MONTHLY MASTER ── */
+async function tlRenderMonthlyMaster(yearMonth) {
+  const container = document.getElementById("tlMonthlyBody");
+  if (!container) return;
+  const [y, m]     = yearMonth.split("-").map(Number);
+  const monthLabel = `${MM_MONTH_NAMES[m-1]} ${y}`;
+
+  container.innerHTML = `
+    <div class="tlp-section">
+      <div class="tlp-section-head">
+        <i class="bi bi-calendar3"></i> Monthly Master Register — ${monthLabel}
+        <span id="mmLoadingSpinner" style="margin-left:10px;font-size:11px;color:var(--amber);">
+          <i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;display:inline-block;"></i> Loading cloud data…
+        </span>
+      </div>
+      <div class="tlp-audit-banner">
+        <i class="bi bi-info-circle"></i>
+        Data is pulled from your saved Traffic Loss Reports for each day of this month.
+        Open a day and click <strong>Save</strong> to include it here.
+        Rows highlighted in <strong style="color:var(--amber)">amber = Wednesdays</strong>.
+        <span style="color:var(--text-faint);margin-left:8px;">Days with no saved data show —</span>
+      </div>
+      <div class="mm-table-wrap" id="mmTableWrap">
+        ${_mmBuildTable(yearMonth)}
+      </div>
+    </div>`;
+
+  _mmFetchCloudAndRefresh(yearMonth);
+}
+
+function _mmBuildTable(yearMonth) {
+  const rows   = _mmCollectMonth(yearMonth);
+  const [y, m] = yearMonth.split("-").map(Number);
+  const n      = MM_COL_CLASSES.length;
+  const totals = _mmEmptyTotals();
+  let filledDays = 0;
+
+  const rowsHtml = rows.map(r => {
+    const { d, dayOfWeek, summary, dateKey } = r;
+    const dayName  = MM_DAY_NAMES[dayOfWeek];
+    const isWed    = dayOfWeek === 3;
+    const dateDisp = `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}`;
+    const rowCls   = isWed ? "mm-row-wed" : (dayOfWeek === 0 ? "mm-row-sun" : "");
+
+    if (!summary) {
+      return `<tr class="${rowCls}" data-date="${dateKey}">
+        <td class="mm-td-date"><strong>${dateDisp}</strong></td>
+        <td class="mm-td-day">${dayName}</td>
+        ${_mmEmptyDataCells()}
+      </tr>`;
+    }
+    filledDays++;
+    _mmAccumulate(totals, summary);
+    return `<tr class="${rowCls}" data-date="${dateKey}">
+      <td class="mm-td-date"><strong>${dateDisp}</strong></td>
+      <td class="mm-td-day">${dayName}</td>
+      ${_mmDataCells(summary)}
+    </tr>`;
+  }).join("");
+
+  const avgDiv = filledDays > 0 ? filledDays : 1;
+  const avg    = _mmDivTotals(totals, avgDiv);
+  const max    = _mmCalcStat(yearMonth, "max");
+  const min    = _mmCalcStat(yearMonth, "min");
+
+  return `
+  <table class="mm-table" id="mmTable">
+    <thead>
+      <tr class="mm-head-group">
+        <th rowspan="2" class="mm-th-date">Class/<br>Date</th>
+        <th rowspan="2" class="mm-th-day"></th>
+        <th colspan="${n+1}" class="mm-th-paid">Paid Traffic</th>
+        <th colspan="${n+2}" class="mm-th-exem">Exempted Tollable Traffic</th>
+        <th rowspan="2" class="mm-th-nontoll">Non-<br>Tollable</th>
+        <th colspan="${n+2}" class="mm-th-viol">Violation Tollable Traffic</th>
+        <th rowspan="2" class="mm-th-nontoll">Non-<br>Tollable</th>
+        <th colspan="${n+1}" class="mm-th-cls">Total Traffic Classwise</th>
+        <th rowspan="2" class="mm-th-grand">Total<br>Traffic</th>
+      </tr>
+      <tr class="mm-head-sub">
+        ${MM_COL_CLASSES.map(c=>`<th class="mm-subth-paid">${c.label}</th>`).join("")}
+        <th class="mm-subth-paid">Total</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="mm-subth-exem">${c.label}</th>`).join("")}
+        <th class="mm-subth-exem">Total</th>
+        <th class="mm-subth-exem">% in Total<br>Traffic</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="mm-subth-viol">${c.label}</th>`).join("")}
+        <th class="mm-subth-viol">Total</th>
+        <th class="mm-subth-viol">% in Total<br>Traffic</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="mm-subth-cls">${c.label}</th>`).join("")}
+        <th class="mm-subth-cls">Total</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot>
+      <tr class="mm-footer-total">
+        <td colspan="2">Total Traffic</td>
+        ${_mmFooterDataCells(totals, false)}
+      </tr>
+      <tr class="mm-footer-avg">
+        <td colspan="2">Average</td>
+        ${_mmFooterDataCells(avg, true)}
+      </tr>
+      <tr class="mm-footer-stat">
+        <td colspan="2">Maximum</td>
+        ${max ? _mmStatCells(max) : `<td colspan="${_mmColCount()-2}">No data</td>`}
+      </tr>
+      <tr class="mm-footer-stat">
+        <td colspan="2">Minimum</td>
+        ${min ? _mmStatCells(min) : `<td colspan="${_mmColCount()-2}">No data</td>`}
+      </tr>
+    </tfoot>
+  </table>`;
+}
+
+/* Fetch cloud data for any day not yet in localStorage, then re-render */
+async function _mmFetchCloudAndRefresh(yearMonth) {
+  const spinner = document.getElementById("mmLoadingSpinner");
+  if (typeof fbDb === "undefined" || !fbDb || typeof fbAuthReady === "undefined") {
+    if (spinner) spinner.style.display = "none";
+    return;
+  }
+  await fbAuthReady;
+  if (typeof fbAuth === "undefined" || !fbAuth || !fbAuth.currentUser) {
+    if (spinner) spinner.style.display = "none";
+    return;
+  }
+  const [y, m]      = yearMonth.split("-").map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  let fetched = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    if (!_tlLoadLocal(dateKey) && typeof fbLoadTlReport === "function") {
+      try {
+        const cloud = await fbLoadTlReport(dateKey);
+        if (cloud) { _tlSaveLocal(dateKey, cloud); fetched++; }
+      } catch(e) { /* silent */ }
+    }
+  }
+  if (spinner) spinner.style.display = "none";
+  if (fetched > 0) {
+    const wrap = document.getElementById("mmTableWrap");
+    if (wrap) wrap.innerHTML = _mmBuildTable(yearMonth);
+  }
+}
+
+/* ── MONTHLY MASTER EXCEL EXPORT ── */
+function tlExportMonthlyExcel() {
+  if (typeof XLSX === "undefined") {
+    alert("Excel library not loaded. Please refresh the page.");
+    return;
+  }
+  const yearMonth  = (document.getElementById("tlMonthInput")||{}).value || tlDate.slice(0,7);
+  const [y, m]     = yearMonth.split("-").map(Number);
+  const rows       = _mmCollectMonth(yearMonth);
+  const colLabels  = MM_COL_CLASSES.map(c => c.label);
+  const n          = MM_COL_CLASSES.length;
+
+  const h1 = [
+    "Class/Date","",
+    "Paid Traffic", ...Array(n).fill(""),
+    "Exempted Tollable Traffic", ...Array(n+1).fill(""),
+    "Non-Tollable",
+    "Violation Tollable Traffic", ...Array(n+1).fill(""),
+    "Non-Tollable",
+    "Total Traffic Classwise", ...Array(n).fill(""),
+    "Total Traffic"
+  ];
+  const h2 = [
+    "Date","Day",
+    ...colLabels,"Total",
+    ...colLabels,"Total","% in Total Traffic","Non-Tollable",
+    ...colLabels,"Total","% in Total Traffic","Non-Tollable",
+    ...colLabels,"Total",
+    "Total Traffic"
+  ];
+
+  const dataRows = [];
+  const totals   = _mmEmptyTotals();
+  let filledDays = 0;
+
+  rows.forEach(r => {
+    const { d, dayOfWeek, summary } = r;
+    const dateDisp = `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}`;
+    const dayName  = MM_DAY_NAMES[dayOfWeek];
+    if (!summary) {
+      dataRows.push([dateDisp, dayName, ...Array(_mmColCount()-2).fill(0)]);
+      return;
+    }
+    filledDays++;
+    _mmAccumulate(totals, summary);
+    const { paid, exem, viol, nontollExem, nontollViol, classTotal, grandTotal } = summary;
+    dataRows.push([
+      dateDisp, dayName,
+      ...MM_COL_CLASSES.map(c => paid[c.key]||0), paid.total||0,
+      ...MM_COL_CLASSES.map(c => exem[c.key]||0), exem.total||0,
+      +(exem.pct.toFixed(2)), nontollExem||0,
+      ...MM_COL_CLASSES.map(c => viol[c.key]||0), viol.total||0,
+      +(viol.pct.toFixed(2)), nontollViol||0,
+      ...MM_COL_CLASSES.map(c => classTotal[c.key]||0), classTotal.total||0,
+      grandTotal||0
+    ]);
+  });
+
+  const avgDiv = filledDays > 0 ? filledDays : 1;
+  const avg    = _mmDivTotals(totals, avgDiv);
+
+  dataRows.push([
+    "Total Traffic","",
+    ...MM_COL_CLASSES.map(c => totals.paid[c.key]||0), totals.paid.total||0,
+    ...MM_COL_CLASSES.map(c => totals.exem[c.key]||0), totals.exem.total||0,
+    +(totals.exem.pct.toFixed(2)), totals.nontollExem||0,
+    ...MM_COL_CLASSES.map(c => totals.viol[c.key]||0), totals.viol.total||0,
+    +(totals.viol.pct.toFixed(2)), totals.nontollViol||0,
+    ...MM_COL_CLASSES.map(c => totals.classTotal[c.key]||0), totals.classTotal.total||0,
+    totals.grandTotal||0
+  ]);
+  dataRows.push([
+    "Average","",
+    ...MM_COL_CLASSES.map(c => avg.paid[c.key]||0), avg.paid.total||0,
+    ...MM_COL_CLASSES.map(c => avg.exem[c.key]||0), avg.exem.total||0,
+    +(totals.exem.pct.toFixed(2)), avg.nontollExem||0,
+    ...MM_COL_CLASSES.map(c => avg.viol[c.key]||0), avg.viol.total||0,
+    +(totals.viol.pct.toFixed(2)), avg.nontollViol||0,
+    ...MM_COL_CLASSES.map(c => avg.classTotal[c.key]||0), avg.classTotal.total||0,
+    avg.grandTotal||0
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([h1, h2, ...dataRows]);
+  ws["!cols"] = [{ wch:8 },{ wch:5 },...Array(_mmColCount()-2).fill({ wch:9 })];
+  XLSX.utils.book_append_sheet(wb, ws, `${MM_MONTH_NAMES[m-1].slice(0,3)} ${y}`);
+  XLSX.writeFile(wb, `Monthly_Master_${yearMonth}.xlsx`);
+}
+
+/* ── MONTHLY MASTER PDF EXPORT ── */
+function tlExportMonthlyPdf() {
+  const yearMonth  = (document.getElementById("tlMonthInput")||{}).value || tlDate.slice(0,7);
+  const [y, m]     = yearMonth.split("-").map(Number);
+  const monthLabel = `${MM_MONTH_NAMES[m-1]} ${y}`;
+  const rows       = _mmCollectMonth(yearMonth);
+  const n          = MM_COL_CLASSES.length;
+  const win        = window.open("","_blank");
+  if (!win) { alert("Popup blocked. Please allow popups for this site."); return; }
+
+  const totals   = _mmEmptyTotals();
+  let filledDays = 0;
+
+  const bodyRows = rows.map(r => {
+    const { d, dayOfWeek, summary } = r;
+    const dateDisp = `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}`;
+    const dayName  = MM_DAY_NAMES[dayOfWeek];
+    const rowCls   = dayOfWeek === 3 ? "row-wed" : "";
+    if (!summary) {
+      return `<tr class="${rowCls}"><td>${dateDisp}</td><td>${dayName}</td>${Array(_mmColCount()-2).fill("<td>0</td>").join("")}</tr>`;
+    }
+    filledDays++;
+    _mmAccumulate(totals, summary);
+    const { paid, exem, viol, nontollExem, nontollViol, classTotal, grandTotal } = summary;
+    return `<tr class="${rowCls}">
+      <td>${dateDisp}</td><td>${dayName}</td>
+      ${MM_COL_CLASSES.map(c=>`<td>${paid[c.key]||0}</td>`).join("")}<td>${paid.total||0}</td>
+      ${MM_COL_CLASSES.map(c=>`<td>${exem[c.key]||0}</td>`).join("")}<td>${exem.total||0}</td><td>${exem.pct.toFixed(2)}%</td>
+      <td>${nontollExem||0}</td>
+      ${MM_COL_CLASSES.map(c=>`<td>${viol[c.key]||0}</td>`).join("")}<td>${viol.total||0}</td><td>${viol.pct.toFixed(2)}%</td>
+      <td>${nontollViol||0}</td>
+      ${MM_COL_CLASSES.map(c=>`<td>${classTotal[c.key]||0}</td>`).join("")}<td>${classTotal.total||0}</td>
+      <td>${grandTotal||0}</td>
+    </tr>`;
+  }).join("");
+
+  const avgDiv = filledDays > 0 ? filledDays : 1;
+  const avg    = _mmDivTotals(totals, avgDiv);
+
+  win.document.write(`<!DOCTYPE html><html><head>
+    <title>Monthly Master — ${monthLabel}</title>
+    <style>
+      body{font-family:system-ui,sans-serif;font-size:8.5px;margin:10px}
+      h2{font-size:12px;margin-bottom:6px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #aaa;padding:2px 3px;text-align:center;white-space:nowrap}
+      th{font-size:8px;font-weight:700}
+      .th-paid{background:#bdd7ee}.th-exem{background:#c6efce}
+      .th-viol{background:#fce4d6}.th-cls{background:#e2efda}.th-nt{background:#fff2cc}
+      .row-wed td{background:#fce4d6}
+      .ft td{background:#d6dce4;font-weight:700}
+      .fa td{background:#e2efda}
+      @media print{body{margin:4px}}
+    </style>
+  </head><body>
+    <h2>Monthly Master Register — ${monthLabel}</h2>
+    <table><thead>
+      <tr>
+        <th rowspan="2">Date</th><th rowspan="2">Day</th>
+        <th class="th-paid" colspan="${n+1}">Paid Traffic</th>
+        <th class="th-exem" colspan="${n+2}">Exempted Tollable Traffic</th>
+        <th class="th-nt" rowspan="2">Non-Tollable</th>
+        <th class="th-viol" colspan="${n+2}">Violation Tollable Traffic</th>
+        <th class="th-nt" rowspan="2">Non-Tollable</th>
+        <th class="th-cls" colspan="${n+1}">Total Traffic Classwise</th>
+        <th rowspan="2">Total Traffic</th>
+      </tr>
+      <tr>
+        ${MM_COL_CLASSES.map(c=>`<th class="th-paid">${c.label}</th>`).join("")}<th class="th-paid">Total</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="th-exem">${c.label}</th>`).join("")}<th class="th-exem">Total</th><th class="th-exem">%</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="th-viol">${c.label}</th>`).join("")}<th class="th-viol">Total</th><th class="th-viol">%</th>
+        ${MM_COL_CLASSES.map(c=>`<th class="th-cls">${c.label}</th>`).join("")}<th class="th-cls">Total</th>
+      </tr>
+    </thead><tbody>${bodyRows}</tbody>
+    <tfoot>
+      <tr class="ft"><td colspan="2">Total Traffic</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${totals.paid[c.key]||0}</td>`).join("")}<td>${totals.paid.total||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${totals.exem[c.key]||0}</td>`).join("")}<td>${totals.exem.total||0}</td><td>${totals.exem.pct.toFixed(2)}%</td>
+        <td>${totals.nontollExem||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${totals.viol[c.key]||0}</td>`).join("")}<td>${totals.viol.total||0}</td><td>${totals.viol.pct.toFixed(2)}%</td>
+        <td>${totals.nontollViol||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${totals.classTotal[c.key]||0}</td>`).join("")}<td>${totals.classTotal.total||0}</td>
+        <td>${totals.grandTotal||0}</td>
+      </tr>
+      <tr class="fa"><td colspan="2">Average</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${avg.paid[c.key]||0}</td>`).join("")}<td>${avg.paid.total||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${avg.exem[c.key]||0}</td>`).join("")}<td>${avg.exem.total||0}</td><td>${totals.exem.pct.toFixed(2)}%</td>
+        <td>${avg.nontollExem||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${avg.viol[c.key]||0}</td>`).join("")}<td>${avg.viol.total||0}</td><td>${totals.viol.pct.toFixed(2)}%</td>
+        <td>${avg.nontollViol||0}</td>
+        ${MM_COL_CLASSES.map(c=>`<td>${avg.classTotal[c.key]||0}</td>`).join("")}<td>${avg.classTotal.total||0}</td>
+        <td>${avg.grandTotal||0}</td>
+      </tr>
+    </tfoot></table>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+
 
 /* ─────────────────────────────────────────────
    EXCEL EXPORT
