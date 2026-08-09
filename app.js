@@ -155,6 +155,28 @@ function initializeEvents() {
         initTrafficLossReport();
     }
 
+    /* Sync from Cloud — manually re-trigger Firestore pull */
+    const syncCloudBtn = document.getElementById("syncFromCloudBtn");
+    if (syncCloudBtn) {
+        syncCloudBtn.addEventListener("click", async function () {
+            const origHtml = syncCloudBtn.innerHTML;
+            syncCloudBtn.disabled = true;
+            syncCloudBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Syncing…';
+            try {
+                await _mergeAllDatesFromFirestore();
+                if (typeof showToast === "function") {
+                    showToast("Cloud Sync", "Data synced from cloud ✓", "success", 3000);
+                }
+            } catch (e) {
+                if (typeof showToast === "function") {
+                    showToast("Sync Failed", "Could not reach cloud. Check internet.", "danger", 4000);
+                }
+            }
+            syncCloudBtn.disabled = false;
+            syncCloudBtn.innerHTML = origHtml;
+        });
+    }
+
 }
 
 /* ===============================

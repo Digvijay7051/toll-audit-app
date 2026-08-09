@@ -946,7 +946,8 @@ async function _mergeAllDatesFromFirestore() {
             .endAt(prefix + "\uf8ff")
             .get();
 
-        if (snap.empty) return;
+        /* NOTE: Do NOT return early when snap.empty — still persist + refresh
+           so that any stale placeholder buckets get cleared from localStorage. */
 
         let merged = false;
 
@@ -955,7 +956,7 @@ async function _mergeAllDatesFromFirestore() {
             const dateKey = d.dateKey || doc.id.replace(prefix, "");
             if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
 
-            /* Prefer the auto-saved full bucket if present */
+            /* Path A — full auto-saved bucket is present (most common) */
             if (d.auditBucket) {
                 try {
                     const cloudBucket = JSON.parse(d.auditBucket);
@@ -967,32 +968,103 @@ async function _mergeAllDatesFromFirestore() {
                         auditDataStore[dateKey] = cloudBucket;
                         merged = true;
                     }
-                } catch (_) { /* corrupted — skip */ }
+                } catch (_) { /* corrupted JSON — skip */ }
+
+            /* Path B — older doc saved via fbSaveAuditLog without auditBucket:
+               reconstruct a bucket from the flat `rows` + `reportCounts` arrays
+               so transaction data is never lost when opening on a new device.   */
+            } else if (d.rows && Array.isArray(d.rows) && d.rows.length > 0) {
+                const localTxnCount = _countTransactions(auditDataStore[dateKey]);
+                if (!auditDataStore[dateKey] || d.rows.length >= localTxnCount) {
+                    const rebuilt = _rebuildBucketFromRows(d.rows, d.reportCounts || {});
+                    auditDataStore[dateKey] = rebuilt;
+                    merged = true;
+                }
+
+            /* Path C — doc exists but has no usable data; ensure the date
+               at least appears in the sidebar history panel.                    */
             } else if (!auditDataStore[dateKey]) {
-                /* Older docs without auditBucket — create an empty bucket so
-                   the date at least appears in the sidebar history */
                 auditDataStore[dateKey] = createEmptyAuditBucket();
                 merged = true;
             }
         });
 
-        // Always persist + re-point auditData, even if only some dates merged.
-        // This fixes the case where auditData was pointing to an empty placeholder
-        // bucket created before Firestore data arrived.
+        /* Always persist + re-point auditData after the cloud fetch, even when
+           nothing changed — this flushes any placeholder buckets that were written
+           before the cloud response arrived (fixes new-device empty-state bug). */
         localStorage.setItem(getAuditStorageKey(), JSON.stringify(auditDataStore));
         migrateAuditDataStore();
         setActiveAuditDate(selectedAuditDate || getTodayKey());
 
+        /* Always refresh the UI so data that arrived after the initial render
+           is immediately visible — not just when the merged flag is true.       */
+        if (typeof renderHistoryPanel === "function") renderHistoryPanel();
         if (merged) {
-            if (typeof renderHistoryPanel    === "function") renderHistoryPanel();
-            if (typeof refreshUI             === "function") refreshUI();
-            // Re-fill Traffic Loss panel if it's open (data may have been stale)
-            if (typeof tlRefreshAuditFill    === "function") tlRefreshAuditFill();
+            if (typeof refreshUI          === "function") refreshUI();
+            if (typeof tlRefreshAuditFill === "function") tlRefreshAuditFill();
         }
 
     } catch (e) {
         console.warn("[LoadDates] Firestore fetch failed:", e.code || e.message);
     }
+
+}
+
+/* Rebuilds a full auditDataStore bucket from the flat `rows` array that
+   fbSaveAuditLog writes to Firestore — used when auditBucket is absent.
+   Each row: { mode, category, vehicle, txnNo, time, reportCount, comment } */
+function _rebuildBucketFromRows(rows, reportCounts) {
+
+    const bucket = createEmptyAuditBucket();
+
+    rows.forEach(row => {
+        const { mode, category, vehicle, txnNo, time, reportCount, comment } = row;
+        if (!mode || !category) return;
+        if (!bucket[mode]) return;
+        if (!bucket[mode][category]) return;
+
+        /* Set reportCount from the row (all rows for same mode+cat share the same value) */
+        if (reportCount) bucket[mode][category].reportCount = reportCount;
+
+        /* Reconstruct a minimal transaction object */
+        const txn = {
+            transactionNo: txnNo || "",
+            actualVehicle: vehicle || "",
+            comment:       comment || ""
+        };
+
+        /* Convert "HH:MM:SS AM/PM" back to a timestamp (best-effort) */
+        if (time) {
+            try {
+                const today = new Date().toISOString().slice(0, 10);
+                const ts    = new Date(`${today} ${time}`);
+                if (!isNaN(ts.getTime())) txn.timestamp = ts.getTime();
+            } catch (_) { /* ignore */ }
+        }
+
+        bucket[mode][category].transactions.push(txn);
+
+        /* Keep vehicleCounts in sync */
+        if (vehicle) {
+            bucket[mode][category].vehicleCounts[vehicle] =
+                (bucket[mode][category].vehicleCounts[vehicle] || 0) + 1;
+        }
+    });
+
+    /* Apply reportCounts snapshot if available (more accurate than per-row value) */
+    if (reportCounts && typeof reportCounts === "object") {
+        AUDIT_MODES.forEach(mode => {
+            if (!reportCounts[mode]) return;
+            REPORT_CATEGORIES.forEach(cat => {
+                const snap = reportCounts[mode][cat];
+                if (snap && typeof snap.reportCount === "number") {
+                    bucket[mode][cat].reportCount = snap.reportCount;
+                }
+            });
+        });
+    }
+
+    return bucket;
 
 }
 

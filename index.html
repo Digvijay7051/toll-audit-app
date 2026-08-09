@@ -394,6 +394,9 @@
             <i class="bi bi-card-list"></i> Monthly Pass List
             <span class="badge bg-primary ms-auto" id="passListCountBadge">0</span>
         </button>
+        <button class="sb-btn" id="syncFromCloudBtn">
+            <i class="bi bi-cloud-arrow-down"></i> Sync from Cloud
+        </button>
         <button class="sb-btn" id="openBackupBtn" data-bs-toggle="modal" data-bs-target="#backupModal">
             <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
         </button>
@@ -1313,14 +1316,26 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Everything lives in this browser. Use Export to save, and Import to restore.</p>
+                <p class="text-muted small">Your audit data syncs to the cloud automatically. Use the options below to backup or restore.</p>
+
+                <div class="alert alert-primary py-2 px-3 small mb-3" role="alert">
+                    <strong><i class="bi bi-cloud-arrow-down-fill"></i> New device or data missing?</strong>
+                    Click <em>Download Cloud Backup</em> to fetch all your saved audit data directly from Firebase and download a full backup file. Then use <em>Restore From This File</em> to load it.
+                </div>
+
+                <h6 class="mb-2"><i class="bi bi-cloud-download"></i> Download Cloud Backup</h6>
+                <button type="button" class="btn btn-success w-100 mb-1" id="cloudBackupExportBtn">
+                    <i class="bi bi-cloud-download"></i> Download Cloud Backup
+                </button>
+                <p class="text-muted small mb-3">Fetches all your audit data from Firebase — works even on a brand-new device.</p>
+
                 <hr>
-                <h6 class="mb-2"><i class="bi bi-download"></i> Export Backup</h6>
+                <h6 class="mb-2"><i class="bi bi-download"></i> Export Local Backup</h6>
                 <button type="button" class="btn btn-primary w-100 mb-3" id="backupExportBtn">
-                    <i class="bi bi-download"></i> Export Backup File
+                    <i class="bi bi-download"></i> Export Local Backup File
                 </button>
                 <hr>
-                <h6 class="mb-2"><i class="bi bi-upload"></i> Import Backup</h6>
+                <h6 class="mb-2"><i class="bi bi-upload"></i> Import / Restore Backup</h6>
                 <input type="file" class="form-control mb-2" id="backupImportFile" accept=".json">
                 <button type="button" class="btn btn-outline-primary w-100" id="backupImportBtn">
                     <i class="bi bi-upload"></i> Restore From This File
