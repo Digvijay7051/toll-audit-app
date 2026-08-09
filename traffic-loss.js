@@ -9,12 +9,13 @@
 ───────────────────────────────────────────── */
 
 const TL_CLASSES = [
-  { key: "car",     label: "Car",                 single: 85,  ret: 130 },
-  { key: "lcv",     label: "LCV / Mini Bus",       single: 130, ret: 195 },
-  { key: "truck2",  label: "Truck / Bus 2 Axle",  single: 255, ret: 385 },
-  { key: "mav",     label: "MAV 3–6 Axle",        single: 415, ret: 625 },
-  { key: "osv",     label: "OSV",                 single: 510, ret: 770 },
-  { key: "nontoll", label: "Non-Tollable",         single: 0,   ret: 0   },
+  { key: "car",     label: "Car",            single: 85,  ret: 130 },
+  { key: "lcv",     label: "LCV / Mini Bus", single: 130, ret: 195 },
+  { key: "bus",     label: "Bus 2 Axle",     single: 255, ret: 385 },
+  { key: "truck2",  label: "Truck 2 Axle",   single: 255, ret: 385 },
+  { key: "mav",     label: "MAV 3–6 Axle",   single: 415, ret: 625 },
+  { key: "osv",     label: "OSV",            single: 510, ret: 770 },
+  { key: "nontoll", label: "Non-Tollable",   single: 0,   ret: 0   },
 ];
 
 const TL_NONTOLL_CATS = [
@@ -93,15 +94,15 @@ async function tlLoad(dateStr) {
     try {
       const cloud = await fbLoadTlReport(dateStr);
       if (cloud) {
-        _tlSaveLocal(dateStr, cloud); // keep local in sync
-        return cloud;
+        _tlSaveLocal(dateStr, cloud);
+        return _tlMigrateBusTruck(cloud);
       }
     } catch(e) {
       console.warn("[TL] Firestore load failed, using local", e);
     }
   }
   // 2. fall back to localStorage
-  return _tlLoadLocal(dateStr) || tlEmptyData();
+  return _tlMigrateBusTruck(_tlLoadLocal(dateStr) || tlEmptyData());
 }
 
 /* Primary save: Firestore + localStorage */
@@ -147,6 +148,22 @@ function tlEmptyData() {
   });
   TL_VERIFY_FIELDS.forEach(f => { d.verify[f.key] = 0; });
   return d;
+}
+
+/* Back-compat: old saves used a single combined "truck2" key for both
+   Bus 2 Axle + Truck 2 Axle.  When loading old data that has "truck2"
+   but no "bus", copy truck2 → bus and zero out truck2 so the total is
+   preserved (we can't split the historical numbers, so we put all of
+   it under Bus which is the more common vehicle at most plazas — user
+   can adjust manually if needed). */
+function _tlMigrateBusTruck(data) {
+  if (!data || !data.tableA) return data;
+  if (!data.tableA["bus"]) {
+    const old = data.tableA["truck2"] || {};
+    data.tableA["bus"]    = { ...old };
+    data.tableA["truck2"] = { cash:0, ret:0, barcode:0, digital:0, etc:0, pass:0, viol:0, exem:0 };
+  }
+  return data;
 }
 
 /* ─────────────────────────────────────────────
@@ -197,13 +214,14 @@ function tlExtractFromAudit(dateKey) {
   // "Has Pass" is a cross-mode status tag (like "Forcefully") — the
   // auditor taps it regardless of which Violation/Exemption mode is active.
   const CLASS_MAP = {
-    //         viol                                   exem                                  pass vehicles (both modes)
-    car:     { viol: ["Car"],                         exem: ["Car"],                         pass: ["Car"]              },
-    lcv:     { viol: ["LCV", "Minibus"],              exem: ["LCV", "Minibus"],              pass: ["LCV", "Minibus"]   },
-    truck2:  { viol: ["Truck 2 Axle", "Bus 2 Axle"],  exem: ["Truck 2 Axle", "Bus 2 Axle"],  pass: ["Truck 2 Axle", "Bus 2 Axle"] },
-    mav:     { viol: ["Truck 3 Axle", "MAV"],         exem: ["Truck 3 Axle", "MAV"],         pass: ["Truck 3 Axle", "MAV"]        },
-    osv:     { viol: ["Oversized Vehicle"],           exem: ["Oversized Vehicle"],           pass: ["Oversized Vehicle"]          },
-    nontoll: { viol: [],                              exem: [],                              pass: []                             },
+    //         viol                          exem                          pass vehicles (both modes)
+    car:     { viol: ["Car"],                exem: ["Car"],                pass: ["Car"]                },
+    lcv:     { viol: ["LCV", "Minibus"],     exem: ["LCV", "Minibus"],     pass: ["LCV", "Minibus"]     },
+    bus:     { viol: ["Bus 2 Axle"],         exem: ["Bus 2 Axle"],         pass: ["Bus 2 Axle"]         },
+    truck2:  { viol: ["Truck 2 Axle"],       exem: ["Truck 2 Axle"],       pass: ["Truck 2 Axle"]       },
+    mav:     { viol: ["Truck 3 Axle","MAV"], exem: ["Truck 3 Axle","MAV"], pass: ["Truck 3 Axle","MAV"] },
+    osv:     { viol: ["Oversized Vehicle"],  exem: ["Oversized Vehicle"],  pass: ["Oversized Vehicle"]  },
+    nontoll: { viol: [],                     exem: [],                     pass: []                     },
   };
 
   // "Has Pass" count per vehicle class:
@@ -232,9 +250,10 @@ function tlExtractFromAudit(dateKey) {
   const CLASS_TO_REPORT_CATS = {
     car:     ["Car"],
     lcv:     ["LCV"],
-    truck2:  ["Truck 2 Axle", "Bus 2 Axle"],
+    bus:     ["Bus 2 Axle"],
+    truck2:  ["Truck 2 Axle"],
     mav:     ["Truck 3 Axle", "MAV"],
-    osv:     [],          // OSV has no direct report category — included in MAV
+    osv:     [],
     nontoll: [],
   };
 
@@ -1131,7 +1150,8 @@ function tlRecalcAll() {
 const MM_COL_CLASSES = [
   { key: "car",    label: "Car"          },
   { key: "lcv",    label: "LCV/Mini Bus" },
-  { key: "truck2", label: "Bus"          },
+  { key: "bus",    label: "Bus"          },
+  { key: "truck2", label: "Truck 2 Axle" },
   { key: "mav",    label: "MAV 3-6 Axl" },
   { key: "osv",    label: "OS V"         },
 ];
@@ -1145,6 +1165,7 @@ const MM_MONTH_NAMES = [
 /* Extract per-day summary from a saved tlData object */
 function _mmSummarise(data) {
   if (!data || !data.tableA) return null;
+  data = _tlMigrateBusTruck(data); // ensure bus key exists for old combined saves
   const paid = {}, exem = {}, viol = {}, classTotal = {};
   let paidTotal = 0, exemTotal = 0, violTotal = 0, classGrand = 0;
   MM_COL_CLASSES.forEach(c => {
