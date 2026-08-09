@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="audit-module.css?v=1">
     <link rel="stylesheet" href="analytics.css?v=3">
     <link rel="stylesheet" href="traffic-loss.css?v=3">
 </head>
@@ -419,6 +420,9 @@
         <button class="sb-btn sb-traffic-loss" id="trafficLossReportBtn">
             <i class="bi bi-speedometer2"></i> Traffic Loss Report
         </button>
+        <button class="sb-btn sb-btn-audit-module" id="sbDailyAuditModuleBtn">
+            <i class="bi bi-table"></i> Daily Audit & Master
+        </button>
     </div>
     </div>
 
@@ -455,7 +459,7 @@
 ───────────────────────────── -->
 <main class="col-lg-10">
 
-<div class="main-inner">
+<div id="mainInnerContent" class="main-inner">
 
     <!-- ── Topbar ── -->
     <header class="topbar">
@@ -855,6 +859,215 @@
     </div>
 
 </div><!-- /main-inner -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     DAILY AUDIT & MONTHLY MASTER MODULE
+     Sibling of main-inner inside <main> — toggles with mainInnerContent
+═══════════════════════════════════════════════════════════ -->
+<div id="daModuleWrapper" style="display:none;flex-direction:column;">
+
+    <!-- Top navigation bar -->
+    <div class="da-topbar">
+        <button class="da-back-btn" id="daBackToMainBtn" type="button">
+            <i class="bi bi-arrow-left"></i> Back to Audit
+        </button>
+        <span class="da-topbar-title"><i class="bi bi-table me-1"></i>Daily Audit &amp; Monthly Master</span>
+        <div class="da-nav-pills">
+            <button class="da-nav-pill active" data-panel="da-dashboard" type="button">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </button>
+            <button class="da-nav-pill" data-panel="da-daily" type="button">
+                <i class="bi bi-pencil-square"></i> Daily Audit
+            </button>
+            <button class="da-nav-pill" data-panel="da-monthly" type="button">
+                <i class="bi bi-calendar3"></i> Monthly Master
+            </button>
+            <button class="da-nav-pill" data-panel="da-analytics" type="button">
+                <i class="bi bi-bar-chart-fill"></i> Analytics
+            </button>
+            <button class="da-nav-pill" data-panel="da-comparison" type="button">
+                <i class="bi bi-arrow-left-right"></i> Compare Dates
+            </button>
+        </div>
+    </div>
+
+    <!-- ── DASHBOARD PANEL ── -->
+    <div id="da-dashboard" class="da-panel">
+        <div class="da-dash-header">
+            <h2><i class="bi bi-speedometer2"></i> Audit Dashboard</h2>
+            <input type="month" id="daDashMonthSel" class="da-month-sel">
+        </div>
+
+        <div class="da-dash-stats">
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Completed</div>
+                <div class="da-dash-stat-val green" id="daDashCompleted">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">In Progress</div>
+                <div class="da-dash-stat-val blue" id="daDashInProgress">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Not Started</div>
+                <div class="da-dash-stat-val" id="daDashNotStarted">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Total Days</div>
+                <div class="da-dash-stat-val amber" id="daDashTotal">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Total Paid</div>
+                <div class="da-dash-stat-val green" id="daDashPaid">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Violations</div>
+                <div class="da-dash-stat-val red" id="daDashViol">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Exemptions</div>
+                <div class="da-dash-stat-val amber" id="daDashExem">0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Revenue Loss</div>
+                <div class="da-dash-stat-val red" id="daDashLoss">₹0</div>
+            </div>
+            <div class="da-dash-stat">
+                <div class="da-dash-stat-lbl">Traffic Loss %</div>
+                <div class="da-dash-stat-val red" id="daDashLossPct">0.00%</div>
+            </div>
+        </div>
+
+        <div class="da-cal-title" id="daDashCalTitle">Month Year</div>
+        <div class="da-calendar" id="daDashCalendar"></div>
+    </div>
+
+    <!-- ── DAILY AUDIT PANEL ── -->
+    <div id="da-daily" class="da-panel" style="display:none;">
+        <div class="da-daily-header">
+            <h2 id="daDailyTitle">Daily Audit</h2>
+            <span id="daDailyStatusBadge" class="da-status-badge da-status-not_started">Not Started</span>
+        </div>
+
+        <!-- Grand Totals Bar -->
+        <div class="da-grand-totals" id="daDailyGrandBar">
+            <span>Paid: <strong id="daDailyGrandPaid">0</strong></span>
+            <span>Violation: <strong id="daDailyGrandViol">0</strong></span>
+            <span>Exemption: <strong id="daDailyGrandExem">0</strong></span>
+            <span>Unpaid: <strong id="daDailyGrandUnpaid">0</strong></span>
+            <span>Total Traffic: <strong id="daDailyGrandTraffic">0</strong></span>
+            <span class="da-grand-loss">Loss: <strong id="daDailyGrandLoss">₹0</strong></span>
+            <span class="da-grand-loss">Loss %: <strong id="daDailyGrandLossPct">0.00%</strong></span>
+        </div>
+
+        <div class="da-daily-actions">
+            <button class="da-btn da-btn-outline" id="daDailyBackBtn" type="button">
+                <i class="bi bi-arrow-left"></i> Back
+            </button>
+            <button class="da-btn da-btn-outline da-btn-sm" id="daDailyExportCsvBtn" type="button">
+                <i class="bi bi-download"></i> Export CSV
+            </button>
+            <button class="da-btn da-btn-primary" id="daDailySaveBtn" type="button">
+                <i class="bi bi-floppy2-fill"></i> Save Draft
+            </button>
+            <button class="da-btn da-btn-success" id="daDailyCompleteBtn" type="button">
+                <i class="bi bi-check-circle-fill"></i> Save &amp; Complete Audit
+            </button>
+        </div>
+
+        <!-- Form rendered by JS -->
+        <div id="daDailyFormWrap"></div>
+    </div>
+
+    <!-- ── MONTHLY MASTER PANEL ── -->
+    <div id="da-monthly" class="da-panel" style="display:none;">
+        <div class="da-mm-header">
+            <h2 id="daMonthlyTitle">Monthly Master</h2>
+            <input type="month" id="daMonthlyMonthSel" class="da-month-sel">
+            <button class="da-btn da-btn-outline da-btn-sm" id="daMonthlyExportCsvBtn" type="button">
+                <i class="bi bi-download"></i> Export CSV
+            </button>
+        </div>
+
+        <div class="da-mm-table-wrap">
+        <table class="da-mm-table">
+            <thead>
+                <!-- Group header -->
+                <tr>
+                    <th rowspan="2">Day</th>
+                    <th class="da-mm-group-th" colspan="3">Car</th>
+                    <th class="da-mm-group-th" colspan="3">LCV/Mini Bus</th>
+                    <th class="da-mm-group-th" colspan="3">Bus</th>
+                    <th class="da-mm-group-th" colspan="3">Truck 2 Axle</th>
+                    <th class="da-mm-group-th" colspan="3">MAV 3-6 Axle</th>
+                    <th class="da-mm-group-th" colspan="3">OSV</th>
+                    <th class="da-mm-group-nt" colspan="3">Non-Tollable</th>
+                    <th class="da-mm-group-tot" rowspan="2">Total Traffic</th>
+                    <th class="da-mm-group-tot" rowspan="2">Rev. Loss</th>
+                    <th rowspan="2">Status</th>
+                </tr>
+                <tr>
+                    <!-- Car -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- LCV -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- Bus -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- Truck -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- MAV -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- OSV -->
+                    <th>Paid</th><th>Viol</th><th>Exem</th>
+                    <!-- Non-Tollable -->
+                    <th>Viol</th><th>Exem</th><th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="daMonthlyTbody"></tbody>
+            <tfoot id="daMonthlyTfoot"></tfoot>
+        </table>
+        </div>
+    </div>
+
+    <!-- ── ANALYTICS PANEL ── -->
+    <div id="da-analytics" class="da-panel" style="display:none;">
+        <div class="da-analytics-header">
+            <h2><i class="bi bi-bar-chart-fill"></i> Analytics</h2>
+        </div>
+        <div class="da-analytics-range">
+            <label>From</label>
+            <input type="date" id="daAnalyticsStart">
+            <label>To</label>
+            <input type="date" id="daAnalyticsEnd">
+            <button class="da-btn da-btn-primary da-btn-sm" id="daAnalyticsApplyBtn" type="button">
+                <i class="bi bi-funnel-fill"></i> Apply Range
+            </button>
+            <small style="color:var(--text-faint);font-size:11px;">Leave blank to use the current month</small>
+        </div>
+        <div id="daAnalyticsBody"></div>
+    </div>
+
+    <!-- ── COMPARISON PANEL ── -->
+    <div id="da-comparison" class="da-panel" style="display:none;">
+        <div class="da-comp-header">
+            <h2><i class="bi bi-arrow-left-right"></i> Compare Dates</h2>
+        </div>
+        <div class="da-comp-controls">
+            <label>Date A</label>
+            <input type="date" id="daCompDateA">
+            <span style="color:var(--text-faint);font-size:13px;">vs</span>
+            <label>Date B</label>
+            <input type="date" id="daCompDateB">
+            <button class="da-btn da-btn-primary da-btn-sm" id="daCompRunBtn" type="button">
+                <i class="bi bi-bar-chart-line-fill"></i> Compare
+            </button>
+        </div>
+        <div id="daCompBody">
+            <div class="da-empty"><i class="bi bi-calendar2-range"></i> Select two dates above to compare.</div>
+        </div>
+    </div>
+
+</div><!-- /#daModuleWrapper -->
+
 </main>
 
 </div>
@@ -1406,6 +1619,25 @@
     </div>
 </div>
 
+<!-- DAILY AUDIT SUMMARY MODAL -->
+<div class="modal fade" id="daSummaryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle-fill" style="color:var(--green)"></i>
+                    Audit Summary
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="daSummaryBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toastContainer"></div>
 
@@ -1646,6 +1878,16 @@
 <script src="motion.js?v=4"></script>
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
+<script src="audit-module.js?v=1"></script>
+<script>
+    // Initialize the Daily Audit module once the page is ready.
+    // Use DOMContentLoaded fallback if the main app has already fired it.
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", daInit);
+    } else {
+        daInit();
+    }
+</script>
 
 <!-- Sidebar backdrop overlay (mobile) -->
 <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
