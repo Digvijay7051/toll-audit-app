@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="style.css?v=3">
     <link rel="stylesheet" href="analytics.css?v=3">
     <link rel="stylesheet" href="traffic-loss.css?v=3">
+    <link rel="stylesheet" href="excel-import.css?v=1">
 </head>
 <body>
 
@@ -411,6 +412,10 @@
         <button class="sb-btn" id="viewAuditHistoryBtn">
             <i class="bi bi-clock-history"></i> View Audit History
         </button>
+        <button class="sb-btn sb-import" id="xlImportBtn" type="button">
+            <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel Audit
+        </button>
+        <input type="file" id="xlImportFileInput" accept=".xlsx,.xls" style="display:none;">
         <button class="sb-btn sb-matrix" id="openAuditMatrixBtn"
                 data-bs-toggle="modal" data-bs-target="#auditMatrixModal">
             <i class="bi bi-grid-3x3"></i> Audit Matrix
@@ -1638,6 +1643,54 @@
 </div><!-- /#analyticsDashboardModal -->
 
 <!-- ═══════════════════════════════════════════════════════════
+     EXCEL IMPORT MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="xlImportModal" tabindex="-1" aria-labelledby="xlImportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content xl-import-modal-content">
+
+      <!-- Header -->
+      <div class="modal-header xl-import-header">
+        <div class="xl-import-header-left">
+          <div class="xl-import-icon"><i class="bi bi-file-earmark-arrow-up-fill"></i></div>
+          <div>
+            <h5 class="modal-title" id="xlImportModalLabel">Import Excel Audit Report</h5>
+            <div class="xl-import-subtitle">Review and edit before saving to the app</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body xl-import-body" id="xlImportReviewBody">
+        <div class="xl-import-empty">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <p>Upload your Excel file to begin</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer xl-import-footer">
+        <span class="xl-import-status" id="xlImportStatus"></span>
+        <div class="xl-import-footer-note">
+          <i class="bi bi-pencil-square"></i>
+          You can edit any cell above before confirming.
+        </div>
+        <div class="xl-import-footer-actions">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Cancel
+          </button>
+          <button type="button" class="btn xl-import-confirm-btn" id="xlImportConfirmBtn">
+            <i class="bi bi-check-circle-fill"></i> Confirm &amp; Load Audit
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1662,6 +1715,7 @@
 <script src="motion.js?v=4"></script>
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
+<script src="excel-import.js?v=1"></script>
 <!-- Sidebar backdrop overlay (mobile) -->
 <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 

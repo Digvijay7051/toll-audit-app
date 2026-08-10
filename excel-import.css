@@ -1,0 +1,277 @@
+/* ==========================================================
+   excel-import.css
+   Excel Import Modal — Review & Edit table
+========================================================== */
+
+/* ── Modal shell ── */
+.xl-import-modal-content {
+  background: var(--bg-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+/* ── Header ── */
+.xl-import-header {
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.xl-import-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.xl-import-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--blue-soft);
+  border: 1px solid rgba(76,141,255,.3);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.xl-import-header .modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.xl-import-subtitle {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+/* ── Body ── */
+.xl-import-body {
+  padding: 20px 20px 8px;
+  min-height: 200px;
+  background: var(--bg-mid);
+}
+
+/* ── Empty / Loading / Error states ── */
+.xl-import-empty,
+.xl-loading,
+.xl-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  gap: 12px;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+.xl-import-empty i,
+.xl-loading i,
+.xl-error i { font-size: 36px; }
+.xl-error { color: var(--red); }
+.xl-error i { color: var(--red); }
+
+/* ── Mode block (Violation / Exemption) ── */
+.xl-mode-block {
+  margin-bottom: 28px;
+}
+.xl-mode-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.xl-mode-violation {
+  background: var(--red-soft);
+  color: var(--red);
+  border: 1px solid rgba(229,72,77,.25);
+}
+.xl-mode-exemption {
+  background: var(--green-soft);
+  color: var(--green);
+  border: 1px solid rgba(47,182,115,.25);
+}
+
+/* ── Table scroll wrapper ── */
+.xl-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Review table ── */
+.xl-review-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 900px;
+}
+.xl-review-table th {
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  font-weight: 700;
+  padding: 8px 10px;
+  text-align: center;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+.xl-review-table th:first-child {
+  text-align: left;
+  min-width: 150px;
+}
+.xl-review-table td {
+  border: 1px solid var(--line);
+  padding: 4px 6px;
+  text-align: center;
+  vertical-align: middle;
+  background: var(--bg-mid);
+}
+.xl-review-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-lift);
+  white-space: nowrap;
+  padding-left: 10px;
+}
+
+/* ── Report count row (yellow equivalent) ── */
+.xl-report-row td {
+  background: rgba(255, 176, 32, .10) !important;
+}
+.xl-rc-label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--amber) !important;
+  letter-spacing: .02em;
+}
+.xl-rc-total {
+  font-weight: 700 !important;
+  color: var(--amber) !important;
+}
+
+/* ── Col total row ── */
+.xl-col-total-row td {
+  background: var(--bg-panel) !important;
+  font-weight: 700 !important;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.xl-col-total-row td:first-child {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* ── Row total cell ── */
+.xl-row-total {
+  font-weight: 700 !important;
+  color: var(--text-dim);
+}
+
+/* ── Editable inputs inside table ── */
+.xl-rc-input,
+.xl-cell-input {
+  width: 100%;
+  min-width: 44px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: center;
+  padding: 3px 4px;
+  transition: border-color .15s, background .15s;
+}
+.xl-rc-input:focus,
+.xl-cell-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  background: var(--bg-lift);
+  box-shadow: 0 0 0 2px var(--amber-soft);
+}
+.xl-rc-input:hover,
+.xl-cell-input:hover {
+  border-color: var(--line);
+  background: var(--bg-lift);
+}
+/* Style non-zero cells more prominently */
+.xl-cell-input:not([value="0"]) {
+  color: var(--blue);
+}
+
+/* ── Vehicle label column ── */
+.xl-veh-label {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Footer ── */
+.xl-import-footer {
+  background: var(--bg-dark);
+  border-top: 1px solid var(--line);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.xl-import-footer-note {
+  font-size: 12px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.xl-import-footer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.xl-import-status {
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 600;
+}
+.xl-import-confirm-btn {
+  background: linear-gradient(135deg, var(--blue), #3a7bd5);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: filter .15s, transform .1s;
+}
+.xl-import-confirm-btn:hover  { filter: brightness(1.08); color: #fff; }
+.xl-import-confirm-btn:active { transform: scale(.97); }
+
+/* ── Light theme overrides ── */
+body.light-theme .xl-import-modal-content { background: var(--bg-mid); border-color: var(--line); }
+body.light-theme .xl-import-header        { background: var(--bg-lift); border-bottom-color: var(--line); }
+body.light-theme .xl-import-footer        { background: var(--bg-lift); border-top-color: var(--line); }
+body.light-theme .xl-review-table th      { background: var(--bg-panel); color: var(--text-dim); border-color: var(--line); }
+body.light-theme .xl-review-table td      { border-color: var(--line); background: var(--bg-mid); }
+body.light-theme .xl-review-table td:first-child { background: var(--bg-lift); }
+body.light-theme .xl-col-total-row td     { background: var(--bg-panel) !important; }
+body.light-theme .xl-rc-input,
+body.light-theme .xl-cell-input           { color: var(--text); }
+body.light-theme .xl-rc-input:focus,
+body.light-theme .xl-cell-input:focus     { background: var(--bg-mid); }

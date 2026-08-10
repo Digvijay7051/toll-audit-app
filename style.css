@@ -692,6 +692,8 @@ input  { font-family: inherit; }
 .sb-btn.sb-matrix:hover  { background: var(--violet-soft); color: var(--violet); }
 .sb-btn.sb-office-report  { color: #217346; }
 .sb-btn.sb-office-report:hover  { background: rgba(33,115,70,.12); color: #217346; }
+.sb-btn.sb-import  { color: var(--blue); }
+.sb-btn.sb-import:hover  { background: var(--blue-soft); color: var(--blue); }
 
 .sb-section-label {
   font-family: var(--font-mono);
