@@ -275,3 +275,100 @@ body.light-theme .xl-rc-input,
 body.light-theme .xl-cell-input           { color: var(--text); }
 body.light-theme .xl-rc-input:focus,
 body.light-theme .xl-cell-input:focus     { background: var(--bg-mid); }
+
+/* ── Already Paid section ── */
+.xl-paid-section {
+  margin-top: 14px;
+  border: 1px solid rgba(255,176,32,.3);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255,176,32,.04);
+}
+.xl-paid-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255,176,32,.10);
+  border-bottom: 1px solid rgba(255,176,32,.2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+}
+.xl-paid-badge {
+  margin-left: auto;
+  background: var(--amber);
+  color: #1a1200;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 2px 9px;
+  min-width: 26px;
+  text-align: center;
+}
+.xl-paid-body {
+  padding: 12px 14px;
+}
+.xl-paid-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.xl-paid-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.xl-paid-row:last-child { border-bottom: none; }
+.xl-paid-row-cat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+.xl-paid-cat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.xl-paid-cat-count {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+.xl-paid-row-select {
+  flex: 1;
+}
+.xl-paid-mode-select {
+  width: 100%;
+  background: var(--bg-lift);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-base);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.xl-paid-mode-select:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-soft);
+}
+body.light-theme .xl-paid-section {
+  background: rgba(201,106,0,.04);
+  border-color: rgba(201,106,0,.25);
+}
+body.light-theme .xl-paid-header {
+  background: rgba(201,106,0,.08);
+  border-bottom-color: rgba(201,106,0,.18);
+}
+body.light-theme .xl-paid-mode-select {
+  background: var(--bg-mid);
+  border-color: var(--line);
+  color: var(--text);
+}

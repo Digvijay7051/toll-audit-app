@@ -1,113 +1,120 @@
 /* ==========================================================
    Toll Audit Assistant
-   excel-import.js
+   excel-import.js  v2
 
    Excel Report Upload → Auto-Audit → Review/Edit → Inject
    ──────────────────────────────────────────────────────────
-   Reads the user's audit Excel (Violation + Exemption matrix
-   format) and converts it into the app's auditDataStore
-   bucket so the audit appears as if done manually.
-
-   Excel format expected:
-     Sheet 1 (or named "Violation") OR both sections in one sheet:
-       Row with "Violation" heading → followed by matrix
-       Row with "Exemption" heading → followed by matrix
-
-     Matrix structure:
-       Header row (yellow): CAR | LCV/MINIBUS | Truck 2 Axle | ... (system report classes)
-       Row above headers: "Actual Class after Validate" label row
-       Data rows: actual vehicle name | count per system-class column
+   Handles the matrix format:
+     Row: "Violation" or "Exemption" heading
+     Row: "Class as per System Report"  (merged header, ignored)
+     Row: CAR | LCV/MINIBUS | Truck 2 Axle | … | Total   ← col headers
+     Row: "Actual Class after Validate" | 131 | 6 | …     ← report counts (yellow)
+     Row: CAR | 122 | | …                                  ← data rows
+     …
+     Row: Total | 131 | 6 | …                              ← skip
 ========================================================== */
 
 /* ─────────────────────────────────────────────────────────
-   COLUMN → APP CATEGORY MAPPING
-   Maps Excel column header text → REPORT_CATEGORIES key
+   COLUMN → APP CATEGORY   (text matching, case-insensitive)
 ───────────────────────────────────────────────────────── */
 const XL_COL_MAP = {
-  "car":            "Car",
-  "lcv":            "LCV",
-  "lcv/minibus":    "LCV",
-  "minibus":        "LCV",
-  "truck 2 axle":   "Truck 2 Axle",
-  "truck2axle":     "Truck 2 Axle",
-  "truck 3 axle":   "Truck 3 Axle",
-  "truck3axle":     "Truck 3 Axle",
-  "mav":            "MAV",
-  "mav 4-6 axle":   "MAV",
-  "mav 4 -6 axle":  "MAV",
-  "mav 4–6 axle":   "MAV",
-  "mav 4 – 6 axle": "MAV",
-  "auto":           "Auto",
-  "tractor":        "Tractor",
-  "bus 2 axle":     "Bus 2 Axle",
-  "bus2axle":       "Bus 2 Axle",
+  "car":              "Car",
+  "lcv":              "LCV",
+  "lcv/minibus":      "LCV",
+  "lcv / minibus":    "LCV",
+  "minibus":          "LCV",
+  "truck 2 axle":     "Truck 2 Axle",
+  "truck2 axle":      "Truck 2 Axle",
+  "truck 3 axle":     "Truck 3 Axle",
+  "truck3 axle":      "Truck 3 Axle",
+  "mav":              "MAV",
+  "mav 4-6 axle":     "MAV",
+  "mav 4 -6 axle":    "MAV",
+  "mav 4 - 6 axle":   "MAV",
+  "mav 4–6 axle":     "MAV",
+  "mav 4 – 6 axle":   "MAV",
+  "auto":             "Auto",
+  "tractor":          "Tractor",
+  "bus 2 axle":       "Bus 2 Axle",
+  "bus2 axle":        "Bus 2 Axle",
 };
 
 /* ─────────────────────────────────────────────────────────
-   ROW LABEL → APP VEHICLE CLASS MAPPING
-   Maps Excel row label → VEHICLE_CLASSES key
+   ROW LABEL → APP VEHICLE CLASS
 ───────────────────────────────────────────────────────── */
 const XL_ROW_MAP = {
-  "car":                     "Car",
-  "lcv":                     "LCV",
-  "lcv/minibus":             "LCV",
-  "minibus":                 "LCV",
-  "truck 2 axle":            "Truck 2 Axle",
-  "truck2axle":              "Truck 2 Axle",
-  "truck 3 axle":            "Truck 3 Axle",
-  "truck3axle":              "Truck 3 Axle",
-  "mav":                     "MAV",
-  "mav 4-6 axle":            "MAV",
-  "mav 4 -6 axle":           "MAV",
-  "mav 4–6 axle":            "MAV",
-  "mav 4 – 6 axle":          "MAV",
-  "auto":                    "Auto",
-  "tractor":                 "Tractor",
-  "bus 2 axle":              "Bus 2 Axle",
-  "bus2axle":                "Bus 2 Axle",
-  "forcefully":              "Forcefully",
-  "force fully":             "Forcefully",
-  "fake transaction":        "Fake Violation",
-  "fake violation":          "Fake Violation",
-  "fake exemption":          "Fake Exemption",
-  "bike":                    "Bike",
-  "ambulance":               "Ambulance",
-  "police":                  "Police",
-  "govt. vehicle":           "Government Vehicle",
-  "govt vehicle":            "Government Vehicle",
-  "government vehicle":      "Government Vehicle",
-  "army vehicle":            "Army Vehicle",
-  "concessionaire":          "Concessionaire",
-  "jcb":                     "JCB",
-  "pass monthly/local":      "Has Pass",
-  "pass monthly":            "Has Pass",
-  "monthly pass":            "Has Pass",
-  "already paid found with another  txn": "Paid (Cash)",
-  "already paid found with another txn":  "Paid (Cash)",
-  "already paid":            "Paid (Cash)",
+  "car":                                   "Car",
+  "lcv":                                   "LCV",
+  "lcv/minibus":                           "LCV",
+  "lcv / minibus":                         "LCV",
+  "minibus":                               "LCV",
+  "truck 2 axle":                          "Truck 2 Axle",
+  "truck2 axle":                           "Truck 2 Axle",
+  "truck 3 axle":                          "Truck 3 Axle",
+  "truck3 axle":                           "Truck 3 Axle",
+  "mav":                                   "MAV",
+  "mav 4-6 axle":                          "MAV",
+  "mav 4 -6 axle":                         "MAV",
+  "mav 4 - 6 axle":                        "MAV",
+  "mav 4–6 axle":                          "MAV",
+  "mav 4 – 6 axle":                        "MAV",
+  "mav 4 - 6  axle":                       "MAV",
+  "auto":                                  "Auto",
+  "tractor":                               "Tractor",
+  "bus 2 axle":                            "Bus 2 Axle",
+  "bus2 axle":                             "Bus 2 Axle",
+  "forcefully":                            "Forcefully",
+  "force fully":                           "Forcefully",
+  "fake transaction":                      "Fake Violation",
+  "fake violation":                        "Fake Violation",
+  "fake exemption":                        "Fake Exemption",
+  "bike":                                  "Bike",
+  "ambulance":                             "Ambulance",
+  "police":                                "Police",
+  "govt. vehicle":                         "Government Vehicle",
+  "govt vehicle":                          "Government Vehicle",
+  "government vehicle":                    "Government Vehicle",
+  "army vehicle":                          "Army Vehicle",
+  "concessionaire":                        "Concessionaire",
+  "jcb":                                   "JCB",
+  "pass monthly/local":                    "Has Pass",
+  "pass monthly":                          "Has Pass",
+  "monthly pass":                          "Has Pass",
+  /* "Already Paid" rows — stored specially, asked payment mode at review step */
+  "already paid found with another  txn":  "_ALREADY_PAID",
+  "already paid found with another txn":   "_ALREADY_PAID",
+  "already paid":                          "_ALREADY_PAID",
 };
 
+/* REPORT_CATEGORIES in the app */
+const XL_CATS = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
+
+/* Payment mode options for "Already Paid" dialog */
+const XL_PAID_VEHICLES = ["Paid (Cash)", "Paid (ETC)", "Paid (Digital)"];
+
+/* ─────────────────────────────────────────────────────────
+   NORMALIZE HELPER
+───────────────────────────────────────────────────────── */
 function _normalizeKey(str) {
-  return String(str || "").toLowerCase().trim()
-    .replace(/\s+/g, " ")
-    .replace(/–/g, "-");
+  return String(str || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\u2013|\u2014/g, "-")   // en-dash, em-dash → hyphen
+    .replace(/\s+/g, " ");
 }
 
 /* ─────────────────────────────────────────────────────────
    PARSE EXCEL FILE
-   Returns: { ok, error, violation: matrix, exemption: matrix }
-   matrix = { reportCounts: {Cat: N}, rows: [{vehicle, counts:{Cat:N}}] }
 ───────────────────────────────────────────────────────── */
 function parseAuditExcel(file) {
   return new Promise((resolve) => {
     if (typeof XLSX === "undefined") {
       return resolve({ ok: false, error: "Excel library not loaded. Refresh the page." });
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb  = XLSX.read(e.target.result, { type: "binary" });
+        const wb     = XLSX.read(e.target.result, { type: "binary" });
         const result = _extractBothModes(wb);
         resolve(result);
       } catch (err) {
@@ -119,69 +126,80 @@ function parseAuditExcel(file) {
   });
 }
 
-/* Try to find Violation and Exemption matrices in the workbook */
+/* ── Try every strategy to find Violation + Exemption ── */
 function _extractBothModes(wb) {
   let violation = null;
   let exemption = null;
 
-  /* Strategy 1: separate sheets named "Violation" / "Exemption" */
+  /* Strategy 1: sheets explicitly named "Violation" / "Exemption" */
   wb.SheetNames.forEach(name => {
     const norm = _normalizeKey(name);
-    const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
-    if (norm === "violation" && !violation)  violation = _parseMatrix(data);
-    if (norm === "exemption" && !exemption)  exemption = _parseMatrix(data);
+    if (norm.includes("violation") && !violation) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+      violation = _parseMatrix(rows);
+    }
+    if (norm.includes("exemption") && !exemption) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+      exemption = _parseMatrix(rows);
+    }
   });
 
-  /* Strategy 2: first sheet contains both, separated by "Violation" / "Exemption" heading rows */
-  if (!violation || !exemption) {
-    const sheet0 = wb.Sheets[wb.SheetNames[0]];
-    const allRows = XLSX.utils.sheet_to_json(sheet0, { header: 1, defval: "" });
-    const { vBlock, eBlock } = _splitByHeadings(allRows);
-    if (!violation && vBlock.length) violation = _parseMatrix(vBlock);
-    if (!exemption && eBlock.length) exemption = _parseMatrix(eBlock);
-  }
+  /* Strategy 2: all sheets stacked — scan every sheet for both headings */
+  wb.SheetNames.forEach(name => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+    const { vBlock, eBlock } = _splitByHeadings(rows);
+    if (!violation && vBlock.length > 2) violation = _parseMatrix(vBlock);
+    if (!exemption && eBlock.length > 2) exemption = _parseMatrix(eBlock);
+  });
 
-  /* Fallback: treat first sheet as Violation, second as Exemption */
+  /* Strategy 3: first sheet = Violation, second = Exemption (fallback) */
   if (!violation && wb.SheetNames[0]) {
-    const d = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:"" });
-    violation = _parseMatrix(d);
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+    violation = _parseMatrix(rows);
   }
   if (!exemption && wb.SheetNames[1]) {
-    const d = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]], { header:1, defval:"" });
-    exemption = _parseMatrix(d);
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]], { header: 1, defval: "" });
+    exemption = _parseMatrix(rows);
   }
 
   if (!violation && !exemption) {
-    return { ok: false, error: "Koi valid audit matrix nahi mila Excel mein." };
+    return { ok: false, error: "Koi valid audit matrix nahi mila Excel mein. Check karein ki sheet mein 'Violation' / 'Exemption' heading ho aur column headers (CAR, LCV…) ho." };
   }
   return { ok: true, violation, exemption };
 }
 
-/* Split a flat array of rows into Violation block and Exemption block */
+/* ── Split flat row array into Violation block and Exemption block ── */
 function _splitByHeadings(rows) {
   let vStart = -1, eStart = -1;
   rows.forEach((row, i) => {
-    const first = _normalizeKey(String(row[0] || "") + String(row[1] || "") + String(row[2] || ""));
-    if (first.includes("violation") && vStart === -1) vStart = i;
-    if (first.includes("exemption") && eStart === -1) eStart = i;
+    /* Check any cell in the row for the heading word */
+    const rowText = row.map(c => _normalizeKey(String(c))).join(" ");
+    if (rowText.includes("violation") && vStart === -1 && !rowText.includes("exemption")) vStart = i;
+    if (rowText.includes("exemption") && eStart === -1) eStart = i;
   });
-  const vBlock = vStart >= 0 ? rows.slice(vStart, eStart >= 0 && eStart > vStart ? eStart : undefined) : [];
-  const eBlock = eStart >= 0 ? rows.slice(eStart) : [];
+  const vEnd    = eStart >= 0 && eStart > vStart ? eStart : undefined;
+  const vBlock  = vStart >= 0 ? rows.slice(vStart, vEnd) : [];
+  const eBlock  = eStart >= 0 ? rows.slice(eStart) : [];
   return { vBlock, eBlock };
 }
 
-/* Parse one matrix block into { reportCounts, vehicleRows } */
+/* ─────────────────────────────────────────────────────────
+   CORE PARSER
+   Finds the column-header row (CAR / LCV…), then:
+     - row immediately after = report counts ("Actual Class after Validate")
+     - rows after that      = actual vehicle data
+───────────────────────────────────────────────────────── */
 function _parseMatrix(rows) {
   if (!rows || rows.length < 3) return null;
 
-  /* Find the column-header row (contains "CAR" or "LCV" etc.) */
+  /* ── Step 1: find column-header row ── */
   let colHeaderIdx = -1;
   let colHeaders   = [];
 
   for (let i = 0; i < rows.length; i++) {
-    const row  = rows[i];
-    const norm = row.map(c => _normalizeKey(String(c)));
-    if (norm.some(c => XL_COL_MAP[c])) {
+    const norm = rows[i].map(c => _normalizeKey(String(c)));
+    const matchCount = norm.filter(c => !!XL_COL_MAP[c]).length;
+    if (matchCount >= 2) {   /* at least 2 category columns found = confident match */
       colHeaderIdx = i;
       colHeaders   = norm;
       break;
@@ -189,59 +207,70 @@ function _parseMatrix(rows) {
   }
   if (colHeaderIdx < 0) return null;
 
-  /* Map column index → REPORT_CATEGORIES key */
-  const colIndexToCategory = {};
+  /* ── Step 2: map column index → REPORT_CATEGORIES ── */
+  const colIdxToCat = {};
   colHeaders.forEach((h, idx) => {
-    if (XL_COL_MAP[h]) colIndexToCategory[idx] = XL_COL_MAP[h];
+    if (XL_COL_MAP[h]) colIdxToCat[idx] = XL_COL_MAP[h];
   });
-
-  const validCols = Object.keys(colIndexToCategory).map(Number);
+  const validCols = Object.keys(colIdxToCat).map(Number);
   if (validCols.length === 0) return null;
 
-  /* Report counts row — immediately before or after the col header row
-     Look for the row where the values in category columns are numbers > 0 */
+  /* ── Step 3: find report-counts row ──
+     It immediately follows the col-header row, and its first cell is
+     either blank OR "Actual Class after Validate" (any variation).
+     We scan up to 3 rows ahead to be robust. */
   let reportCounts = {};
-  const rptRowIdx  = colHeaderIdx + 1;   /* yellow row is typically right after headers */
-  if (rptRowIdx < rows.length) {
-    const rptRow = rows[rptRowIdx];
-    const firstCell = _normalizeKey(String(rptRow[0] || ""));
-    /* If first cell is "actual class after validate" or blank, it's the yellow report row */
-    if (firstCell === "" || firstCell.includes("actual") || firstCell.includes("validate")) {
+  let reportRowIdx = -1;
+
+  for (let ri = colHeaderIdx + 1; ri <= Math.min(colHeaderIdx + 3, rows.length - 1); ri++) {
+    const row       = rows[ri];
+    const firstCell = _normalizeKey(String(row[0] || ""));
+    const isLabelRow = firstCell === "" ||
+                       firstCell.includes("actual") ||
+                       firstCell.includes("validate") ||
+                       firstCell.includes("class after");
+
+    /* Also accept if the row has numbers in the category columns */
+    const hasNumbers = validCols.some(ci => {
+      const v = parseFloat(String(row[ci] || "").replace(/,/g,""));
+      return !isNaN(v) && v > 0;
+    });
+
+    if (isLabelRow || (hasNumbers && firstCell !== "total")) {
+      reportRowIdx = ri;
       validCols.forEach(ci => {
-        const cat = colIndexToCategory[ci];
-        const val = parseInt(rptRow[ci], 10) || 0;
-        if (!reportCounts[cat] || val > reportCounts[cat]) reportCounts[cat] = val;
+        const cat = colIdxToCat[ci];
+        const raw = String(row[ci] || "").replace(/,/g, "");
+        const val = parseInt(raw, 10) || 0;
+        if (val > 0) reportCounts[cat] = val;
       });
+      break;
     }
   }
-  /* If still empty, try row before col headers */
-  if (Object.keys(reportCounts).length === 0 && colHeaderIdx > 0) {
-    const rptRow2 = rows[colHeaderIdx - 1];
-    validCols.forEach(ci => {
-      const cat = colIndexToCategory[ci];
-      const val = parseInt(rptRow2[ci], 10) || 0;
-      if (!reportCounts[cat] || val > reportCounts[cat]) reportCounts[cat] = val;
-    });
-  }
 
-  /* Data rows — everything after the report-count row until "Total" */
+  /* ── Step 4: data rows ── */
   const vehicleRows = [];
-  const dataStart   = rptRowIdx + 1;
+  const dataStart   = (reportRowIdx >= 0 ? reportRowIdx : colHeaderIdx) + 1;
 
   for (let i = dataStart; i < rows.length; i++) {
     const row    = rows[i];
     const label  = _normalizeKey(String(row[0] || ""));
-    if (!label || label === "total" || label.includes("class as per")) continue;
+
+    if (!label) continue;
+    if (label === "total" || label.startsWith("total")) continue;
+    if (label.includes("class as per") || label.includes("system report")) continue;
 
     const appVehicle = XL_ROW_MAP[label];
-    if (!appVehicle) continue;   /* skip unmapped rows */
+    if (!appVehicle) continue;
 
     const counts = {};
     validCols.forEach(ci => {
-      const cat = colIndexToCategory[ci];
-      const val = parseInt(row[ci], 10) || 0;
+      const cat = colIdxToCat[ci];
+      const raw = String(row[ci] || "").replace(/,/g, "");
+      const val = parseInt(raw, 10) || 0;
       if (val > 0) counts[cat] = (counts[cat] || 0) + val;
     });
+
     if (Object.values(counts).some(v => v > 0)) {
       vehicleRows.push({ vehicle: appVehicle, counts });
     }
@@ -251,113 +280,75 @@ function _parseMatrix(rows) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   CONVERT PARSED MATRIX → AUDIT BUCKET
-   Injects into auditDataStore for the selected date.
-   Each cell value = that many transactions of that vehicle
-   type in that (mode, category) slot.
-───────────────────────────────────────────────────────── */
-function matrixToBucket(violation, exemption, dateKey) {
-  const bucket = (typeof createEmptyAuditBucket === "function")
-    ? createEmptyAuditBucket()
-    : _fallbackEmptyBucket();
-
-  _fillMode(bucket, "Violation", violation);
-  _fillMode(bucket, "Exemption", exemption);
-  return bucket;
-}
-
-function _fallbackEmptyBucket() {
-  const bucket = { _meta: { resolved: false, resolution: null, resolvedAt: null } };
-  ["Violation", "Exemption"].forEach(mode => {
-    bucket[mode] = {};
-    ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"].forEach(cat => {
-      bucket[mode][cat] = { reportCount: 0, transactions: [], vehicleCounts: {} };
-    });
-  });
-  return bucket;
-}
-
-function _fillMode(bucket, modeName, matrix) {
-  if (!matrix) return;
-  const modeData = bucket[modeName];
-  if (!modeData) return;
-
-  /* Set reportCounts */
-  Object.entries(matrix.reportCounts || {}).forEach(([cat, count]) => {
-    if (modeData[cat]) modeData[cat].reportCount = count;
-  });
-
-  /* Build transactions from vehicleRows */
-  matrix.vehicleRows.forEach(({ vehicle, counts }) => {
-    Object.entries(counts).forEach(([cat, count]) => {
-      if (!modeData[cat]) return;
-      const catData = modeData[cat];
-      for (let n = 0; n < count; n++) {
-        const txnNo = catData.transactions.length + 1;
-        catData.transactions.push({
-          transactionNo: txnNo,
-          actualVehicle: vehicle,
-          comment:       "",
-          timestamp:     new Date().toISOString()
-        });
-        if (typeof catData.vehicleCounts[vehicle] !== "number") catData.vehicleCounts[vehicle] = 0;
-        catData.vehicleCounts[vehicle]++;
-      }
-    });
-  });
-}
-
-/* ─────────────────────────────────────────────────────────
    BUILD REVIEW HTML
-   Shows a confirmation table the user can check before saving.
+   Colors are purely for UI clarity (not from Excel colors).
+   Violation = red-ish label, Exemption = green-ish label.
+   "Already Paid" rows get a special payment-mode selector.
 ───────────────────────────────────────────────────────── */
 function buildImportReviewHtml(violation, exemption) {
-  const CATS = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
 
   function modeTable(modeName, matrix) {
-    if (!matrix) return `<p class="xl-import-empty">No ${modeName} data found.</p>`;
+    if (!matrix) {
+      return `<div class="xl-mode-block">
+        <div class="xl-mode-label xl-mode-${modeName.toLowerCase()}">${modeName}</div>
+        <p class="xl-import-empty" style="padding:16px 0;font-size:13px;color:var(--text-faint);">
+          <i class="bi bi-info-circle"></i> Is mode ka koi data nahi mila.
+        </p>
+      </div>`;
+    }
 
     const rc  = matrix.reportCounts || {};
-    const veh = {};
+    /* vehicleRows indexed by vehicle name → { cat: count } */
+    const vehMap = {};
     (matrix.vehicleRows || []).forEach(({ vehicle, counts }) => {
+      if (!vehMap[vehicle]) vehMap[vehicle] = {};
       Object.entries(counts).forEach(([cat, n]) => {
-        if (!veh[cat]) veh[cat] = {};
-        veh[cat][vehicle] = (veh[cat][vehicle] || 0) + n;
+        vehMap[vehicle][cat] = (vehMap[vehicle][cat] || 0) + n;
       });
     });
 
-    /* Collect all vehicles that appear */
-    const allVehicles = [...new Set((matrix.vehicleRows || []).map(r => r.vehicle))];
+    const allVehicles = Object.keys(vehMap);
+    /* Separate already-paid rows from normal rows */
+    const normalVehicles = allVehicles.filter(v => v !== "_ALREADY_PAID");
+    const hasPaidRow     = !!vehMap["_ALREADY_PAID"];
+    const paidCounts     = vehMap["_ALREADY_PAID"] || {};
+    const paidTotal      = Object.values(paidCounts).reduce((a,b)=>a+b,0);
 
     let html = `
       <div class="xl-mode-block">
-        <div class="xl-mode-label xl-mode-${modeName.toLowerCase()}">${modeName}</div>
+        <div class="xl-mode-label xl-mode-${modeName.toLowerCase()}">${modeName}</div>`;
+
+    /* ── Main matrix table ── */
+    html += `
         <div class="xl-table-scroll">
         <table class="xl-review-table" id="xlRevTable_${modeName}">
           <thead>
             <tr>
               <th>Actual Vehicle</th>
-              ${CATS.map(c => `<th>${c}</th>`).join("")}
+              ${XL_CATS.map(c => `<th>${c}</th>`).join("")}
               <th>Row Total</th>
             </tr>
             <tr class="xl-report-row">
-              <td class="xl-rc-label">System Report Count</td>
-              ${CATS.map(c => `<td class="xl-rc-cell" data-mode="${modeName}" data-cat="${c}">
+              <td class="xl-rc-label">
+                <i class="bi bi-clipboard-data-fill" style="margin-right:5px;"></i>
+                System Report Count
+              </td>
+              ${XL_CATS.map(c => `<td>
                 <input type="number" class="xl-rc-input" min="0" value="${rc[c] || 0}"
                   data-mode="${modeName}" data-cat="${c}">
               </td>`).join("")}
-              <td class="xl-rc-total">${CATS.reduce((s,c) => s + (rc[c]||0), 0)}</td>
+              <td class="xl-rc-total">${XL_CATS.reduce((s,c)=>s+(rc[c]||0),0)}</td>
             </tr>
           </thead>
           <tbody>`;
 
-    allVehicles.forEach(vehicle => {
-      const rowCounts = CATS.map(c => (veh[c] && veh[c][vehicle]) || 0);
-      const rowTotal  = rowCounts.reduce((a,b) => a+b, 0);
+    normalVehicles.forEach(vehicle => {
+      const rowCounts = XL_CATS.map(c => (vehMap[vehicle] && vehMap[vehicle][c]) || 0);
+      const rowTotal  = rowCounts.reduce((a,b)=>a+b,0);
       if (rowTotal === 0) return;
       html += `<tr data-vehicle="${vehicle}">
         <td class="xl-veh-label">${vehicle}</td>
-        ${CATS.map((c, i) => `<td>
+        ${XL_CATS.map((c, i) => `<td>
           <input type="number" class="xl-cell-input" min="0" value="${rowCounts[i]}"
             data-mode="${modeName}" data-cat="${c}" data-vehicle="${vehicle}">
         </td>`).join("")}
@@ -370,15 +361,51 @@ function buildImportReviewHtml(violation, exemption) {
           <tfoot>
             <tr class="xl-col-total-row">
               <td>Col Total</td>
-              ${CATS.map(c => `<td class="xl-col-total" data-mode="${modeName}" data-cat="${c}">
-                ${Object.values(veh[c]||{}).reduce((a,b)=>a+b,0)}
-              </td>`).join("")}
+              ${XL_CATS.map(c => {
+                const sum = normalVehicles.reduce((s,v) => s + ((vehMap[v]||{})[c]||0), 0);
+                return `<td class="xl-col-total" data-mode="${modeName}" data-cat="${c}">${sum}</td>`;
+              }).join("")}
               <td></td>
             </tr>
           </tfoot>
         </table>
-        </div>
-      </div>`;
+        </div>`;
+
+    /* ── Already Paid section ── */
+    if (hasPaidRow && paidTotal > 0) {
+      html += `
+        <div class="xl-paid-section" data-mode="${modeName}">
+          <div class="xl-paid-header">
+            <i class="bi bi-cash-coin"></i>
+            Already Paid Transactions Found
+            <span class="xl-paid-badge">${paidTotal}</span>
+          </div>
+          <div class="xl-paid-body">
+            <p class="xl-paid-hint">
+              Kuch transactions "Already Paid" category mein hain.
+              Har category ke liye payment mode select karo — woh transactions usi mode mein add ho jaayenge.
+            </p>
+            ${XL_CATS.filter(c => (paidCounts[c]||0) > 0).map(c => `
+              <div class="xl-paid-row">
+                <div class="xl-paid-row-cat">
+                  <span class="xl-paid-cat-label">${c}</span>
+                  <span class="xl-paid-cat-count">${paidCounts[c]} transactions</span>
+                </div>
+                <div class="xl-paid-row-select">
+                  <select class="xl-paid-mode-select"
+                    data-mode="${modeName}" data-cat="${c}" data-count="${paidCounts[c]}">
+                    <option value="">-- Select payment mode --</option>
+                    <option value="Paid (Cash)">Cash</option>
+                    <option value="Paid (ETC)">ETC</option>
+                    <option value="Paid (Digital)">Digital</option>
+                  </select>
+                </div>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    }
+
+    html += `</div>`;
     return html;
   }
 
@@ -386,36 +413,43 @@ function buildImportReviewHtml(violation, exemption) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   COLLECT EDITED DATA FROM REVIEW TABLE
-   Returns updated { violation, exemption } matrices from DOM.
+   COLLECT EDITED MATRICES FROM DOM
 ───────────────────────────────────────────────────────── */
 function collectEditedMatrices() {
-  const CATS = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
   const result = { violation: null, exemption: null };
 
   ["Violation", "Exemption"].forEach(modeName => {
     const reportCounts = {};
     const vehicleMap   = {};
 
-    /* Collect report counts */
+    /* Fixed report counts */
     document.querySelectorAll(`.xl-rc-input[data-mode="${modeName}"]`).forEach(inp => {
-      const cat = inp.dataset.cat;
-      reportCounts[cat] = parseInt(inp.value, 10) || 0;
+      reportCounts[inp.dataset.cat] = parseInt(inp.value, 10) || 0;
     });
 
-    /* Collect vehicle counts per cell */
+    /* Cell counts */
     document.querySelectorAll(`.xl-cell-input[data-mode="${modeName}"]`).forEach(inp => {
-      const cat     = inp.dataset.cat;
-      const vehicle = inp.dataset.vehicle;
-      const val     = parseInt(inp.value, 10) || 0;
+      const val = parseInt(inp.value, 10) || 0;
       if (val > 0) {
+        const { cat, vehicle } = inp.dataset;
         if (!vehicleMap[vehicle]) vehicleMap[vehicle] = {};
         vehicleMap[vehicle][cat] = (vehicleMap[vehicle][cat] || 0) + val;
       }
     });
 
-    const vehicleRows = Object.entries(vehicleMap).map(([vehicle, counts]) => ({ vehicle, counts }));
+    /* Already-paid selects — add to corresponding paid-vehicle type */
+    document.querySelectorAll(`.xl-paid-mode-select[data-mode="${modeName}"]`).forEach(sel => {
+      const payVehicle = sel.value;
+      if (!payVehicle) return;
+      const cat   = sel.dataset.cat;
+      const count = parseInt(sel.dataset.count, 10) || 0;
+      if (count > 0) {
+        if (!vehicleMap[payVehicle]) vehicleMap[payVehicle] = {};
+        vehicleMap[payVehicle][cat] = (vehicleMap[payVehicle][cat] || 0) + count;
+      }
+    });
 
+    const vehicleRows = Object.entries(vehicleMap).map(([vehicle, counts]) => ({ vehicle, counts }));
     result[modeName.toLowerCase()] = { reportCounts, vehicleRows };
   });
 
@@ -423,10 +457,61 @@ function collectEditedMatrices() {
 }
 
 /* ─────────────────────────────────────────────────────────
-   RECALCULATE ROW & COLUMN TOTALS IN REVIEW TABLE
+   CONVERT MATRICES → AUDIT BUCKET
 ───────────────────────────────────────────────────────── */
-function recalcReviewTotals(tableId) {
-  const table = document.getElementById(tableId);
+function matrixToBucket(violation, exemption) {
+  const bucket = (typeof createEmptyAuditBucket === "function")
+    ? createEmptyAuditBucket()
+    : _fallbackEmptyBucket();
+
+  _fillMode(bucket, "Violation", violation);
+  _fillMode(bucket, "Exemption", exemption);
+  return bucket;
+}
+
+function _fallbackEmptyBucket() {
+  const b = { _meta: { resolved: false, resolution: null, resolvedAt: null } };
+  ["Violation","Exemption"].forEach(mode => {
+    b[mode] = {};
+    XL_CATS.forEach(cat => {
+      b[mode][cat] = { reportCount: 0, transactions: [], vehicleCounts: {} };
+    });
+  });
+  return b;
+}
+
+function _fillMode(bucket, modeName, matrix) {
+  if (!matrix) return;
+  const modeData = bucket[modeName];
+  if (!modeData) return;
+
+  Object.entries(matrix.reportCounts || {}).forEach(([cat, count]) => {
+    if (modeData[cat]) modeData[cat].reportCount = count;
+  });
+
+  matrix.vehicleRows.forEach(({ vehicle, counts }) => {
+    Object.entries(counts).forEach(([cat, count]) => {
+      if (!modeData[cat]) return;
+      const catData = modeData[cat];
+      for (let n = 0; n < count; n++) {
+        catData.transactions.push({
+          transactionNo: catData.transactions.length + 1,
+          actualVehicle: vehicle,
+          comment:       "",
+          timestamp:     new Date().toISOString()
+        });
+        if (typeof catData.vehicleCounts[vehicle] !== "number") catData.vehicleCounts[vehicle] = 0;
+        catData.vehicleCounts[vehicle]++;
+      }
+    });
+  });
+}
+
+/* ─────────────────────────────────────────────────────────
+   LIVE RECALC — row & col totals
+───────────────────────────────────────────────────────── */
+function recalcReviewTotals(modeName) {
+  const table = document.getElementById(`xlRevTable_${modeName}`);
   if (!table) return;
 
   /* Row totals */
@@ -438,9 +523,7 @@ function recalcReviewTotals(tableId) {
   });
 
   /* Col totals */
-  const CATS = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
-  const mode = tableId.replace("xlRevTable_", "");
-  CATS.forEach(cat => {
+  XL_CATS.forEach(cat => {
     let colSum = 0;
     table.querySelectorAll(`.xl-cell-input[data-cat="${cat}"]`).forEach(inp => {
       colSum += parseInt(inp.value,10) || 0;
@@ -449,7 +532,7 @@ function recalcReviewTotals(tableId) {
     if (colCell) colCell.textContent = colSum;
   });
 
-  /* Report count row total */
+  /* Report-count row total */
   let rcTotal = 0;
   table.querySelectorAll(".xl-rc-input").forEach(inp => rcTotal += parseInt(inp.value,10)||0);
   const rcTotalCell = table.querySelector(".xl-rc-total");
@@ -457,14 +540,38 @@ function recalcReviewTotals(tableId) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   INIT — wire up the Import button in the sidebar
+   VALIDATE before confirm — warn if paid selects are empty
+───────────────────────────────────────────────────────── */
+function _validateBeforeConfirm() {
+  const empties = document.querySelectorAll(".xl-paid-mode-select");
+  let unset = 0;
+  empties.forEach(s => { if (!s.value) unset++; });
+  if (unset > 0) {
+    return confirm(
+      `${unset} "Already Paid" row(s) ka payment mode select nahi kiya.\n\n` +
+      "Woh transactions skip ho jayenge.\n\nPhir bhi continue karein?"
+    );
+  }
+  return true;
+}
+
+/* ─────────────────────────────────────────────────────────
+   INIT
 ───────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
 
   const importBtn = document.getElementById("xlImportBtn");
   const fileInput = document.getElementById("xlImportFileInput");
   const modal     = document.getElementById("xlImportModal");
-  const bsModal   = modal ? new bootstrap.Modal(modal) : null;
+  let   bsModal   = null;
+
+  /* Lazy-init Bootstrap modal only after library loads */
+  function getModal() {
+    if (!bsModal && modal && typeof bootstrap !== "undefined") {
+      bsModal = new bootstrap.Modal(modal);
+    }
+    return bsModal;
+  }
 
   if (importBtn) {
     importBtn.addEventListener("click", () => {
@@ -477,61 +584,58 @@ document.addEventListener("DOMContentLoaded", () => {
       const file = fileInput.files[0];
       if (!file) return;
 
-      /* Show loading */
-      const reviewBody  = document.getElementById("xlImportReviewBody");
-      const statusEl    = document.getElementById("xlImportStatus");
-      if (reviewBody) reviewBody.innerHTML = `<div class="xl-loading"><i class="bi bi-hourglass-split"></i> Parsing Excel…</div>`;
+      const reviewBody = document.getElementById("xlImportReviewBody");
+      const statusEl   = document.getElementById("xlImportStatus");
+      if (reviewBody) reviewBody.innerHTML = `<div class="xl-loading"><i class="bi bi-hourglass-split"></i> Excel parse ho raha hai…</div>`;
       if (statusEl)   statusEl.textContent = "";
-      if (bsModal)    bsModal.show();
+      getModal()?.show();
 
       const parsed = await parseAuditExcel(file);
-      fileInput.value = "";   /* reset so same file can be re-uploaded */
+      fileInput.value = "";
 
       if (!parsed.ok) {
         if (reviewBody) reviewBody.innerHTML = `<div class="xl-error"><i class="bi bi-exclamation-triangle-fill"></i> ${parsed.error}</div>`;
         return;
       }
 
-      /* Store parsed result on the modal element for later use */
       modal._xlParsed = parsed;
       if (reviewBody) reviewBody.innerHTML = buildImportReviewHtml(parsed.violation, parsed.exemption);
 
-      /* Wire up live recalc on every input change */
+      /* Wire live recalc */
       ["Violation","Exemption"].forEach(m => {
         const tbl = document.getElementById(`xlRevTable_${m}`);
-        if (tbl) tbl.addEventListener("input", () => recalcReviewTotals(`xlRevTable_${m}`));
+        if (tbl) tbl.addEventListener("input", () => recalcReviewTotals(m));
       });
 
       if (statusEl) statusEl.textContent = "";
     });
   }
 
-  /* Confirm & Save button */
+  /* Confirm & Load */
   const confirmBtn = document.getElementById("xlImportConfirmBtn");
   if (confirmBtn) {
     confirmBtn.addEventListener("click", () => {
+      if (!_validateBeforeConfirm()) return;
+
       const dateKey = selectedAuditDate || getTodayKey();
       const edited  = collectEditedMatrices();
-      const bucket  = matrixToBucket(edited.violation, edited.exemption, dateKey);
+      const bucket  = matrixToBucket(edited.violation, edited.exemption);
 
-      /* Inject into auditDataStore */
       auditDataStore[dateKey] = bucket;
       saveAuditData();
       setActiveAuditDate(dateKey);
 
-      /* Refresh app UI */
-      if (typeof refreshUI === "function") refreshUI();
+      if (typeof refreshUI          === "function") refreshUI();
       if (typeof renderHistoryPanel === "function") renderHistoryPanel();
 
-      if (bsModal) bsModal.hide();
+      getModal()?.hide();
 
-      /* Toast */
       if (typeof showToast === "function") {
         const vTotal = Object.values(edited.violation?.reportCounts || {}).reduce((a,b)=>a+b,0);
         const eTotal = Object.values(edited.exemption?.reportCounts || {}).reduce((a,b)=>a+b,0);
         showToast("Audit Imported ✓",
-          `${vTotal} violations + ${eTotal} exemptions loaded for ${dateKey}`,
-          "success", 5000);
+          `Violation: ${vTotal} | Exemption: ${eTotal} — ${dateKey} mein load ho gaya`,
+          "success", 6000);
       }
     });
   }
