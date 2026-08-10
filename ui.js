@@ -881,15 +881,16 @@ function applyTheme(theme) {
 
     const isNight = theme === "night";
 
-    document.body.classList.toggle("dark-theme", isNight);
+    /* Swap mutually exclusive theme classes */
+    document.body.classList.toggle("dark-theme",  isNight);
+    document.body.classList.toggle("light-theme", !isNight);
 
     /* Update compact mini switch state + label */
-    const track = document.querySelector(".theme-mini-track");
     const text  = document.querySelector(".theme-ctrl-text");
     const icon  = document.querySelector(".theme-ctrl-icon");
 
-    if (text)  text.textContent  = isNight ? "Night" : "Day";
-    if (icon)  icon.className    = isNight
+    if (text)  text.textContent = isNight ? "Night" : "Day";
+    if (icon)  icon.className   = isNight
         ? "bi bi-moon-half theme-ctrl-icon"
         : "bi bi-sun-fill theme-ctrl-icon";
 

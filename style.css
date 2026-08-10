@@ -867,7 +867,7 @@ main { min-height: 100vh; background: var(--bg-deep); }
   transition: transform .25s cubic-bezier(.34,1.56,.64,1), background .25s;
 }
 
-/* Dark theme ON state */
+/* Night (dark) theme ON state — knob slides right, track glows amber */
 body.dark-theme .theme-mini-track { background: var(--amber); box-shadow: inset 0 1px 3px rgba(0,0,0,.3), 0 0 8px var(--amber-glow); }
 body.dark-theme .theme-mini-knob  { transform: translateX(13px); background: #1a1200; }
 body.dark-theme .theme-ctrl-icon  { color: var(--amber); }
@@ -2139,15 +2139,241 @@ thead.table-dark,
 }
 
 /* ══════════════════════════════════════
+   DAY (LIGHT) THEME
+   Default :root is the dark/asphalt palette.
+   body.light-theme overrides every token to a
+   clean light palette so Day & Night look
+   visually distinct.
+══════════════════════════════════════ */
+body.light-theme {
+  /* ── Surface backgrounds ── */
+  --bg-deep:      #F0F2F5;
+  --bg-dark:      #E4E7ED;
+  --bg-mid:       #FFFFFF;
+  --bg-lift:      #F7F8FA;
+  --bg-panel:     #EEF0F4;
+  --line:         #D1D5DB;
+  --line-soft:    #E5E7EB;
+
+  /* ── Accent — keep amber but slightly deeper so it reads on white ── */
+  --amber:        #D97706;
+  --amber-dim:    #B45309;
+  --amber-soft:   rgba(217,119,6,.12);
+  --amber-glow:   rgba(217,119,6,.30);
+
+  /* ── Status colours — slightly darker for light bg ── */
+  --green:        #16A34A;
+  --green-soft:   rgba(22,163,74,.12);
+  --red:          #DC2626;
+  --red-soft:     rgba(220,38,38,.12);
+  --blue:         #2563EB;
+  --blue-soft:    rgba(37,99,235,.12);
+  --violet:       #7C3AED;
+  --violet-soft:  rgba(124,58,237,.12);
+
+  /* ── Text ── */
+  --text:         #111827;
+  --text-dim:     #4B5563;
+  --text-faint:   #9CA3AF;
+
+  /* ── Semantic aliases ── */
+  --bg:           var(--bg-deep);
+  --surface:      var(--bg-mid);
+  --surface2:     var(--bg-lift);
+  --border:       var(--line);
+  --primary:      var(--amber);
+  --primary-h:    #B45309;
+  --primary-soft: var(--amber-soft);
+  --primary-glow: var(--amber-glow);
+  --success:      var(--green);
+  --danger:       var(--red);
+  --warning:      var(--amber);
+  --sidebar-bg:   #FFFFFF;
+  --sidebar-txt:  var(--text-dim);
+
+  /* ── Shadows — lighter on white ── */
+  --shadow:       0 2px 12px rgba(0,0,0,.10);
+  --shadow-lg:    0 8px 28px rgba(0,0,0,.16);
+
+  background: var(--bg-deep);
+  color: var(--text);
+}
+
+/* Body-level surface */
+body.light-theme main            { background: var(--bg-deep); }
+body.light-theme .main-inner     { background: var(--bg-deep); }
+
+/* Sidebar */
+body.light-theme .sidebar        { background: var(--sidebar-bg); border-right-color: var(--line); }
+
+/* Topbar */
+body.light-theme .topbar {
+  background: #FFFFFF;
+  border-color: var(--line);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* Cards */
+body.light-theme .card           { background: #FFFFFF !important; border-color: var(--line) !important; box-shadow: var(--shadow) !important; }
+body.light-theme .card-header    { background: #FFFFFF !important; border-bottom-color: var(--line) !important; }
+body.light-theme .card-body      { background: #FFFFFF !important; }
+
+/* Inputs */
+body.light-theme .field-input    { background: var(--bg-lift); border-color: var(--line); }
+body.light-theme .field-input .form-control { color: var(--text); }
+
+/* Tables */
+body.light-theme .card .table th,
+body.light-theme .card .table td { border-color: var(--line); color: var(--text); }
+
+/* Auth / gate screen */
+body.light-theme .gate-screen    { background: var(--bg-deep); }
+body.light-theme .auth-card,
+body.light-theme .welcome-card   {
+  background: #FFFFFF;
+  border-color: var(--line);
+  box-shadow: 0 20px 60px -15px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.04);
+}
+body.light-theme .auth-card-body,
+body.light-theme .welcome-card-body { background: #FFFFFF; }
+body.light-theme .led-strip      { background: var(--bg-dark); border-top-color: var(--line); }
+
+/* Vehicle buttons */
+body.light-theme .vehicle-btn        { background: var(--bg-mid); border-color: var(--line); color: var(--text); }
+body.light-theme .vehicle-btn:hover  { border-color: var(--amber); }
+body.light-theme .stat-card          { background: #FFFFFF; border-color: var(--line); }
+body.light-theme .dashboard-hero {
+  background: linear-gradient(160deg, #E9ECF0 0%, #DDE1E8 50%, #E9ECF0 100%);
+  border-color: rgba(217,119,6,.2);
+  box-shadow: 0 4px 20px rgba(0,0,0,.10);
+}
+body.light-theme .hero-gantry-strip {
+  background: rgba(0,0,0,.06);
+  border-bottom-color: rgba(217,119,6,.3);
+  color: rgba(0,0,0,.45);
+}
+body.light-theme .gantry-plaza       { color: var(--amber); }
+body.light-theme .hero-stat {
+  background: rgba(0,0,0,.04);
+  border-color: rgba(0,0,0,.08);
+}
+body.light-theme .hero-stat:hover    { background: rgba(217,119,6,.08); border-color: rgba(217,119,6,.25); }
+body.light-theme .hero-stat-val      { color: var(--text); }
+body.light-theme .hero-stat-lbl      { color: var(--text-faint); }
+body.light-theme .hero-title         { color: var(--text); }
+body.light-theme .hero-sub           { color: var(--text-faint); }
+
+/* Progress bar */
+body.light-theme .progress           { background: var(--bg-panel); }
+
+/* Scrollbar */
+body.light-theme::-webkit-scrollbar-track { background: var(--bg-dark); }
+body.light-theme::-webkit-scrollbar-thumb { background: var(--line); }
+
+/* Theme toggle — knob & track */
+body.light-theme .theme-mini-track  { background: var(--bg-panel); }
+body.light-theme .theme-mini-knob   { background: #6B7280; }
+body.light-theme .theme-ctrl-icon   { color: var(--amber); }
+body.light-theme .theme-ctrl-text   { color: var(--text-dim); }
+
+/* Road scene on login: tint for daylight */
+body.light-theme .road-scene {
+  background:
+    radial-gradient(ellipse 900px 500px at 50% 8%, rgba(217,119,6,.10), transparent 60%),
+    linear-gradient(180deg, #D6DBE4 0%, #C8CDD8 55%, #D6DBE4 100%);
+}
+body.light-theme .road-scene::before {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 46px,
+    rgba(217,119,6,.28) 46px 52px,
+    transparent 52px 98px
+  );
+}
+body.light-theme .gantry-glow {
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+}
+
+/* Save status chip — light bg variants */
+body.light-theme .save-status-chip.ss-saving  { background: rgba(217,119,6,.10); color: #92400e; }
+body.light-theme .save-status-chip.ss-local   { background: rgba(37,99,235,.10); color: #1e40af; }
+body.light-theme .save-status-chip.ss-cloud   { background: rgba(22,163,74,.10); color: #15803d; }
+body.light-theme .save-status-chip.ss-offline { background: rgba(220,38,38,.10); color: #b91c1c; }
+
+/* Sidebar nav buttons in light mode */
+body.light-theme .sb-btn       { color: var(--text-dim); }
+body.light-theme .sb-btn:hover { background: var(--bg-lift); color: var(--text); }
+body.light-theme .category-item       { color: var(--text-dim); }
+body.light-theme .category-item:hover { background: var(--bg-lift); color: var(--text); }
+body.light-theme .category-item.active {
+  background: var(--blue-soft); color: var(--blue);
+  border-left-color: var(--blue);
+}
+body.light-theme .audit-date-badge { background: var(--bg-lift); border-color: var(--line); color: var(--text); }
+body.light-theme .history-date-btn { background: var(--bg-lift); border-color: var(--line); color: var(--text-dim); }
+body.light-theme .history-date-btn:hover { background: var(--bg-panel); color: var(--text); }
+body.light-theme .mode-pill { border-color: var(--line); color: var(--text-dim); }
+
+/* Dropdown */
+body.light-theme .topbar-dropdown {
+  background: #FFFFFF !important;
+  border-color: var(--line) !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,.15) !important;
+}
+body.light-theme .topbar-dropdown .dropdown-item { color: var(--text-dim); }
+body.light-theme .topbar-dropdown .dropdown-item:hover { background: var(--bg-lift); color: var(--text); }
+body.light-theme .topbar-dd-username { color: var(--text); }
+
+/* Pending audit banner */
+body.light-theme .pending-audit-banner {
+  background: linear-gradient(90deg, rgba(124,58,237,.08), rgba(124,58,237,.03));
+  border-color: rgba(124,58,237,.30);
+  color: var(--text);
+}
+
+/* Form controls global */
+body.light-theme .form-control,
+body.light-theme .form-select {
+  background: var(--bg-lift) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+  color-scheme: light;
+}
+body.light-theme .form-control:focus,
+body.light-theme .form-select:focus {
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 0 3px var(--amber-soft) !important;
+  background: #FFFFFF !important;
+}
+
+/* ══════════════════════════════════════
    DARK THEME BODY OVERRIDES
    (applied by ui.js via body.dark-theme)
+   Night = extra-dark variant of the default
+   asphalt palette.
 ══════════════════════════════════════ */
-body.dark-theme { background: #070809; }
-body.dark-theme .main-inner { background: #070809; }
-body.dark-theme main { background: #070809; }
-body.dark-theme .card      { background: var(--bg-dark) !important; }
+body.dark-theme {
+  --bg-deep:      #04050A;
+  --bg-dark:      #0A0B10;
+  --bg-mid:       #111318;
+  --bg-lift:      #191C24;
+  --bg-panel:     #21252F;
+  --line:         #272B36;
+  --line-soft:    #1F232D;
+  --text:         #E8EAF0;
+  --text-dim:     #8892A8;
+  --text-faint:   #474F64;
+
+  background: #04050A;
+  color: var(--text);
+}
+body.dark-theme main            { background: #04050A; }
+body.dark-theme .main-inner     { background: #04050A; }
+body.dark-theme .card           { background: var(--bg-mid) !important; border-color: var(--line) !important; }
 body.dark-theme .card-header,
-body.dark-theme .card-body  { background: var(--bg-dark) !important; }
+body.dark-theme .card-body      { background: var(--bg-mid) !important; }
+body.dark-theme .sidebar        { background: var(--bg-dark); }
+body.dark-theme .topbar         { background: var(--bg-dark); border-color: var(--line); }
 
 /* ══════════════════════════════════════
    HAMBURGER BUTTON (hidden on wide screens)
