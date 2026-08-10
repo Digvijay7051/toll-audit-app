@@ -161,48 +161,65 @@ function parseAuditExcel(file) {
 /* ─────────────────────────────────────────────────────────
    EXTRACT VIOLATION + EXEMPTION MATRICES
 ───────────────────────────────────────────────────────── */
+/* Helper: a parsed result is "valid" only if it has at least
+   one reportCount > 0 OR at least one vehicleRow with counts. */
+function _isValidParse(m) {
+  if (!m) return false;
+  const hasRC = Object.values(m.reportCounts || {}).some(v => v > 0);
+  const hasVR = (m.vehicleRows || []).some(r => Object.values(r.counts || {}).some(v => v > 0));
+  return hasRC || hasVR;
+}
+
 function _extractBothModes(wb) {
   let violation = null;
   let exemption = null;
 
   const toRows = s => XLSX.utils.sheet_to_json(s, { header: 1, defval: "" });
 
-  /* Strategy 1: sheets named exactly "violation" / "exemption" */
+  /* ── Strategy 1: sheets named exactly "violation" / "exemption" ── */
   wb.SheetNames.forEach(name => {
     const n = _normalizeKey(name);
-    if (n === "violation" && !violation)
+    if (n === "violation" && !_isValidParse(violation))
       violation = _parseMatrix(toRows(wb.Sheets[name]), "Violation");
-    if (n === "exemption" && !exemption)
+    if (n === "exemption" && !_isValidParse(exemption))
       exemption = _parseMatrix(toRows(wb.Sheets[name]), "Exemption");
   });
 
-  /* Strategy 2: sheet name contains "violation" / "exemption" */
-  if (!violation || !exemption) {
+  /* ── Strategy 2: sheet name contains "violation" / "exemption" ── */
+  if (!_isValidParse(violation) || !_isValidParse(exemption)) {
     wb.SheetNames.forEach(name => {
       const n = _normalizeKey(name);
-      if (n.includes("violation") && !violation)
+      if (n.includes("violation") && !_isValidParse(violation))
         violation = _parseMatrix(toRows(wb.Sheets[name]), "Violation");
-      if (n.includes("exemption") && !exemption)
+      if (n.includes("exemption") && !_isValidParse(exemption))
         exemption = _parseMatrix(toRows(wb.Sheets[name]), "Exemption");
     });
   }
 
-  /* Strategy 3: one sheet contains BOTH modes stacked — split by headings */
-  if (!violation || !exemption) {
-    wb.SheetNames.forEach(name => {
-      const rows = toRows(wb.Sheets[name]);
-      _dbg("Strategy3 scanning:", name, "rows:", rows.length);
-      const { vBlock, eBlock } = _splitByHeadings(rows);
-      _dbg("vBlock:", vBlock.length, "eBlock:", eBlock.length);
-      if (!violation && vBlock.length > 3)
-        violation = _parseMatrix(vBlock, "Violation");
-      if (!exemption && eBlock.length > 3)
-        exemption = _parseMatrix(eBlock, "Exemption");
-    });
-  }
+  /* ── Strategy 3 (MAIN): one sheet has BOTH modes stacked ──
+     Always run this for every sheet — it will only overwrite
+     violation/exemption if the split produces a better (valid) result. */
+  wb.SheetNames.forEach(name => {
+    const rows = toRows(wb.Sheets[name]);
+    _dbg("Strategy3 scanning sheet:", name, "totalRows:", rows.length);
+    const { vBlock, eBlock } = _splitByHeadings(rows);
+    _dbg("  vBlock:", vBlock.length, "eBlock:", eBlock.length);
 
-  /* NOTE: No strategy-4 fallback — feeding the whole sheet as Violation
-     was causing Exemption data to bleed into Violation. */
+    if (vBlock.length > 3) {
+      const vParsed = _parseMatrix(vBlock, "Violation");
+      if (_isValidParse(vParsed) && !_isValidParse(violation)) {
+        violation = vParsed;
+        _dbg("  → violation set from vBlock");
+      }
+    }
+    if (eBlock.length > 3) {
+      const eParsed = _parseMatrix(eBlock, "Exemption");
+      if (_isValidParse(eParsed) && !_isValidParse(exemption)) {
+        exemption = eParsed;
+        _dbg("  → exemption set from eBlock");
+      }
+    }
+  });
 
   _dbg("Final → V:", violation, "E:", exemption);
 
@@ -212,7 +229,9 @@ function _extractBothModes(wb) {
       error: "Koi valid audit matrix nahi mila. Excel mein 'Violation' aur 'Exemption' headings honi chahiye, aur column headers (CAR, LCV/MINIBUS…) bhi."
     };
   }
-  return { ok: true, violation, exemption };
+
+  /* Return whatever we have — even if one mode is missing */
+  return { ok: true, violation: violation || null, exemption: exemption || null };
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -273,9 +292,15 @@ function _parseMatrix(rows, lbl) {
   _dbg(`[${lbl}] validCols`, validCols);
   if (!validCols.length) return null;
 
-  /* ── Step 3: report-counts row ──
-     It's the first non-empty row after col headers whose first cell is
-     NOT a known vehicle name (it's either blank or "Actual Class after Validate"). */
+  /* ── Step 3: report-counts row ("Actual Class after Validate") ──
+     Rules:
+       - Scan rows right after col-header row (up to 5 rows ahead)
+       - Skip completely blank rows
+       - Stop if we hit a known vehicle label (data rows started)
+       - The first row that has ANY numeric value in a category column
+         is the report-count row (covers blank label + "Actual Class..." label)
+       - Accept 0 as a valid count (e.g. Truck 2 Axle = 0 in violation)
+  */
   const reportCounts = {};
   let reportRowIdx   = -1;
 
@@ -283,26 +308,28 @@ function _parseMatrix(rows, lbl) {
     const row  = rows[ri];
     const fc   = _normalizeKey(String(row[0] ?? ""));
 
-    /* completely blank row → skip */
+    /* skip completely blank rows */
     if (row.every(c => String(c).trim() === "")) continue;
 
-    /* if first cell is a known vehicle name, data rows started — report row is absent */
+    /* stop if we hit a known vehicle label */
     if (fc !== "" && XL_ROW_MAP[fc] !== undefined) break;
 
-    /* any numbers in category cols? */
-    const nums = validCols.some(ci => {
-      const v = parseFloat(String(row[ci] ?? "").replace(/,/g, "").trim());
-      return !isNaN(v);
+    /* check if ANY category column has a numeric value (including 0) */
+    const hasNumericVal = validCols.some(ci => {
+      const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
+      return raw !== "" && !isNaN(Number(raw));
     });
 
-    _dbg(`[${lbl}] reportRow ri=${ri} fc="${fc}" nums=${nums}`);
+    _dbg(`[${lbl}] reportRow ri=${ri} fc="${fc}" hasNumericVal=${hasNumericVal}`,
+         validCols.map(ci => `col${ci}="${row[ci]}"`).join(" "));
 
-    if (nums) {
+    if (hasNumericVal) {
       reportRowIdx = ri;
       validCols.forEach(ci => {
         const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
-        const val = parseInt(raw, 10);
-        if (!isNaN(val)) reportCounts[colIdxToCat[ci]] = val;
+        const val = Number(raw);
+        /* store even zeros — they are valid report counts */
+        if (raw !== "" && !isNaN(val)) reportCounts[colIdxToCat[ci]] = val;
       });
       _dbg(`[${lbl}] reportCounts`, reportCounts);
       break;
