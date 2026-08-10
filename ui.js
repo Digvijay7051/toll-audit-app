@@ -431,7 +431,7 @@ let historyFilter = {
 
 /* Maximum transactions shown in history list at one time.
    Keeps DOM small for large audits (1 lakh+ txns). */
-const TXN_PAGE_SIZE = Infinity;
+const TXN_PAGE_SIZE = 300;
 
 function renderTransactionHistory() {
 
@@ -777,13 +777,22 @@ function updateHeroSection() {
 
     const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
 
-    /* Count-up helper: animates numeric text with eased interpolation + pop flash */
+    /* Count-up helper: short 180ms animation, no forced reflow */
     const countUp = (id, target, suffix = "") => {
         const el = document.getElementById(id);
         if (!el) return;
         const from = parseInt(el.textContent, 10) || 0;
         if (from === target) return;
-        const dur  = 520;   /* ms */
+        const diff = Math.abs(target - from);
+        /* For tiny changes (≤2) just set directly — no animation needed */
+        if (diff <= 2) {
+            el.textContent = target + suffix;
+            el.classList.remove("num-pop");
+            el.classList.add("num-pop");
+            el.addEventListener("animationend", () => el.classList.remove("num-pop"), { once: true });
+            return;
+        }
+        const dur  = 180;   /* ms — fast enough to feel snappy */
         const start = performance.now();
         const tick = (now) => {
             const t = Math.min(1, (now - start) / dur);
@@ -793,11 +802,10 @@ function updateHeroSection() {
                 requestAnimationFrame(tick);
             } else {
                 el.textContent = target + suffix;
-                /* pop flash */
+                /* pop flash — no forced reflow */
                 el.classList.remove("num-pop");
-                void el.offsetWidth;   /* reflow to restart animation */
                 el.classList.add("num-pop");
-                setTimeout(() => el.classList.remove("num-pop"), 460);
+                el.addEventListener("animationend", () => el.classList.remove("num-pop"), { once: true });
             }
         };
         requestAnimationFrame(tick);

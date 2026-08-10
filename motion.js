@@ -436,42 +436,47 @@
 
         btns.forEach((btn, i) => {
             if (NO_MOTION) return;
-            /* Staggered entrance */
-            btn.style.opacity = '0';
-            btn.style.animation = `pmVehIn .48s ${SPRING.bouncy} ${40 + i * 28}ms both`;
+            /* Staggered entrance — only on first paint, not on every motionRefresh */
+            if (!btn._pmDone) {
+                btn.style.opacity = '0';
+                btn.style.animation = `pmVehIn .48s ${SPRING.bouncy} ${40 + i * 28}ms both`;
+            }
 
-            /* Spring hover */
-            btn.style.transition = `transform .22s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}, filter .14s ease`;
-            btn.addEventListener('mouseenter', () => {
-                btn.style.transform  = 'translateY(-9px) scale(1.09)';
-                btn.style.boxShadow  = '0 22px 44px rgba(0,0,0,.40)';
-                btn.style.filter     = 'brightness(1.14) saturate(1.12)';
-                btn.style.zIndex     = '2';
-            });
-            btn.addEventListener('mouseleave', () => {
-                btn.style.transform = '';
-                btn.style.boxShadow = '';
-                btn.style.filter    = '';
-                btn.style.zIndex    = '';
-            });
+            if (!btn._pmDone) {
+                btn._pmDone = true;
+                /* Spring hover */
+                btn.style.transition = `transform .22s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}, filter .14s ease`;
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.transform  = 'translateY(-9px) scale(1.09)';
+                    btn.style.boxShadow  = '0 22px 44px rgba(0,0,0,.40)';
+                    btn.style.filter     = 'brightness(1.14) saturate(1.12)';
+                    btn.style.zIndex     = '2';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = '';
+                    btn.style.boxShadow = '';
+                    btn.style.filter    = '';
+                    btn.style.zIndex    = '';
+                });
 
-            /* Tap — instant depth press */
-            btn.addEventListener('pointerdown', e => {
-                btn.style.transform  = 'scale(.88)';
-                btn.style.filter     = 'brightness(.85)';
-                btn.style.transition = `transform .08s ${SPRING.in}, filter .08s ease`;
-                spawnRipple(btn, e, 'rgba(255,255,255,.28)');
-            });
-            btn.addEventListener('pointerup', () => {
-                btn.style.transition = `transform .30s ${SPRING.bouncy}, box-shadow .26s ${SPRING.out}, filter .18s ease`;
-                btn.style.transform = '';
-                btn.style.filter    = '';
-            });
-            btn.addEventListener('pointerleave', () => {
-                btn.style.transition = `transform .26s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}, filter .16s ease`;
-                btn.style.transform = '';
-                btn.style.filter    = '';
-            });
+                /* Tap — instant depth press */
+                btn.addEventListener('pointerdown', e => {
+                    btn.style.transform  = 'scale(.88)';
+                    btn.style.filter     = 'brightness(.85)';
+                    btn.style.transition = `transform .08s ${SPRING.in}, filter .08s ease`;
+                    spawnRipple(btn, e, 'rgba(255,255,255,.28)');
+                });
+                btn.addEventListener('pointerup', () => {
+                    btn.style.transition = `transform .30s ${SPRING.bouncy}, box-shadow .26s ${SPRING.out}, filter .18s ease`;
+                    btn.style.transform = '';
+                    btn.style.filter    = '';
+                });
+                btn.addEventListener('pointerleave', () => {
+                    btn.style.transition = `transform .26s ${SPRING.bouncy}, box-shadow .22s ${SPRING.out}, filter .16s ease`;
+                    btn.style.transform = '';
+                    btn.style.filter    = '';
+                });
+            }
         });
     }
 
@@ -1282,25 +1287,24 @@
         initAll();
     }
 
-    /* Re-run on dynamic renders (category switch, new transactions, etc.) */
+    /* Re-run on dynamic renders (category switch, new transactions, etc.)
+       Only wire elements that are actually re-rendered. Heavy one-time inits
+       (statCards, verifyPass, analytics, auth) are guarded by _pmDone already
+       so calling them wastes time on querySelectorAll — skip them here. */
+    let _motionRefreshRaf = null;
     window.motionRefresh = function () {
-        initVehicleButtons();
-        initTxnRows();
-        initVcRows();
-        initAuditLogBtns();
-        initHistoryBtns();
-        initAllBtns();
-        initVerifyPass();
-        initStatCards();
-        /* v3 refresh targets */
-        _wireTlpBtns();
-        _wireTlpInputs();
-        _wireTlpDiffRows();
-        _wireAnalyticsContent();
-        initAvatarStickers();
-        initSheetsBtns();
-        initPassCheckCards();
-        initAuthAndBackup();
+        /* Coalesce rapid back-to-back calls (e.g. during a fast tap burst) */
+        if (_motionRefreshRaf) return;
+        _motionRefreshRaf = requestAnimationFrame(() => {
+            _motionRefreshRaf = null;
+            initVehicleButtons();  /* _pmDone guarded */
+            initTxnRows();         /* _pmDone guarded */
+            initVcRows();          /* _pmDone guarded */
+            initAuditLogBtns();    /* _pmDone guarded */
+            initHistoryBtns();     /* _pmDone guarded */
+            initPassCheckCards();  /* _pmDone guarded */
+            initSheetsBtns();      /* _pmDone guarded */
+        });
     };
 
 })();

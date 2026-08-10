@@ -865,8 +865,9 @@ function saveAuditData() {
         _syncCurrentDateToFirestore();
     }, 2000);
 
-    /* 3. Sidebar history panel */
-    if (typeof renderHistoryPanel === "function") {
+    /* 3. Sidebar history panel — only if sidebar is open to avoid invisible re-renders */
+    const historyPanel = document.getElementById("historyDateList");
+    if (historyPanel && historyPanel.offsetParent !== null && typeof renderHistoryPanel === "function") {
         renderHistoryPanel();
     }
 
@@ -896,10 +897,6 @@ async function _syncCurrentDateToFirestore() {
                 auditBucket: JSON.stringify(bucket)  /* compressed bucket */
             }, { merge: true });
         _showSaveChip("ss-cloud", "Synced to cloud ✓");
-        /* Fire email notification (non-blocking) */
-        if (typeof sendAuditSavedEmail === "function") {
-            sendAuditSavedEmail(dateKey);
-        }
     } catch (e) {
         /* Silent — offline / permission errors should not interrupt work */
         console.warn("[AutoSync] Firestore sync failed:", e.code || e.message);

@@ -326,7 +326,7 @@ function _debouncedFullRefresh() {
         renderVehicleCounts();
         renderTransactionHistory();
         handleCategoryCompletion();
-    }, 150);
+    }, 80);
 }
 
 /* Instant micro-update: only patches the numbers that changed */
@@ -347,7 +347,7 @@ function _microUpdateAfterClick() {
         });
         const remaining = Math.max(0, totalRpt - totalTxn);
         const pct = totalRpt > 0 ? Math.min(100, Math.round((totalTxn / totalRpt) * 100)) : 0;
-        const setN = (id, v, s) => { const e = document.getElementById(id); if (e) { e.textContent = v + (s||""); e.classList.remove("num-pop"); void e.offsetWidth; e.classList.add("num-pop"); setTimeout(()=>e.classList.remove("num-pop"),300); }};
+        const setN = (id, v, s) => { const e = document.getElementById(id); if (e) { e.textContent = v + (s||""); e.classList.remove("num-pop"); e.classList.add("num-pop"); e.addEventListener("animationend", ()=>e.classList.remove("num-pop"), { once: true }); }};
         setN("heroTotalTxn",  totalTxn);
         setN("heroChecked",   totalTxn);
         setN("heroRemaining", remaining);
