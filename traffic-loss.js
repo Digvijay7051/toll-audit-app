@@ -138,10 +138,12 @@ function tlScheduleAutoSave() {
 }
 
 function tlEmptyData() {
-  const d = { tableA: {}, tableB: {}, verify: {} };
+  const d = { tableA: {}, tableB: {}, tableC: {}, verify: {} };
   TL_CLASSES.forEach(c => {
     d.tableA[c.key] = { cash: 0, ret: 0, barcode: 0, digital: 0, etc: 0, pass: 0,
                         viol: 0, exem: 0 };
+    /* tableC stores user-entered ETC amount per class (rupees, not count) */
+    if (c.key !== "nontoll") d.tableC[c.key] = { etcAmt: 0 };
   });
   TL_NONTOLL_CATS.forEach(cat => {
     d.tableB[cat] = { viol: 0, exem: 0 };
@@ -493,12 +495,14 @@ function tlRenderPanel() {
   // Delegate all input events (daily tab)
   panel.addEventListener("input", e => {
     if (e.target.matches(".tl-input")) {
-      const v = parseInt(e.target.value, 10);
+      /* ETC amount (Table C) is a rupee value — allow decimals */
+      const isEtcAmt = e.target.dataset.table === "c" && e.target.dataset.field === "etcAmt";
+      const v = isEtcAmt ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
       if (isNaN(v) || v < 0) {
         e.target.classList.add("input-err");
       } else {
         e.target.classList.remove("input-err");
-        e.target.value = v;
+        if (!isEtcAmt) e.target.value = v;
       }
       tlCollectData();
       tlRecalcAll();
@@ -736,7 +740,7 @@ function tlBuildTableC() {
       <td class="tlp-auto" id="tlc_cash_${c.key}">₹0</td>
       <td class="tlp-auto" id="tlc_ret_${c.key}">₹0</td>
       <td class="tlp-auto" id="tlc_dig_${c.key}">₹0</td>
-      <td class="tlp-auto" id="tlc_etc_${c.key}">₹0</td>
+      <td><input type="number" class="tl-input" data-table="c" data-class="${c.key}" data-field="etcAmt" min="0" value="0" style="width:100%;text-align:right;"></td>
       <td class="tlp-auto" id="tlc_total_${c.key}">₹0</td>
     </tr>`).join("");
 
@@ -754,7 +758,7 @@ function tlBuildTableC() {
           <th>Cash Collection (₹)</th>
           <th>Return Collection (₹)</th>
           <th>Digital Collection (₹)</th>
-          <th>ETC Collection (₹)</th>
+          <th>ETC Collection (₹) <span style="font-weight:400;font-size:10px;opacity:.7;">manual</span></th>
           <th>Total Collection (₹)</th>
         </tr>
       </thead>
@@ -774,7 +778,7 @@ function tlBuildTableC() {
     <div style="padding:8px 14px;font-size:11px;color:var(--text-faint);">
       <i class="bi bi-info-circle"></i>
       Cash = Single Tariff × Cash count · Return = Return Tariff × Return count ·
-      Digital = Single Tariff × Digital count · ETC = Single Tariff × ETC count.
+      Digital = Single Tariff × Digital count · <strong>ETC = Enter amount directly (₹)</strong>.
       Non-Tollable excluded (tariff = ₹0).
     </div>
   </div>`;
@@ -906,6 +910,16 @@ function tlPopulateFromData() {
     });
   });
 
+  // Table C — user-entered ETC amount inputs
+  if (!tlData.tableC) tlData.tableC = {};
+  TL_CLASSES.filter(c => c.key !== "nontoll").forEach(c => {
+    const row = tlData.tableC[c.key] || {};
+    const el  = document.querySelector(
+      `.tl-input[data-table="c"][data-class="${c.key}"][data-field="etcAmt"]`
+    );
+    if (el) el.value = row.etcAmt || 0;
+  });
+
   // Verify inputs
   TL_VERIFY_FIELDS.forEach(f => {
     const el = document.querySelector(
@@ -937,6 +951,16 @@ function tlCollectData() {
       );
       if (el) tlData.tableB[cat][f] = Math.max(0, parseInt(el.value, 10) || 0);
     });
+  });
+
+  // Table C — collect user-entered ETC amounts
+  if (!tlData.tableC) tlData.tableC = {};
+  TL_CLASSES.filter(c => c.key !== "nontoll").forEach(c => {
+    if (!tlData.tableC[c.key]) tlData.tableC[c.key] = { etcAmt: 0 };
+    const el = document.querySelector(
+      `.tl-input[data-table="c"][data-class="${c.key}"][data-field="etcAmt"]`
+    );
+    if (el) tlData.tableC[c.key].etcAmt = Math.max(0, parseFloat(el.value) || 0);
   });
 
   TL_VERIFY_FIELDS.forEach(f => {
@@ -1064,18 +1088,20 @@ function tlRecalcAll() {
   _setText("tla_t_loss_pct",   "—");
 
   // ── Table C per-class ──
+  if (!tlData.tableC) tlData.tableC = {};
   let tcCash = 0, tcRet = 0, tcDig = 0, tcEtc = 0, tcTotal = 0;
   TL_CLASSES.filter(c => c.key !== "nontoll").forEach(c => {
-    const row  = tlData.tableA[c.key] || {};
-    const cash = (row.cash    || 0) * c.single;
-    const ret  = (row.ret     || 0) * c.ret;
-    const dig  = (row.digital || 0) * c.single;
-    const etc  = (row.etc     || 0) * c.single;
-    const tot  = cash + ret + dig + etc;
+    const rowA  = tlData.tableA[c.key] || {};
+    const rowC  = tlData.tableC[c.key] || {};
+    const cash  = (rowA.cash    || 0) * c.single;
+    const ret   = (rowA.ret     || 0) * c.ret;
+    const dig   = (rowA.digital || 0) * c.single;
+    const etc   = rowC.etcAmt   || 0;   // ← user-entered rupee amount directly
+    const tot   = cash + ret + dig + etc;
     _setText(`tlc_cash_${c.key}`,  _rupee(cash));
     _setText(`tlc_ret_${c.key}`,   _rupee(ret));
     _setText(`tlc_dig_${c.key}`,   _rupee(dig));
-    _setText(`tlc_etc_${c.key}`,   _rupee(etc));
+    /* ETC cell is now an input — no _setText needed for the cell itself */
     _setText(`tlc_total_${c.key}`, _rupee(tot));
     tcCash += cash; tcRet += ret; tcDig += dig; tcEtc += etc; tcTotal += tot;
   });
@@ -1867,10 +1893,11 @@ function tlExportExcel() {
     if (i < TL_C_CLASSES.length) {
       const c    = TL_C_CLASSES[i];
       const cRow = (tlData.tableA && tlData.tableA[c.key]) || {};
+      const cRowC = (tlData.tableC && tlData.tableC[c.key]) || {};
       const cCash = N(cRow.cash)    * c.single;
       const cRet  = N(cRow.ret)     * c.ret;
       const cDig  = N(cRow.digital) * c.single;
-      const cEtc  = N(cRow.etc)     * c.single;
+      const cEtc  = N(cRowC.etcAmt);   // ← user-entered ₹ amount
       cCashTot += cCash; cRetTot += cRet; cDigTot += cDig; cEtcTot += cEtc;
       cTot     += cCash + cRet + cDig + cEtc;
       dataRow[5]  = c.label;
@@ -2287,8 +2314,9 @@ function tlExportPdf() {
 
   const cRows = TL_CLASSES.filter(c=>c.key!=="nontoll").map(c=>{
     const r=tlData.tableA[c.key]||{};
+    const rC=(tlData.tableC&&tlData.tableC[c.key])||{};
     const cash=(r.cash||0)*c.single,ret=(r.ret||0)*c.ret,
-          dig=(r.digital||0)*c.single,etc=(r.etc||0)*c.single;
+          dig=(r.digital||0)*c.single,etc=rC.etcAmt||0;
     return`<tr><td>${c.label}</td><td>₹${cash}</td><td>₹${ret}</td><td>₹${dig}</td><td>₹${etc}</td><td>₹${cash+ret+dig+etc}</td></tr>`;
   }).join("");
 
