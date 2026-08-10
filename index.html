@@ -375,60 +375,99 @@
         </button>
     </div>
 
-    <!-- Nav buttons -->
-    <button class="sb-history-toggle" id="sbNavToggle" onclick="(function(){var w=document.getElementById('sbNavWrap');var c=document.getElementById('sbNavCaret');var open=w.style.display!=='none';w.style.display=open?'none':'flex';c.classList.toggle('open',!open);})()">
-        <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);">Menu</span>
-        <i class="bi bi-chevron-up sb-history-caret open" id="sbNavCaret"></i>
-    </button>
-    <div id="sbNavWrap" style="display:flex;flex-direction:column;gap:0;">
-    <div class="sb-nav">
-        <button class="sb-btn" id="setPinBtn">
-            <i class="bi bi-key"></i> Set Lock PIN
-        </button>
-        <button class="sb-btn sb-danger" id="lockNowBtn">
-            <i class="bi bi-lock-fill"></i> Lock Screen
-        </button>
-        <button class="sb-btn" id="managePassListBtn"
-                data-bs-toggle="modal" data-bs-target="#passListModal"
-                onclick="syncPassListFromFirestore().then(()=>applyPassListAdminMode())">
-            <i class="bi bi-card-list"></i> Monthly Pass List
-            <span class="badge bg-primary ms-auto" id="passListCountBadge">0</span>
-        </button>
-        <button class="sb-btn" id="syncFromCloudBtn">
-            <i class="bi bi-cloud-arrow-down"></i> Sync from Cloud
-        </button>
-        <button class="sb-btn" id="openBackupBtn" data-bs-toggle="modal" data-bs-target="#backupModal">
-            <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
-        </button>
-        <button class="sb-btn sb-analytics" id="analyticsSettingsBtn">
-            <i class="bi bi-gear-fill"></i> Analytics Settings
-        </button>
-        <button class="sb-btn sb-analytics" id="analyticsOpenDashboardBtn">
-            <i class="bi bi-bar-chart-line-fill"></i> Analytics Dashboard
-        </button>
-        <button class="sb-btn sb-success" id="submitAuditLogBtn">
-            <i class="bi bi-cloud-upload-fill"></i> Save Audit Log
-        </button>
-        <button class="sb-btn" id="viewAuditHistoryBtn">
-            <i class="bi bi-clock-history"></i> View Audit History
-        </button>
-        <button class="sb-btn sb-import" id="xlImportBtn" type="button">
-            <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel Audit
-        </button>
-        <input type="file" id="xlImportFileInput" accept=".xlsx,.xls" style="display:none;">
-        <button class="sb-btn sb-matrix" id="openAuditMatrixBtn"
-                data-bs-toggle="modal" data-bs-target="#auditMatrixModal">
-            <i class="bi bi-grid-3x3"></i> Audit Matrix
-        </button>
-        <button class="sb-btn sb-office-report" id="generateOfficeReportBtn"
-                data-bs-toggle="modal" data-bs-target="#officeReportModal">
-            <i class="bi bi-file-earmark-excel-fill"></i> Office Report
-        </button>
-        <button class="sb-btn sb-traffic-loss" id="trafficLossReportBtn">
-            <i class="bi bi-speedometer2"></i> Traffic Loss Report
-        </button>
-    </div>
-    </div>
+    <!-- Nav groups -->
+    <div class="sb-groups">
+
+        <!-- ── Group: Security ── -->
+        <div class="sb-group">
+            <button class="sb-group-hdr" type="button" onclick="sbToggleGroup(this)">
+                <i class="bi bi-shield-lock-fill sb-group-icon"></i>
+                <span>Security</span>
+                <i class="bi bi-chevron-down sb-group-caret"></i>
+            </button>
+            <div class="sb-group-body">
+                <button class="sb-btn" id="setPinBtn">
+                    <i class="bi bi-key"></i> Set Lock PIN
+                </button>
+                <button class="sb-btn sb-danger" id="lockNowBtn">
+                    <i class="bi bi-lock-fill"></i> Lock Screen
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Group: Data ── -->
+        <div class="sb-group">
+            <button class="sb-group-hdr" type="button" onclick="sbToggleGroup(this)">
+                <i class="bi bi-database-fill sb-group-icon"></i>
+                <span>Data</span>
+                <i class="bi bi-chevron-down sb-group-caret"></i>
+            </button>
+            <div class="sb-group-body">
+                <button class="sb-btn" id="managePassListBtn"
+                        data-bs-toggle="modal" data-bs-target="#passListModal"
+                        onclick="syncPassListFromFirestore().then(()=>applyPassListAdminMode())">
+                    <i class="bi bi-card-list"></i> Monthly Pass List
+                    <span class="badge bg-primary ms-auto" id="passListCountBadge">0</span>
+                </button>
+                <button class="sb-btn" id="syncFromCloudBtn">
+                    <i class="bi bi-cloud-arrow-down"></i> Sync from Cloud
+                </button>
+                <button class="sb-btn" id="openBackupBtn" data-bs-toggle="modal" data-bs-target="#backupModal">
+                    <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
+                </button>
+                <button class="sb-btn sb-import" id="xlImportBtn" type="button">
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel Audit
+                </button>
+                <input type="file" id="xlImportFileInput" accept=".xlsx,.xls" style="display:none;">
+            </div>
+        </div>
+
+        <!-- ── Group: Reports & Analytics ── -->
+        <div class="sb-group">
+            <button class="sb-group-hdr" type="button" onclick="sbToggleGroup(this)">
+                <i class="bi bi-bar-chart-fill sb-group-icon"></i>
+                <span>Reports & Analytics</span>
+                <i class="bi bi-chevron-down sb-group-caret"></i>
+            </button>
+            <div class="sb-group-body">
+                <button class="sb-btn sb-analytics" id="analyticsSettingsBtn">
+                    <i class="bi bi-gear-fill"></i> Analytics Settings
+                </button>
+                <button class="sb-btn sb-analytics" id="analyticsOpenDashboardBtn">
+                    <i class="bi bi-bar-chart-line-fill"></i> Analytics Dashboard
+                </button>
+                <button class="sb-btn sb-office-report" id="generateOfficeReportBtn"
+                        data-bs-toggle="modal" data-bs-target="#officeReportModal">
+                    <i class="bi bi-file-earmark-excel-fill"></i> Office Report
+                </button>
+                <button class="sb-btn sb-traffic-loss" id="trafficLossReportBtn">
+                    <i class="bi bi-speedometer2"></i> Traffic Loss Report
+                </button>
+                <button class="sb-btn" id="viewAuditHistoryBtn">
+                    <i class="bi bi-clock-history"></i> View Audit History
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Group: Other ── -->
+        <div class="sb-group">
+            <button class="sb-group-hdr" type="button" onclick="sbToggleGroup(this)">
+                <i class="bi bi-grid-fill sb-group-icon"></i>
+                <span>Other</span>
+                <i class="bi bi-chevron-down sb-group-caret"></i>
+            </button>
+            <div class="sb-group-body">
+                <button class="sb-btn sb-success" id="submitAuditLogBtn">
+                    <i class="bi bi-cloud-upload-fill"></i> Save Audit Log
+                </button>
+                <button class="sb-btn sb-matrix" id="openAuditMatrixBtn"
+                        data-bs-toggle="modal" data-bs-target="#auditMatrixModal">
+                    <i class="bi bi-grid-3x3"></i> Audit Matrix
+                </button>
+            </div>
+        </div>
+
+    </div><!-- /.sb-groups -->
 
     <div class="sb-section-label">Audit Type</div>
 

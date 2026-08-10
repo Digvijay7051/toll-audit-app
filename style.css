@@ -672,6 +672,65 @@ input  { font-family: inherit; }
 .audit-date-badge i { color: var(--amber); }
 .audit-date-badge span { flex: 1; font-weight: 700; color: var(--amber); }
 
+/* ── Collapsible sidebar groups ── */
+.sb-groups {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;
+}
+.sb-group {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: border-color .2s ease;
+}
+.sb-group:has(.sb-group-body.open) {
+  border-color: var(--line);
+}
+.sb-group-hdr {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; background: var(--bg-mid); border: none; cursor: pointer;
+  padding: 8px 10px; text-align: left;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-dim); font-family: var(--font-mono);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.sb-group-hdr:hover { background: var(--bg-lift); color: var(--amber); }
+.sb-group-icon { font-size: 13px; flex-shrink: 0; }
+.sb-group-hdr span { flex: 1; }
+.sb-group-caret {
+  font-size: 10px; flex-shrink: 0;
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.sb-group-caret.open { transform: rotate(180deg); }
+
+/* Animated body */
+.sb-group-body {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 0 4px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .3s cubic-bezier(.4,0,.2,1),
+              padding .3s cubic-bezier(.4,0,.2,1),
+              opacity .25s ease;
+  opacity: 0;
+}
+.sb-group-body.open {
+  max-height: 400px;
+  padding: 5px 4px 6px;
+  opacity: 1;
+}
+
+/* Items inside group get a subtle left indent */
+.sb-group-body .sb-btn {
+  padding-left: 10px;
+  font-size: 12px;
+}
+
+/* Light theme overrides */
+body.light-theme .sb-group-hdr        { background: #f0ebe0; color: #7a6a50; }
+body.light-theme .sb-group-hdr:hover  { background: #e8e0d0; color: #a07840; }
+body.light-theme .sb-group:has(.sb-group-body.open) { border-color: #e0d7c6; }
+
 /* Sidebar nav buttons */
 .sb-nav { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }
 .sb-btn {

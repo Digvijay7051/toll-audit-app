@@ -5,6 +5,19 @@
 ========================================================== */
 
 /* ===============================
+   SIDEBAR GROUP TOGGLE
+   Called inline from sb-group-hdr buttons
+=============================== */
+function sbToggleGroup(hdr) {
+    const body  = hdr.nextElementSibling;
+    const caret = hdr.querySelector('.sb-group-caret');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    caret.classList.toggle('open', !isOpen);
+}
+
+
+/* ===============================
    START APPLICATION
 =============================== */
 
