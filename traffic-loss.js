@@ -149,6 +149,8 @@ function tlEmptyData() {
     d.tableB[cat] = { viol: 0, exem: 0 };
   });
   TL_VERIFY_FIELDS.forEach(f => { d.verify[f.key] = 0; });
+  /* Custom verification fields — array of { label, value } objects */
+  d.verify._custom = [];
   return d;
 }
 
@@ -507,6 +509,57 @@ function tlRenderPanel() {
       tlCollectData();
       tlRecalcAll();
       tlScheduleAutoSave();
+    }
+
+    /* Custom verify field — label text changed */
+    if (e.target.matches(".tlp-verify-label-input")) {
+      const idx = parseInt(e.target.dataset.customIdx, 10);
+      if (!isNaN(idx) && tlData.verify._custom && tlData.verify._custom[idx]) {
+        tlData.verify._custom[idx].label = e.target.value || "";
+        tlScheduleAutoSave();
+      }
+    }
+  });
+
+  // Delegate click events for custom verify field buttons
+  panel.addEventListener("click", e => {
+
+    /* "+ Add Field" button */
+    if (e.target.closest("#tlpAddVerifyFieldBtn")) {
+      if (!tlData.verify._custom) tlData.verify._custom = [];
+      tlData.verify._custom.push({ label: "", value: 0 });
+      _tlRenderCustomVerifyFields();
+      tlScheduleAutoSave();
+      /* Focus the new label input */
+      const container = document.getElementById("tlp_custom_fields_container");
+      if (container) {
+        const last = container.querySelector(".tlp-verify-custom:last-child .tlp-verify-label-input");
+        if (last) last.focus();
+      }
+      return;
+    }
+
+    /* Delete (×) button on a custom field */
+    if (e.target.closest(".tlp-verify-del-btn")) {
+      const btn = e.target.closest(".tlp-verify-del-btn");
+      const idx = parseInt(btn.dataset.customIdx, 10);
+      if (!isNaN(idx) && tlData.verify._custom) {
+        tlData.verify._custom.splice(idx, 1);
+        _tlRenderCustomVerifyFields();
+        tlRecalcAll();
+        tlScheduleAutoSave();
+      }
+      return;
+    }
+
+    /* Custom value input blur-collect (number field inside custom card) */
+    if (e.target.matches(".tlp-verify-custom-val")) {
+      const idx = parseInt(e.target.dataset.customIdx, 10);
+      if (!isNaN(idx) && tlData.verify._custom && tlData.verify._custom[idx]) {
+        tlData.verify._custom[idx].value = Math.max(0, parseInt(e.target.value, 10) || 0);
+        tlRecalcAll();
+        tlScheduleAutoSave();
+      }
     }
   });
 
@@ -871,7 +924,14 @@ function tlBuildRecon() {
         <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">
           <i class="bi bi-pencil-square"></i> Audit Verification Fields
         </div>
-        <div class="tlp-verify-grid">${verifyRows}</div>
+        <div class="tlp-verify-grid">${verifyRows}
+          <div id="tlp_custom_fields_container"></div>
+        </div>
+        <div class="tlp-verify-add-row">
+          <button class="tlp-verify-add-btn" id="tlpAddVerifyFieldBtn" type="button">
+            <i class="bi bi-plus-circle"></i> Add Field
+          </button>
+        </div>
         <div class="tlp-verify-total">
           <span>Verification Total</span>
           <span id="tlp_verify_total">0</span>
@@ -880,6 +940,53 @@ function tlBuildRecon() {
 
     </div>
   </div>`;
+}
+
+/* ─────────────────────────────────────────────
+   CUSTOM VERIFY FIELD — RENDER ALL
+   Reads tlData.verify._custom and rebuilds the
+   #tlp_custom_fields_container innerHTML.
+───────────────────────────────────────────── */
+
+function _tlRenderCustomVerifyFields() {
+  const container = document.getElementById("tlp_custom_fields_container");
+  if (!container) return;
+
+  if (!tlData.verify._custom) tlData.verify._custom = [];
+
+  container.innerHTML = tlData.verify._custom.map((cf, idx) => `
+    <div class="tlp-verify-field tlp-verify-custom" data-idx="${idx}">
+      <div class="tlp-verify-custom-header">
+        <input
+          type="text"
+          class="tlp-verify-label-input"
+          data-custom-idx="${idx}"
+          data-custom-part="label"
+          placeholder="Field name…"
+          value="${_tlEscape(cf.label)}"
+          maxlength="60"
+        >
+        <button class="tlp-verify-del-btn" data-custom-idx="${idx}" type="button" title="Remove field">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <input
+        type="number"
+        class="tl-input tlp-verify-custom-val"
+        data-custom-idx="${idx}"
+        data-custom-part="value"
+        min="0"
+        value="${cf.value || 0}"
+      >
+    </div>`).join("");
+}
+
+function _tlEscape(str) {
+  return String(str || "")
+    .replace(/&/g,"&amp;")
+    .replace(/"/g,"&quot;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
 }
 
 /* ─────────────────────────────────────────────
@@ -920,13 +1027,17 @@ function tlPopulateFromData() {
     if (el) el.value = row.etcAmt || 0;
   });
 
-  // Verify inputs
+  // Verify inputs — fixed fields
   TL_VERIFY_FIELDS.forEach(f => {
     const el = document.querySelector(
       `.tl-input[data-table="verify"][data-field="${f.key}"]`
     );
     if (el) el.value = tlData.verify[f.key] || 0;
   });
+
+  // Verify inputs — custom fields (re-render then values are already in the markup)
+  if (!tlData.verify._custom) tlData.verify._custom = [];
+  _tlRenderCustomVerifyFields();
 }
 
 /* ─────────────────────────────────────────────
@@ -968,6 +1079,17 @@ function tlCollectData() {
       `.tl-input[data-table="verify"][data-field="${f.key}"]`
     );
     if (el) tlData.verify[f.key] = Math.max(0, parseInt(el.value, 10) || 0);
+  });
+
+  // Custom verify fields — read label + value from DOM, sync back to tlData
+  if (!tlData.verify._custom) tlData.verify._custom = [];
+  document.querySelectorAll(".tlp-verify-custom").forEach(card => {
+    const idx   = parseInt(card.dataset.idx, 10);
+    if (isNaN(idx) || !tlData.verify._custom[idx]) return;
+    const labelEl = card.querySelector(".tlp-verify-label-input");
+    const valEl   = card.querySelector(".tlp-verify-custom-val");
+    if (labelEl) tlData.verify._custom[idx].label = labelEl.value || "";
+    if (valEl)   tlData.verify._custom[idx].value = Math.max(0, parseInt(valEl.value, 10) || 0);
   });
 }
 
@@ -1158,11 +1280,14 @@ function tlRecalcAll() {
     diffRow.className = "tlp-diff-row " + (allZero ? "tlp-diff-ok" : "tlp-diff-err");
   }
 
-  // ── Verify total ──
-  const verifySum = TL_VERIFY_FIELDS.reduce(
+  // ── Verify total (fixed fields + custom fields) ──
+  const fixedSum  = TL_VERIFY_FIELDS.reduce(
     (sum, f) => sum + (tlData.verify[f.key] || 0), 0
   );
-  _setText("tlp_verify_total", verifySum);
+  const customSum = (tlData.verify._custom || []).reduce(
+    (sum, cf) => sum + (cf.value || 0), 0
+  );
+  _setText("tlp_verify_total", fixedSum + customSum);
 }
 
 /* ═══════════════════════════════════════════════════════════

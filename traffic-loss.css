@@ -399,6 +399,82 @@
   font-family: var(--font-mono);
 }
 
+/* ── Add Field row ── */
+.tlp-verify-add-row {
+  padding: 6px 14px 2px;
+}
+.tlp-verify-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px dashed var(--line-soft);
+  border-radius: 6px;
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.tlp-verify-add-btn:hover {
+  background: rgba(255,176,32,.08);
+  border-color: var(--amber);
+}
+
+/* ── Custom verify field card ── */
+.tlp-verify-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tlp-verify-custom-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tlp-verify-label-input {
+  flex: 1;
+  background: var(--bg-lift);
+  border: 1px dashed var(--line-soft);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+  min-width: 0;
+}
+.tlp-verify-label-input:focus {
+  border-color: var(--amber);
+  outline: none;
+  border-style: solid;
+}
+.tlp-verify-label-input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.tlp-verify-del-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.tlp-verify-del-btn:hover {
+  color: #ff6b6b;
+  background: rgba(255,107,107,.12);
+}
+
+/* container sits inside the grid — makes custom fields span full row */
+#tlp_custom_fields_container {
+  display: contents;
+}
+
 /* ── Auto-save status chip (replaces old banner) ─────────── */
 .tl-save-status {
   display: inline-flex;
