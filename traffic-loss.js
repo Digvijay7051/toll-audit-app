@@ -1697,70 +1697,553 @@ function tlExportExcel() {
     return;
   }
 
-  const wb   = XLSX.utils.book_new();
-  const dateLabel = tlDate;
+  /* ── Format date "YYYY-MM-DD" → "August'26" style ── */
+  const MONTH_NAMES = ["January","February","March","April","May","June",
+                       "July","August","September","October","November","December"];
+  function _fmtMonth(d) {
+    const parts = (d || "").split("-");
+    if (parts.length < 3) return d || "";
+    const yr = parts[0].slice(2); // "26"
+    const mo = MONTH_NAMES[parseInt(parts[1], 10) - 1] || "";
+    return `${mo}'${yr}`;
+  }
+  const monthLabel = _fmtMonth(tlDate);
 
-  /* ── Sheet 1: Table A ── */
-  const sheetA = [];
-  sheetA.push([`Total Actual Traffic Loss Classwise for ${dateLabel}`]);
-  sheetA.push([]);
-  sheetA.push([
-    "Vehicle Class",
-    "Cash","Return","Barcode","Digital","ETC","Pass",
-    "Paid Total",
-    "Viol Count","Viol Revenue Loss",
-    "Exem Count","Exem Revenue Loss",
-    "Total Unpaid","Total Loss (₹)","Total Traffic","Loss %"
+  /* ── Helper: safe number ── */
+  const N = v => (typeof v === "number" && isFinite(v)) ? v : (parseFloat(v) || 0);
+
+  /* ══════════════════════════════════════════════════════
+     BUILD AOA  (array-of-arrays) FOR THE SINGLE SHEET
+     Layout mirrors the image exactly:
+       Row 1  : Big title (cols A–R, 18 cols)
+       Row 2  : Group headers  (Tariff | Paid Traffic | Exempted & Violation | …)
+       Row 3  : Sub-headers
+       Row 4…n: Data rows
+       Row n+1: Totals row
+       Gap (2 rows)
+       Row …  : Table B header (cols A–D) | Table C header (cols F–K)
+       Row …  : Table B col headers | Table C col headers
+       Row …  : Table B data rows  | Table C data rows  (side by side)
+       Last   : "Above count added as Non-Tollable" note
+  ══════════════════════════════════════════════════════ */
+
+  // Total columns in the sheet: 18  (A=0 … R=17)
+  // Col indices:
+  //  A=0  Class
+  //  B=1  Single Tariff   C=2  Return Tariff
+  //  D=3  Cash  E=4 Return  F=5 Barcode  G=6 Digital  H=7 ETC  I=8 Pass
+  //  J=9  Total Traffic (paid)
+  //  K=10 Violation count   L=11 Revenue Loss (viol)
+  //  M=12 Exemption count   N=13 Revenue Loss (exem)
+  //  O=14 Total Unpaid      P=15 Total Loss (₹)   (YELLOW)
+  //  Q=16 Total Traffic     R=17 Loss %
+
+  const aoa = [];
+
+  /* ── Row 0: Big title ── */
+  const titleRow = new Array(18).fill("");
+  titleRow[0] = `Total Actual Traffic loss Classwise for  ${monthLabel}`;
+  aoa.push(titleRow);
+
+  /* ── Row 1: Group headers ── */
+  const grpRow = new Array(18).fill("");
+  grpRow[0]  = "Class";        // rowspan placeholder — merged with row 2
+  grpRow[1]  = "Tariff";       // colspan 2
+  grpRow[3]  = "Paid Traffic"; // colspan 7
+  grpRow[10] = "Exempted & Violation"; // colspan 6
+  grpRow[16] = "Total Traffic";
+  grpRow[17] = "Loss in %";
+  aoa.push(grpRow);
+
+  /* ── Row 2: Sub-headers ── */
+  aoa.push([
+    "Class",
+    "Single", "Return",
+    "Cash", "Return", "Barcode", "Digital", "ETC", "Pass", "Total\nTraffic",
+    "Violation", "Revenue\nLoss", "Exemption", "Revenu\ne Loss",
+    "Total\nUnpai\nd Traffic", "Total Loss",
+    "Total Traffic", "Loss in %"
   ]);
+
+  /* ── Rows 3…n: Data rows ── */
+  // Totals accumulators
+  let tCash=0,tRet=0,tBarcode=0,tDigital=0,tEtc=0,tPass=0,
+      tPaid=0,tViol=0,tViolLoss=0,tExem=0,tExemLoss=0,
+      tUnpaid=0,tLoss=0,tGrand=0;
+
+  const dataStartRow = aoa.length; // row index where first data row goes (for formula ref)
+
   TL_CLASSES.forEach(c => {
-    const row = tlData.tableA[c.key] || {};
-    const cash = row.cash||0, ret=row.ret||0, barcode=row.barcode||0,
-          digital=row.digital||0, etc=row.etc||0, pass=row.pass||0,
-          viol=row.viol||0, exem=row.exem||0;
-    const paidTotal = cash+ret+barcode+digital+etc+pass;
+    const row     = (tlData.tableA && tlData.tableA[c.key]) || {};
+    const cash    = N(row.cash),    ret     = N(row.ret),
+          barcode = N(row.barcode), digital = N(row.digital),
+          etc     = N(row.etc),     pass    = N(row.pass),
+          viol    = N(row.viol),    exem    = N(row.exem);
+    const paidTotal = cash + ret + barcode + digital + etc + pass;
     const violLoss  = viol * c.single;
     const exemLoss  = exem * c.single;
     const unpaid    = viol + exem;
     const totalLoss = violLoss + exemLoss;
     const grand     = paidTotal + unpaid;
     const lossPct   = (c.single > 0 && grand > 0)
-      ? +((totalLoss/(grand*c.single))*100).toFixed(2) : 0;
-    sheetA.push([
-      c.label, cash, ret, barcode, digital, etc, pass,
-      paidTotal, viol, violLoss, exem, exemLoss,
-      unpaid, totalLoss, grand, lossPct+"%"
+      ? parseFloat(((totalLoss / (grand * c.single)) * 100).toFixed(2))
+      : null; // null → shows as "#DIV/0!" naturally
+
+    tCash     += cash;    tRet      += ret;      tBarcode  += barcode;
+    tDigital  += digital; tEtc      += etc;       tPass     += pass;
+    tPaid     += paidTotal; tViol   += viol;      tViolLoss += violLoss;
+    tExem     += exem;    tExemLoss += exemLoss;
+    tUnpaid   += unpaid;  tLoss     += totalLoss; tGrand    += grand;
+
+    aoa.push([
+      c.label,
+      c.single > 0 ? c.single : "",
+      c.ret    > 0 ? c.ret    : "",
+      cash, ret, barcode, digital, etc, pass, paidTotal,
+      viol, violLoss,
+      exem, exemLoss,
+      unpaid, totalLoss,
+      grand,
+      lossPct !== null ? (lossPct + "%") : "#DIV/0!"
     ]);
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetA), "Table A");
 
-  /* ── Sheet 2: Table B ── */
-  const sheetB = [["Non-Tollable Breakdown — " + dateLabel],[],
-    ["Category","Violation","Exemption","Total"]];
-  TL_NONTOLL_CATS.forEach(cat => {
-    const row = tlData.tableB[cat]||{};
-    sheetB.push([cat, row.viol||0, row.exem||0, (row.viol||0)+(row.exem||0)]);
+  /* ── Totals row ── */
+  const tLossPct = (tGrand > 0)
+    ? parseFloat(((tLoss / tGrand) * 100).toFixed(2)) + "%"
+    : "#DIV/0!";
+  aoa.push([
+    "Total", "", "",
+    tCash, tRet, tBarcode, tDigital, tEtc, tPass, tPaid,
+    tViol, tViolLoss,
+    tExem, tExemLoss,
+    tUnpaid, tLoss,
+    tGrand, tLossPct
+  ]);
+
+  /* ── Gap rows ── */
+  aoa.push(new Array(18).fill(""));
+  aoa.push(new Array(18).fill(""));
+
+  /* ── Table B + Table C side-by-side ── */
+  // Table B occupies cols A–D (0–3); Table C occupies cols F–K (5–10)
+  // Header titles
+  const bcTitleRow = new Array(18).fill("");
+  bcTitleRow[0] = "Non-Tollable Exemption & Violation";
+  bcTitleRow[5] = `Total Collection Classwise for  ${monthLabel}`;
+  aoa.push(bcTitleRow);
+
+  // Column headers
+  const bcHeadRow = new Array(18).fill("");
+  bcHeadRow[0] = "Category"; bcHeadRow[1] = "Violation";
+  bcHeadRow[2] = "Exemption"; bcHeadRow[3] = "Total";
+  bcHeadRow[5] = "Class"; bcHeadRow[6] = "Cash";
+  bcHeadRow[7] = "Return"; bcHeadRow[8] = "Digital";
+  bcHeadRow[9] = "ETC"; bcHeadRow[10] = "Total\nCollection";
+  aoa.push(bcHeadRow);
+
+  // Data rows — Table B categories + Table C classes (side by side)
+  const TL_C_CLASSES = TL_CLASSES.filter(c => c.key !== "nontoll");
+  let bViolTot=0, bExemTot=0;
+  let cCashTot=0, cRetTot=0, cDigTot=0, cEtcTot=0, cTot=0;
+
+  const maxRows = Math.max(TL_NONTOLL_CATS.length, TL_C_CLASSES.length);
+  for (let i = 0; i < maxRows; i++) {
+    const dataRow = new Array(18).fill("");
+
+    // Table B side
+    if (i < TL_NONTOLL_CATS.length) {
+      const cat  = TL_NONTOLL_CATS[i];
+      const bRow = (tlData.tableB && tlData.tableB[cat]) || {};
+      const bV   = N(bRow.viol), bE = N(bRow.exem);
+      bViolTot += bV; bExemTot += bE;
+      dataRow[0] = cat;
+      dataRow[1] = bV;
+      dataRow[2] = bE;
+      dataRow[3] = bV + bE;
+    }
+
+    // Table C side
+    if (i < TL_C_CLASSES.length) {
+      const c    = TL_C_CLASSES[i];
+      const cRow = (tlData.tableA && tlData.tableA[c.key]) || {};
+      const cCash = N(cRow.cash)    * c.single;
+      const cRet  = N(cRow.ret)     * c.ret;
+      const cDig  = N(cRow.digital) * c.single;
+      const cEtc  = N(cRow.etc)     * c.single;
+      cCashTot += cCash; cRetTot += cRet; cDigTot += cDig; cEtcTot += cEtc;
+      cTot     += cCash + cRet + cDig + cEtc;
+      dataRow[5]  = c.label;
+      dataRow[6]  = cCash;
+      dataRow[7]  = cRet;
+      dataRow[8]  = cDig;
+      dataRow[9]  = cEtc;
+      dataRow[10] = cCash + cRet + cDig + cEtc;
+    }
+
+    aoa.push(dataRow);
+  }
+
+  /* ── Table B + C totals row ── */
+  const bcTotRow = new Array(18).fill("");
+  bcTotRow[0] = "Total"; bcTotRow[1] = bViolTot;
+  bcTotRow[2] = bExemTot; bcTotRow[3] = bViolTot + bExemTot;
+  bcTotRow[5] = "Total"; bcTotRow[6] = cCashTot;
+  bcTotRow[7] = cRetTot; bcTotRow[8] = cDigTot;
+  bcTotRow[9] = cEtcTot; bcTotRow[10] = cTot;
+  aoa.push(bcTotRow);
+
+  /* ── Table B footnote ── */
+  const footRow = new Array(18).fill("");
+  footRow[0] = "Above count added as Non-Tollabale";
+  aoa.push(footRow);
+
+  /* ══════════════════════════════════════════════════════
+     CONVERT AOA → WORKSHEET & APPLY STYLING / MERGES
+  ══════════════════════════════════════════════════════ */
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  /* ── Column widths ── */
+  ws["!cols"] = [
+    { wch: 16 }, // A Class
+    { wch: 7  }, // B Single
+    { wch: 7  }, // C Return
+    { wch: 7  }, // D Cash
+    { wch: 7  }, // E Return (paid)
+    { wch: 8  }, // F Barcode
+    { wch: 8  }, // G Digital
+    { wch: 7  }, // H ETC
+    { wch: 7  }, // I Pass
+    { wch: 8  }, // J Paid Total
+    { wch: 10 }, // K Violation
+    { wch: 10 }, // L Rev Loss viol
+    { wch: 10 }, // M Exemption
+    { wch: 10 }, // N Rev Loss exem
+    { wch: 10 }, // O Total Unpaid
+    { wch: 10 }, // P Total Loss
+    { wch: 12 }, // Q Total Traffic
+    { wch: 8  }, // R Loss %
+  ];
+
+  /* ── Merges ── */
+  // Row 0: title spans A1:R1
+  // Row 1: "Class" A2:A3, "Tariff" B2:C2, "Paid Traffic" D2:J2,
+  //        "Exempted & Violation" K2:P2, "Total Traffic" Q2:Q3, "Loss in%" R2:R3
+  // Bottom section: "Non-Tollable..." A(n):D(n), "Total Collection..." F(n):K(n)
+  const titleR    = 0;
+  const grpR      = 1;
+  const subR      = 2;
+  const firstData = 3;
+  const totalsR   = firstData + TL_CLASSES.length;
+  const gap1R     = totalsR + 1;
+  const gap2R     = totalsR + 2;
+  const bcTitleR  = totalsR + 3;
+  const bcHeadR   = totalsR + 4;
+  const bcDataR0  = totalsR + 5;
+  const bcTotR    = bcDataR0 + maxRows;
+  const bcFootR   = bcTotR + 1;
+
+  ws["!merges"] = [
+    // Title row
+    { s: { r: titleR, c: 0 }, e: { r: titleR, c: 17 } },
+    // Group header row: Class cell spans 2 rows
+    { s: { r: grpR,   c: 0 }, e: { r: subR,   c: 0  } },
+    // Tariff (B2:C2)
+    { s: { r: grpR,   c: 1 }, e: { r: grpR,   c: 2  } },
+    // Paid Traffic (D2:J2)
+    { s: { r: grpR,   c: 3 }, e: { r: grpR,   c: 9  } },
+    // Exempted & Violation (K2:P2)
+    { s: { r: grpR,   c: 10 }, e: { r: grpR,  c: 15 } },
+    // Total Traffic (Q2:Q3)
+    { s: { r: grpR,   c: 16 }, e: { r: subR,  c: 16 } },
+    // Loss in % (R2:R3)
+    { s: { r: grpR,   c: 17 }, e: { r: subR,  c: 17 } },
+    // Bottom section title merges
+    { s: { r: bcTitleR, c: 0 }, e: { r: bcTitleR, c: 3  } },
+    { s: { r: bcTitleR, c: 5 }, e: { r: bcTitleR, c: 10 } },
+  ];
+
+  /* ── Cell styling via cell-level s property (requires SheetJS Pro for full support,
+        but basic fill/font works in the free version for most xlsx readers) ── */
+
+  // Color palette (ARGB)
+  const BLUE_HDR   = "FF4472C4"; // blue header  (#4472C4)
+  const PEACH      = "FFFCE4D6"; // paid traffic peach
+  const LIGHTBLUE  = "FFDAE3F3"; // exempted light blue
+  const GREEN_HDR  = "FFD9E1F2"; // tariff green-ish (actually light blue-green in image)
+  const YELLOW     = "FFFFFF00"; // total loss yellow
+  const LILAC      = "FFB4C6E7"; // totals row blue
+  const WHITE      = "FFFFFFFF";
+
+  function cellRef(r, c) {
+    return XLSX.utils.encode_cell({ r, c });
+  }
+
+  function styleCell(r, c, opts) {
+    const ref = cellRef(r, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = Object.assign(ws[ref].s || {}, opts);
+  }
+
+  function applyRowStyle(r, cStart, cEnd, opts) {
+    for (let c = cStart; c <= cEnd; c++) styleCell(r, c, opts);
+  }
+
+  const boldCenter = {
+    font:      { bold: true, sz: 11, color: { rgb: "FF1F3864" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top:    { style: "thin", color: { rgb: "FF4472C4" } },
+      bottom: { style: "thin", color: { rgb: "FF4472C4" } },
+      left:   { style: "thin", color: { rgb: "FF4472C4" } },
+      right:  { style: "thin", color: { rgb: "FF4472C4" } }
+    }
+  };
+
+  // Title row
+  const titleCell = cellRef(titleR, 0);
+  if (!ws[titleCell]) ws[titleCell] = { t: "s", v: aoa[titleR][0] };
+  ws[titleCell].s = {
+    font:      { bold: true, sz: 14, color: { rgb: "FF1F3864" } },
+    fill:      { fgColor: { rgb: "FFDAE3F3" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border:    { bottom: { style: "medium", color: { rgb: "FF4472C4" } } }
+  };
+  for (let c = 1; c < 18; c++) {
+    const ref = cellRef(titleR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = { fill: { fgColor: { rgb: "FFDAE3F3" } } };
+  }
+
+  // Group header row (row 1) — colour bands
+  const grpColors = [
+    { start: 0,  end: 0,  bg: "FFD9E1F2" },  // Class
+    { start: 1,  end: 2,  bg: "FFD9E1F2" },  // Tariff
+    { start: 3,  end: 9,  bg: PEACH      },  // Paid Traffic
+    { start: 10, end: 15, bg: LIGHTBLUE  },  // Exempted & Violation
+    { start: 16, end: 16, bg: "FFD9E1F2" },  // Total Traffic
+    { start: 17, end: 17, bg: "FFD9E1F2" },  // Loss in %
+  ];
+  grpColors.forEach(({ start, end, bg }) => {
+    for (let c = start; c <= end; c++) {
+      const ref = cellRef(grpR, c);
+      if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+      ws[ref].s = {
+        font:      { bold: true, sz: 11, color: { rgb: "FF1F3864" } },
+        fill:      { fgColor: { rgb: bg } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top:    { style: "thin", color: { rgb: "FF4472C4" } },
+          bottom: { style: "thin", color: { rgb: "FF4472C4" } },
+          left:   { style: "thin", color: { rgb: "FF4472C4" } },
+          right:  { style: "thin", color: { rgb: "FF4472C4" } }
+        }
+      };
+    }
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetB), "Table B");
 
-  /* ── Sheet 3: Table C ── */
-  const sheetC = [["Collection Classwise — " + dateLabel],[],
-    ["Vehicle Class","Cash (₹)","Return (₹)","Digital (₹)","ETC (₹)","Total (₹)"]];
-  TL_CLASSES.filter(c=>c.key!=="nontoll").forEach(c => {
-    const row = tlData.tableA[c.key]||{};
-    const cash=(row.cash||0)*c.single, ret=(row.ret||0)*c.ret,
-          dig=(row.digital||0)*c.single, etc=(row.etc||0)*c.single;
-    sheetC.push([c.label, cash, ret, dig, etc, cash+ret+dig+etc]);
+  // Sub-header row (row 2) — same colour bands
+  grpColors.forEach(({ start, end, bg }) => {
+    for (let c = start; c <= end; c++) {
+      const ref = cellRef(subR, c);
+      if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+      ws[ref].s = {
+        font:      { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+        fill:      { fgColor: { rgb: bg } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top:    { style: "thin", color: { rgb: "FF4472C4" } },
+          bottom: { style: "thin", color: { rgb: "FF4472C4" } },
+          left:   { style: "thin", color: { rgb: "FF4472C4" } },
+          right:  { style: "thin", color: { rgb: "FF4472C4" } }
+        }
+      };
+    }
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetC), "Table C");
 
-  /* ── Sheet 4: Verify ── */
-  const sheetV = [["Audit Verification — "+dateLabel],[]];
-  TL_VERIFY_FIELDS.forEach(f => sheetV.push([f.label, tlData.verify[f.key]||0]));
-  const vSum = TL_VERIFY_FIELDS.reduce((s,f)=>s+(tlData.verify[f.key]||0),0);
-  sheetV.push(["TOTAL", vSum]);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetV), "Verification");
+  // Data rows styling
+  for (let i = 0; i < TL_CLASSES.length; i++) {
+    const r = firstData + i;
+    for (let c = 0; c < 18; c++) {
+      const ref = cellRef(r, c);
+      if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+      let bg = WHITE;
+      if (c === 0)                bg = "FFD9E1F2"; // class name
+      else if (c >= 1 && c <= 2)  bg = "FFD9E1F2"; // tariff
+      else if (c >= 3 && c <= 9)  bg = PEACH;      // paid
+      else if (c >= 10 && c <= 15) bg = LIGHTBLUE; // exempted
+      if (c === 15)               bg = YELLOW;      // total loss — yellow
+      ws[ref].s = {
+        font:      { bold: (c === 0), sz: 10, color: { rgb: "FF1F3864" } },
+        fill:      { fgColor: { rgb: bg } },
+        alignment: { horizontal: c === 0 ? "center" : "center", vertical: "center" },
+        border: {
+          top:    { style: "thin", color: { rgb: "FFBFBFBF" } },
+          bottom: { style: "thin", color: { rgb: "FFBFBFBF" } },
+          left:   { style: "thin", color: { rgb: "FFBFBFBF" } },
+          right:  { style: "thin", color: { rgb: "FFBFBFBF" } }
+        }
+      };
+    }
+  }
 
-  XLSX.writeFile(wb, `Traffic_Loss_Report_${dateLabel}.xlsx`);
+  // Totals row styling
+  for (let c = 0; c < 18; c++) {
+    const ref = cellRef(totalsR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:      { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+      fill:      { fgColor: { rgb: c === 15 ? YELLOW : LILAC } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top:    { style: "medium", color: { rgb: "FF4472C4" } },
+        bottom: { style: "medium", color: { rgb: "FF4472C4" } },
+        left:   { style: "thin",   color: { rgb: "FF4472C4" } },
+        right:  { style: "thin",   color: { rgb: "FF4472C4" } }
+      }
+    };
+  }
+
+  // Bottom section: Table B + C title rows
+  for (let c = 0; c <= 3; c++) {
+    const ref = cellRef(bcTitleR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:      { bold: true, sz: 11, color: { rgb: "FF1F3864" } },
+      fill:      { fgColor: { rgb: "FFD9E1F2" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: { bottom: { style: "medium", color: { rgb: "FF4472C4" } } }
+    };
+  }
+  for (let c = 5; c <= 10; c++) {
+    const ref = cellRef(bcTitleR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:      { bold: true, sz: 11, color: { rgb: "FF1F3864" } },
+      fill:      { fgColor: { rgb: "FFDAE3F3" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: { bottom: { style: "medium", color: { rgb: "FF4472C4" } } }
+    };
+  }
+
+  // Table B + C column headers
+  [0,1,2,3].forEach(c => {
+    const ref = cellRef(bcHeadR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:  { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+      fill:  { fgColor: { rgb: "FFD9E1F2" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top:    { style: "thin", color: { rgb: "FF4472C4" } },
+        bottom: { style: "thin", color: { rgb: "FF4472C4" } },
+        left:   { style: "thin", color: { rgb: "FF4472C4" } },
+        right:  { style: "thin", color: { rgb: "FF4472C4" } }
+      }
+    };
+  });
+  [5,6,7,8,9,10].forEach(c => {
+    const ref = cellRef(bcHeadR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:  { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+      fill:  { fgColor: { rgb: PEACH } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top:    { style: "thin", color: { rgb: "FF4472C4" } },
+        bottom: { style: "thin", color: { rgb: "FF4472C4" } },
+        left:   { style: "thin", color: { rgb: "FF4472C4" } },
+        right:  { style: "thin", color: { rgb: "FF4472C4" } }
+      }
+    };
+  });
+
+  // Table B + C data rows
+  for (let i = 0; i < maxRows; i++) {
+    const r = bcDataR0 + i;
+    [0,1,2,3].forEach(c => {
+      const ref = cellRef(r, c);
+      if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+      ws[ref].s = {
+        font:  { bold: c === 0, sz: 10, color: { rgb: "FF1F3864" } },
+        fill:  { fgColor: { rgb: WHITE } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top:    { style: "thin", color: { rgb: "FFBFBFBF" } },
+          bottom: { style: "thin", color: { rgb: "FFBFBFBF" } },
+          left:   { style: "thin", color: { rgb: "FFBFBFBF" } },
+          right:  { style: "thin", color: { rgb: "FFBFBFBF" } }
+        }
+      };
+    });
+    [5,6,7,8,9,10].forEach(c => {
+      const ref = cellRef(r, c);
+      if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+      ws[ref].s = {
+        font:  { bold: c === 5, sz: 10, color: { rgb: "FF1F3864" } },
+        fill:  { fgColor: { rgb: c >= 6 ? PEACH : WHITE } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top:    { style: "thin", color: { rgb: "FFBFBFBF" } },
+          bottom: { style: "thin", color: { rgb: "FFBFBFBF" } },
+          left:   { style: "thin", color: { rgb: "FFBFBFBF" } },
+          right:  { style: "thin", color: { rgb: "FFBFBFBF" } }
+        }
+      };
+    });
+  }
+
+  // Table B + C totals rows
+  [0,1,2,3].forEach(c => {
+    const ref = cellRef(bcTotR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:  { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+      fill:  { fgColor: { rgb: LILAC } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top:    { style: "medium", color: { rgb: "FF4472C4" } },
+        bottom: { style: "medium", color: { rgb: "FF4472C4" } },
+        left:   { style: "thin",   color: { rgb: "FF4472C4" } },
+        right:  { style: "thin",   color: { rgb: "FF4472C4" } }
+      }
+    };
+  });
+  [5,6,7,8,9,10].forEach(c => {
+    const ref = cellRef(bcTotR, c);
+    if (!ws[ref]) ws[ref] = { t: "z", v: "" };
+    ws[ref].s = {
+      font:  { bold: true, sz: 10, color: { rgb: "FF1F3864" } },
+      fill:  { fgColor: { rgb: LILAC } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top:    { style: "medium", color: { rgb: "FF4472C4" } },
+        bottom: { style: "medium", color: { rgb: "FF4472C4" } },
+        left:   { style: "thin",   color: { rgb: "FF4472C4" } },
+        right:  { style: "thin",   color: { rgb: "FF4472C4" } }
+      }
+    };
+  });
+
+  // Footnote
+  const footRef = cellRef(bcFootR, 0);
+  if (!ws[footRef]) ws[footRef] = { t: "z", v: "" };
+  ws[footRef].s = {
+    font:      { italic: true, sz: 9, color: { rgb: "FF1F3864" } },
+    alignment: { horizontal: "left" }
+  };
+
+  /* ── Row heights ── */
+  ws["!rows"] = [];
+  ws["!rows"][titleR] = { hpt: 28 };
+  ws["!rows"][grpR]   = { hpt: 22 };
+  ws["!rows"][subR]   = { hpt: 38 };
+  ws["!rows"][bcTitleR] = { hpt: 22 };
+
+  /* ── Append sheet ── */
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Traffic Report");
+  XLSX.writeFile(wb, `Traffic_Loss_Report_${tlDate}.xlsx`);
 }
 
 /* ─────────────────────────────────────────────
