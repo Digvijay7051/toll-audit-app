@@ -214,6 +214,19 @@ async function submitAuditToSheet(notes, prebuilt) {
         };
     }
 
+    /* Fire email notification (non-blocking — won't affect save flow) */
+    if (typeof sendAuditSavedEmail === "function") {
+        const auditorName = (typeof currentUsername !== "undefined" && currentUsername)
+            ? currentUsername
+            : ((typeof fbAuth !== "undefined" && fbAuth && fbAuth.currentUser && fbAuth.currentUser.displayName) || "Unknown");
+        sendAuditSavedEmail({
+            dateKey:   date,
+            auditor:   auditorName,
+            rowCount:  rows.length,
+            notes:     notes || ""
+        });
+    }
+
     return {
         success: true,
         message: `✅ ${rows.length} transaction${rows.length !== 1 ? "s" : ""} save ho gaya!\n\nAb tum kisi bhi PC se login karke "View Audit History" se is date ka audit dekh sakte ho.`
