@@ -74,32 +74,75 @@
 .xl-error { color: var(--red); }
 .xl-error i { color: var(--red); }
 
-/* ── Mode block (Violation / Exemption) ── */
-.xl-mode-block {
-  margin-bottom: 28px;
+/* ── Tab navigation ── */
+.xl-tab-nav {
+  display: flex;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 0 0;
+  padding: 0;
+  border-bottom: 2px solid var(--line);
 }
-.xl-mode-label {
-  display: inline-flex;
+.xl-tab-item { display: flex; }
+.xl-tab-btn {
+  display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 22px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: .04em;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  letter-spacing: .02em;
+}
+.xl-tab-btn:hover { color: var(--text); }
+.xl-tab-btn.xl-tab-active { color: var(--text); border-bottom-color: var(--blue); }
+.xl-tab-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.xl-dot-violation { background: var(--red); }
+.xl-dot-exemption { background: var(--green); }
+.xl-tab-btn.xl-tab-active .xl-dot-violation { box-shadow: 0 0 0 2px rgba(229,72,77,.3); }
+.xl-tab-btn.xl-tab-active .xl-dot-exemption { box-shadow: 0 0 0 2px rgba(47,182,115,.3); }
+.xl-tab-count {
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-family: var(--font-mono);
+}
+.xl-tab-btn.xl-tab-active .xl-tab-count { background: var(--blue-soft); color: var(--blue); }
+
+/* ── Tab pane ── */
+.xl-tab-pane { padding-top: 16px; }
+.xl-tab-pane-hidden { display: none; }
+
+/* ── Paid virtual row ── */
+.xl-paid-virtual-row td { background: rgba(255,176,32,.05) !important; }
+.xl-paid-veh-label { color: var(--amber) !important; }
+.xl-paid-tag {
+  display: inline-block;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
   text-transform: uppercase;
-  padding: 5px 14px;
-  border-radius: 6px;
-  margin-bottom: 10px;
 }
-.xl-mode-violation {
-  background: var(--red-soft);
-  color: var(--red);
-  border: 1px solid rgba(229,72,77,.25);
-}
-.xl-mode-exemption {
-  background: var(--green-soft);
-  color: var(--green);
-  border: 1px solid rgba(47,182,115,.25);
-}
+
+/* ── th vehicle column min-width ── */
+.xl-th-vehicle { min-width: 160px !important; text-align: left !important; }
 
 /* ── Table scroll wrapper ── */
 .xl-table-scroll {
