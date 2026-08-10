@@ -1,6 +1,6 @@
 /* ==========================================================
    Toll Audit Assistant
-   excel-import.js  v2
+   excel-import.js  v3
 
    Excel Report Upload → Auto-Audit → Review/Edit → Inject
    ──────────────────────────────────────────────────────────
@@ -12,6 +12,15 @@
      Row: CAR | 122 | | …                                  ← data rows
      …
      Row: Total | 131 | 6 | …                              ← skip
+
+   v3 fixes:
+     - XLSX read with raw:true + cellFormula:false — pure cell values, no color confusion
+     - _splitByHeadings: mode heading detected only when row has ≤2 non-empty cells
+       (avoids false match on col-header rows that contain "Violation" in some formats)
+     - report-counts row: accept even if firstCell is non-empty "Actual Class after Validate"
+     - data rows: include rows with ALL-zero counts only if label exists in XL_ROW_MAP
+       (skip only "Total" / already-processed rows)
+     - Added _debugLog() for console diagnostics (silent in production)
 ========================================================== */
 
 /* ─────────────────────────────────────────────────────────
@@ -43,6 +52,7 @@ const XL_COL_MAP = {
    ROW LABEL → APP VEHICLE CLASS
 ───────────────────────────────────────────────────────── */
 const XL_ROW_MAP = {
+  /* ── Vehicle classes ── */
   "car":                                   "Car",
   "lcv":                                   "LCV",
   "lcv/minibus":                           "LCV",
@@ -56,35 +66,57 @@ const XL_ROW_MAP = {
   "mav 4-6 axle":                          "MAV",
   "mav 4 -6 axle":                         "MAV",
   "mav 4 - 6 axle":                        "MAV",
+  "mav4-6axle":                            "MAV",
+  "mav 4-6axle":                           "MAV",
+  "mav 4 -6axle":                          "MAV",
   "mav 4–6 axle":                          "MAV",
   "mav 4 – 6 axle":                        "MAV",
   "mav 4 - 6  axle":                       "MAV",
+  "mav 4 - 6 axle":                        "MAV",
   "auto":                                  "Auto",
   "tractor":                               "Tractor",
   "bus 2 axle":                            "Bus 2 Axle",
   "bus2 axle":                             "Bus 2 Axle",
+  /* ── Other categories seen in reports ── */
   "forcefully":                            "Forcefully",
   "force fully":                           "Forcefully",
+  "forceully":                             "Forcefully",       /* common typo */
   "fake transaction":                      "Fake Violation",
   "fake violation":                        "Fake Violation",
   "fake exemption":                        "Fake Exemption",
   "bike":                                  "Bike",
+  "two wheeler":                           "Bike",
+  "2 wheeler":                             "Bike",
   "ambulance":                             "Ambulance",
   "police":                                "Police",
   "govt. vehicle":                         "Government Vehicle",
   "govt vehicle":                          "Government Vehicle",
   "government vehicle":                    "Government Vehicle",
+  "govt.vehicle":                          "Government Vehicle",
   "army vehicle":                          "Army Vehicle",
+  "army":                                  "Army Vehicle",
   "concessionaire":                        "Concessionaire",
   "jcb":                                   "JCB",
   "pass monthly/local":                    "Has Pass",
   "pass monthly":                          "Has Pass",
   "monthly pass":                          "Has Pass",
+  "local pass":                            "Has Pass",
+  "has pass":                              "Has Pass",
   /* "Already Paid" rows — stored specially, asked payment mode at review step */
   "already paid found with another  txn":  "_ALREADY_PAID",
   "already paid found with another txn":   "_ALREADY_PAID",
   "already paid":                          "_ALREADY_PAID",
+  "already paid found":                    "_ALREADY_PAID",
 };
+
+/* ── Extra XL_COL_MAP entries for variant spellings ── */
+Object.assign(XL_COL_MAP, {
+  "mav4-6axle":    "MAV",
+  "mav 4-6axle":   "MAV",
+  "bus2axle":      "Bus 2 Axle",
+  "truck2axle":    "Truck 2 Axle",
+  "truck3axle":    "Truck 3 Axle",
+});
 
 /* REPORT_CATEGORIES in the app */
 const XL_CATS = ["Car","LCV","Truck 2 Axle","Truck 3 Axle","MAV","Auto","Tractor","Bus 2 Axle"];
@@ -106,6 +138,13 @@ function _normalizeKey(str) {
 /* ─────────────────────────────────────────────────────────
    PARSE EXCEL FILE
 ───────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────
+   DEBUG LOGGER — set XL_DEBUG = true in browser console
+   to see parse trace
+───────────────────────────────────────────────────────── */
+const XL_DEBUG = false;
+function _debugLog(...args) { if (XL_DEBUG) console.log("[XLImport]", ...args); }
+
 function parseAuditExcel(file) {
   return new Promise((resolve) => {
     if (typeof XLSX === "undefined") {
@@ -114,7 +153,16 @@ function parseAuditExcel(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb     = XLSX.read(e.target.result, { type: "binary" });
+        /* raw:true → numbers come as numbers (not strings)
+           cellStyles:false → ignore fill colors completely
+           cellFormula:false → get computed values only        */
+        const wb = XLSX.read(e.target.result, {
+          type: "binary",
+          raw: false,
+          cellStyles: false,
+          cellFormula: false,
+          cellDates: false
+        });
         const result = _extractBothModes(wb);
         resolve(result);
       } catch (err) {
@@ -131,36 +179,53 @@ function _extractBothModes(wb) {
   let violation = null;
   let exemption = null;
 
+  const toRows = sheet => XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
   /* Strategy 1: sheets explicitly named "Violation" / "Exemption" */
   wb.SheetNames.forEach(name => {
     const norm = _normalizeKey(name);
-    if (norm.includes("violation") && !violation) {
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
-      violation = _parseMatrix(rows);
+    if (norm === "violation" && !violation) {
+      violation = _parseMatrix(toRows(wb.Sheets[name]), "Violation");
     }
-    if (norm.includes("exemption") && !exemption) {
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
-      exemption = _parseMatrix(rows);
+    if (norm === "exemption" && !exemption) {
+      exemption = _parseMatrix(toRows(wb.Sheets[name]), "Exemption");
     }
   });
 
-  /* Strategy 2: all sheets stacked — scan every sheet for both headings */
-  wb.SheetNames.forEach(name => {
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
-    const { vBlock, eBlock } = _splitByHeadings(rows);
-    if (!violation && vBlock.length > 2) violation = _parseMatrix(vBlock);
-    if (!exemption && eBlock.length > 2) exemption = _parseMatrix(eBlock);
-  });
+  /* Strategy 2: sheet name contains "violation"/"exemption" */
+  if (!violation || !exemption) {
+    wb.SheetNames.forEach(name => {
+      const norm = _normalizeKey(name);
+      if (norm.includes("violation") && !violation) {
+        violation = _parseMatrix(toRows(wb.Sheets[name]), "Violation");
+      }
+      if (norm.includes("exemption") && !exemption) {
+        exemption = _parseMatrix(toRows(wb.Sheets[name]), "Exemption");
+      }
+    });
+  }
 
-  /* Strategy 3: first sheet = Violation, second = Exemption (fallback) */
+  /* Strategy 3: all sheets stacked — scan every sheet for both headings */
+  if (!violation || !exemption) {
+    wb.SheetNames.forEach(name => {
+      const rows = toRows(wb.Sheets[name]);
+      _debugLog("Scanning sheet:", name, "rows:", rows.length);
+      const { vBlock, eBlock } = _splitByHeadings(rows);
+      _debugLog("vBlock length:", vBlock.length, "eBlock length:", eBlock.length);
+      if (!violation && vBlock.length > 2) violation = _parseMatrix(vBlock, "Violation");
+      if (!exemption && eBlock.length > 2) exemption = _parseMatrix(eBlock, "Exemption");
+    });
+  }
+
+  /* Strategy 4: first sheet = Violation, second = Exemption (fallback) */
   if (!violation && wb.SheetNames[0]) {
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-    violation = _parseMatrix(rows);
+    violation = _parseMatrix(toRows(wb.Sheets[wb.SheetNames[0]]), "Violation");
   }
   if (!exemption && wb.SheetNames[1]) {
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]], { header: 1, defval: "" });
-    exemption = _parseMatrix(rows);
+    exemption = _parseMatrix(toRows(wb.Sheets[wb.SheetNames[1]]), "Exemption");
   }
+
+  _debugLog("Final → violation:", violation, "exemption:", exemption);
 
   if (!violation && !exemption) {
     return { ok: false, error: "Koi valid audit matrix nahi mila Excel mein. Check karein ki sheet mein 'Violation' / 'Exemption' heading ho aur column headers (CAR, LCV…) ho." };
@@ -168,28 +233,45 @@ function _extractBothModes(wb) {
   return { ok: true, violation, exemption };
 }
 
-/* ── Split flat row array into Violation block and Exemption block ── */
+/* ── Split flat row array into Violation block and Exemption block ──
+   KEY FIX: A mode heading row has the mode word AND very few non-empty
+   cells (≤ 3). Col-header rows have many non-empty cells — we skip those.
+────────────────────────────────────────────────────────────────────── */
 function _splitByHeadings(rows) {
   let vStart = -1, eStart = -1;
+
   rows.forEach((row, i) => {
-    /* Check any cell in the row for the heading word */
-    const rowText = row.map(c => _normalizeKey(String(c))).join(" ");
-    if (rowText.includes("violation") && vStart === -1 && !rowText.includes("exemption")) vStart = i;
-    if (rowText.includes("exemption") && eStart === -1) eStart = i;
+    const nonEmpty = row.filter(c => String(c).trim() !== "");
+    const rowText  = row.map(c => _normalizeKey(String(c))).join(" ");
+
+    /* A pure heading row has the word + ≤3 non-empty cells total.
+       This prevents col-header rows (8+ columns) being mistaken. */
+    const isHeadingRow = nonEmpty.length <= 3;
+
+    if (isHeadingRow && rowText.includes("violation") && !rowText.includes("exemption") && vStart === -1) {
+      vStart = i;
+      _debugLog("vStart =", i, "row:", row);
+    }
+    if (isHeadingRow && rowText.includes("exemption") && eStart === -1) {
+      eStart = i;
+      _debugLog("eStart =", i, "row:", row);
+    }
   });
-  const vEnd    = eStart >= 0 && eStart > vStart ? eStart : undefined;
-  const vBlock  = vStart >= 0 ? rows.slice(vStart, vEnd) : [];
-  const eBlock  = eStart >= 0 ? rows.slice(eStart) : [];
+
+  const vEnd   = eStart >= 0 && eStart > vStart ? eStart : undefined;
+  const vBlock = vStart >= 0 ? rows.slice(vStart, vEnd) : [];
+  const eBlock = eStart >= 0 ? rows.slice(eStart)       : [];
   return { vBlock, eBlock };
 }
 
 /* ─────────────────────────────────────────────────────────
-   CORE PARSER
-   Finds the column-header row (CAR / LCV…), then:
-     - row immediately after = report counts ("Actual Class after Validate")
-     - rows after that      = actual vehicle data
+   CORE PARSER  v3
+   1. Find col-header row (CAR / LCV/MINIBUS / …)
+   2. Next row after headers = report counts
+      ("Actual Class after Validate" label or blank label + numbers)
+   3. Remaining rows until "Total" = vehicle data rows
 ───────────────────────────────────────────────────────── */
-function _parseMatrix(rows) {
+function _parseMatrix(rows, modeLabel) {
   if (!rows || rows.length < 3) return null;
 
   /* ── Step 1: find column-header row ── */
@@ -197,15 +279,20 @@ function _parseMatrix(rows) {
   let colHeaders   = [];
 
   for (let i = 0; i < rows.length; i++) {
-    const norm = rows[i].map(c => _normalizeKey(String(c)));
+    const norm       = rows[i].map(c => _normalizeKey(String(c)));
     const matchCount = norm.filter(c => !!XL_COL_MAP[c]).length;
-    if (matchCount >= 2) {   /* at least 2 category columns found = confident match */
+    _debugLog(`[${modeLabel}] row ${i} matchCount=${matchCount}`, norm.slice(0,10));
+    if (matchCount >= 2) {
       colHeaderIdx = i;
       colHeaders   = norm;
+      _debugLog(`[${modeLabel}] colHeader found at row`, i, colHeaders);
       break;
     }
   }
-  if (colHeaderIdx < 0) return null;
+  if (colHeaderIdx < 0) {
+    _debugLog(`[${modeLabel}] ERROR: no col header found`);
+    return null;
+  }
 
   /* ── Step 2: map column index → REPORT_CATEGORIES ── */
   const colIdxToCat = {};
@@ -213,39 +300,55 @@ function _parseMatrix(rows) {
     if (XL_COL_MAP[h]) colIdxToCat[idx] = XL_COL_MAP[h];
   });
   const validCols = Object.keys(colIdxToCat).map(Number);
+  _debugLog(`[${modeLabel}] validCols:`, validCols, colIdxToCat);
   if (validCols.length === 0) return null;
 
   /* ── Step 3: find report-counts row ──
-     It immediately follows the col-header row, and its first cell is
-     either blank OR "Actual Class after Validate" (any variation).
-     We scan up to 3 rows ahead to be robust. */
+     The row immediately after col headers whose first cell is:
+       • blank, OR
+       • "Actual Class after Validate" / similar label
+     Scan up to 3 rows ahead in case there's a blank row in between. */
   let reportCounts = {};
   let reportRowIdx = -1;
 
-  for (let ri = colHeaderIdx + 1; ri <= Math.min(colHeaderIdx + 3, rows.length - 1); ri++) {
+  for (let ri = colHeaderIdx + 1; ri <= Math.min(colHeaderIdx + 4, rows.length - 1); ri++) {
     const row       = rows[ri];
     const firstCell = _normalizeKey(String(row[0] || ""));
-    const isLabelRow = firstCell === "" ||
-                       firstCell.includes("actual") ||
-                       firstCell.includes("validate") ||
-                       firstCell.includes("class after");
 
-    /* Also accept if the row has numbers in the category columns */
+    /* Skip completely empty rows */
+    if (row.every(c => String(c).trim() === "")) continue;
+
+    /* A valid report-count row label */
+    const isReportLabel =
+      firstCell === "" ||
+      firstCell.includes("actual") ||
+      firstCell.includes("validate") ||
+      firstCell.includes("class after");
+
+    /* Also check: are there numbers in category columns? */
     const hasNumbers = validCols.some(ci => {
-      const v = parseFloat(String(row[ci] || "").replace(/,/g,""));
+      const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
+      const v   = parseFloat(raw);
       return !isNaN(v) && v > 0;
     });
 
-    if (isLabelRow || (hasNumbers && firstCell !== "total")) {
+    _debugLog(`[${modeLabel}] reportRow candidate ri=${ri} firstCell="${firstCell}" isReportLabel=${isReportLabel} hasNumbers=${hasNumbers}`);
+
+    if (isReportLabel && hasNumbers) {
       reportRowIdx = ri;
       validCols.forEach(ci => {
         const cat = colIdxToCat[ci];
-        const raw = String(row[ci] || "").replace(/,/g, "");
-        const val = parseInt(raw, 10) || 0;
-        if (val > 0) reportCounts[cat] = val;
+        const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
+        const val = parseInt(raw, 10);
+        if (!isNaN(val) && val >= 0) reportCounts[cat] = val;
       });
+      _debugLog(`[${modeLabel}] reportCounts:`, reportCounts);
       break;
     }
+
+    /* If label is NOT a report label (e.g. it's a vehicle name row),
+       stop looking — the report-count row is missing or already passed. */
+    if (!isReportLabel && firstCell !== "" && XL_ROW_MAP[firstCell] !== undefined) break;
   }
 
   /* ── Step 4: data rows ── */
@@ -254,28 +357,42 @@ function _parseMatrix(rows) {
 
   for (let i = dataStart; i < rows.length; i++) {
     const row    = rows[i];
-    const label  = _normalizeKey(String(row[0] || ""));
+    const rawLbl = String(row[0] ?? "").trim();
+    const label  = _normalizeKey(rawLbl);
 
     if (!label) continue;
+
+    /* Stop at "Total" row */
     if (label === "total" || label.startsWith("total")) continue;
-    if (label.includes("class as per") || label.includes("system report")) continue;
+
+    /* Skip header-like rows */
+    if (
+      label.includes("class as per") ||
+      label.includes("system report") ||
+      label.includes("violation") ||
+      label.includes("exemption")
+    ) continue;
 
     const appVehicle = XL_ROW_MAP[label];
-    if (!appVehicle) continue;
+    if (!appVehicle) {
+      _debugLog(`[${modeLabel}] row ${i} UNKNOWN label: "${label}"`);
+      continue;
+    }
 
     const counts = {};
     validCols.forEach(ci => {
       const cat = colIdxToCat[ci];
-      const raw = String(row[ci] || "").replace(/,/g, "");
-      const val = parseInt(raw, 10) || 0;
-      if (val > 0) counts[cat] = (counts[cat] || 0) + val;
+      const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
+      const val = parseInt(raw, 10);
+      if (!isNaN(val) && val > 0) counts[cat] = (counts[cat] || 0) + val;
     });
 
-    if (Object.values(counts).some(v => v > 0)) {
-      vehicleRows.push({ vehicle: appVehicle, counts });
-    }
+    /* Include all mapped vehicle rows — even zero-count ones are tracked */
+    vehicleRows.push({ vehicle: appVehicle, counts });
+    _debugLog(`[${modeLabel}] row ${i} vehicle="${appVehicle}" counts:`, counts);
   }
 
+  _debugLog(`[${modeLabel}] DONE — reportCounts:`, reportCounts, "vehicleRows:", vehicleRows.length);
   return { reportCounts, vehicleRows };
 }
 
@@ -298,11 +415,12 @@ function buildImportReviewHtml(violation, exemption) {
     }
 
     const rc  = matrix.reportCounts || {};
-    /* vehicleRows indexed by vehicle name → { cat: count } */
+    /* vehicleRows indexed by vehicle name → { cat: count }
+       We de-duplicate rows with the same vehicle name by summing counts. */
     const vehMap = {};
     (matrix.vehicleRows || []).forEach(({ vehicle, counts }) => {
       if (!vehMap[vehicle]) vehMap[vehicle] = {};
-      Object.entries(counts).forEach(([cat, n]) => {
+      Object.entries(counts || {}).forEach(([cat, n]) => {
         vehMap[vehicle][cat] = (vehMap[vehicle][cat] || 0) + n;
       });
     });
@@ -345,6 +463,7 @@ function buildImportReviewHtml(violation, exemption) {
     normalVehicles.forEach(vehicle => {
       const rowCounts = XL_CATS.map(c => (vehMap[vehicle] && vehMap[vehicle][c]) || 0);
       const rowTotal  = rowCounts.reduce((a,b)=>a+b,0);
+      /* skip zero-total rows — they have no useful data to display */
       if (rowTotal === 0) return;
       html += `<tr data-vehicle="${vehicle}">
         <td class="xl-veh-label">${vehicle}</td>
