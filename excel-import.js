@@ -234,29 +234,39 @@ function _extractBothModes(wb) {
 }
 
 /* ── Split flat row array into Violation block and Exemption block ──
-   KEY FIX: A mode heading row has the mode word AND very few non-empty
-   cells (≤ 3). Col-header rows have many non-empty cells — we skip those.
+   Strategy: scan every row for the FIRST non-empty cell.
+   If that cell's text is exactly (or contains only) "violation" or
+   "exemption" — it's a mode-heading row, regardless of how many
+   trailing empty/blank cells XLSX adds via defval:"".
+   Col-header rows have their FIRST cell as "Actual Class after
+   Validate" or similar — never just "Violation".
 ────────────────────────────────────────────────────────────────────── */
 function _splitByHeadings(rows) {
   let vStart = -1, eStart = -1;
 
   rows.forEach((row, i) => {
-    const nonEmpty = row.filter(c => String(c).trim() !== "");
-    const rowText  = row.map(c => _normalizeKey(String(c))).join(" ");
+    /* Find the first non-empty cell in this row */
+    const firstFilled = row.map(c => _normalizeKey(String(c))).find(c => c !== "");
+    if (!firstFilled) return;   /* completely blank row */
 
-    /* A pure heading row has the word + ≤3 non-empty cells total.
-       This prevents col-header rows (8+ columns) being mistaken. */
-    const isHeadingRow = nonEmpty.length <= 3;
+    /* Heading row: first filled cell IS exactly the mode word
+       (possibly with trailing spaces / punctuation) */
+    const isViolation = firstFilled === "violation" ||
+                        (firstFilled.startsWith("violation") && firstFilled.length < 20);
+    const isExemption = firstFilled === "exemption" ||
+                        (firstFilled.startsWith("exemption") && firstFilled.length < 20);
 
-    if (isHeadingRow && rowText.includes("violation") && !rowText.includes("exemption") && vStart === -1) {
+    if (isViolation && vStart === -1) {
       vStart = i;
-      _debugLog("vStart =", i, "row:", row);
+      _debugLog("vStart =", i, "firstFilled:", firstFilled);
     }
-    if (isHeadingRow && rowText.includes("exemption") && eStart === -1) {
+    if (isExemption && eStart === -1) {
       eStart = i;
-      _debugLog("eStart =", i, "row:", row);
+      _debugLog("eStart =", i, "firstFilled:", firstFilled);
     }
   });
+
+  _debugLog("_splitByHeadings → vStart:", vStart, "eStart:", eStart);
 
   const vEnd   = eStart >= 0 && eStart > vStart ? eStart : undefined;
   const vBlock = vStart >= 0 ? rows.slice(vStart, vEnd) : [];
@@ -303,37 +313,44 @@ function _parseMatrix(rows, modeLabel) {
   _debugLog(`[${modeLabel}] validCols:`, validCols, colIdxToCat);
   if (validCols.length === 0) return null;
 
-  /* ── Step 3: find report-counts row ──
-     The row immediately after col headers whose first cell is:
-       • blank, OR
-       • "Actual Class after Validate" / similar label
-     Scan up to 3 rows ahead in case there's a blank row in between. */
+  /* ── Step 3: find report-counts row ("Actual Class after Validate") ──
+     Rules (in priority order):
+       1. First cell is blank → always the report-count row
+       2. First cell contains "actual" / "validate" / "class after" → report-count row
+       3. First cell is NOT a known vehicle label AND row has numbers → report-count row
+       4. First cell IS a known vehicle label → stop, this is a data row (report row absent)
+     We scan up to 4 rows ahead of the col-header row. */
   let reportCounts = {};
   let reportRowIdx = -1;
 
   for (let ri = colHeaderIdx + 1; ri <= Math.min(colHeaderIdx + 4, rows.length - 1); ri++) {
     const row       = rows[ri];
-    const firstCell = _normalizeKey(String(row[0] || ""));
+    const firstCell = _normalizeKey(String(row[0] ?? ""));
 
     /* Skip completely empty rows */
     if (row.every(c => String(c).trim() === "")) continue;
 
-    /* A valid report-count row label */
-    const isReportLabel =
-      firstCell === "" ||
-      firstCell.includes("actual") ||
-      firstCell.includes("validate") ||
-      firstCell.includes("class after");
-
-    /* Also check: are there numbers in category columns? */
+    /* Check for numbers in category columns */
     const hasNumbers = validCols.some(ci => {
       const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
       const v   = parseFloat(raw);
       return !isNaN(v) && v > 0;
     });
 
-    _debugLog(`[${modeLabel}] reportRow candidate ri=${ri} firstCell="${firstCell}" isReportLabel=${isReportLabel} hasNumbers=${hasNumbers}`);
+    const isKnownLabel = firstCell !== "" && XL_ROW_MAP[firstCell] !== undefined;
 
+    const isReportLabel =
+      firstCell === "" ||
+      firstCell.includes("actual") ||
+      firstCell.includes("validate") ||
+      firstCell.includes("class after");
+
+    _debugLog(`[${modeLabel}] reportRow scan ri=${ri} firstCell="${firstCell}" isReportLabel=${isReportLabel} isKnownLabel=${isKnownLabel} hasNumbers=${hasNumbers}`);
+
+    /* Rule 4: if it's a known vehicle row, stop looking */
+    if (isKnownLabel) break;
+
+    /* Rule 1+2: explicit report-count row label */
     if (isReportLabel && hasNumbers) {
       reportRowIdx = ri;
       validCols.forEach(ci => {
@@ -342,13 +359,22 @@ function _parseMatrix(rows, modeLabel) {
         const val = parseInt(raw, 10);
         if (!isNaN(val) && val >= 0) reportCounts[cat] = val;
       });
-      _debugLog(`[${modeLabel}] reportCounts:`, reportCounts);
+      _debugLog(`[${modeLabel}] reportCounts (from label match):`, reportCounts);
       break;
     }
 
-    /* If label is NOT a report label (e.g. it's a vehicle name row),
-       stop looking — the report-count row is missing or already passed. */
-    if (!isReportLabel && firstCell !== "" && XL_ROW_MAP[firstCell] !== undefined) break;
+    /* Rule 3: not a vehicle label, has numbers → treat as report-count row */
+    if (!isKnownLabel && hasNumbers) {
+      reportRowIdx = ri;
+      validCols.forEach(ci => {
+        const cat = colIdxToCat[ci];
+        const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
+        const val = parseInt(raw, 10);
+        if (!isNaN(val) && val >= 0) reportCounts[cat] = val;
+      });
+      _debugLog(`[${modeLabel}] reportCounts (from hasNumbers fallback):`, reportCounts);
+      break;
+    }
   }
 
   /* ── Step 4: data rows ── */
@@ -365,12 +391,13 @@ function _parseMatrix(rows, modeLabel) {
     /* Stop at "Total" row */
     if (label === "total" || label.startsWith("total")) continue;
 
-    /* Skip header-like rows */
+    /* Skip header-like rows (but NOT the mode heading — that's already excluded
+       by the block slicing in _splitByHeadings; just skip sub-headers) */
     if (
       label.includes("class as per") ||
       label.includes("system report") ||
-      label.includes("violation") ||
-      label.includes("exemption")
+      label === "violation" ||
+      label === "exemption"
     ) continue;
 
     const appVehicle = XL_ROW_MAP[label];
