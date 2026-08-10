@@ -896,6 +896,10 @@ async function _syncCurrentDateToFirestore() {
                 auditBucket: JSON.stringify(bucket)  /* compressed bucket */
             }, { merge: true });
         _showSaveChip("ss-cloud", "Synced to cloud ✓");
+        /* Fire email notification (non-blocking) */
+        if (typeof sendAuditSavedEmail === "function") {
+            sendAuditSavedEmail(dateKey);
+        }
     } catch (e) {
         /* Silent — offline / permission errors should not interrupt work */
         console.warn("[AutoSync] Firestore sync failed:", e.code || e.message);
