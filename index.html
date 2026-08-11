@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="analytics.css?v=3">
     <link rel="stylesheet" href="traffic-loss.css?v=3">
     <link rel="stylesheet" href="excel-import.css?v=1">
+    <link rel="stylesheet" href="agent.css?v=1">
 </head>
 <body>
 
@@ -445,6 +446,10 @@
                 </button>
                 <button class="sb-btn" id="viewAuditHistoryBtn">
                     <i class="bi bi-clock-history"></i> View Audit History
+                </button>
+                <button class="sb-btn sb-agent" id="openAuditAgentBtn"
+                        data-bs-toggle="modal" data-bs-target="#auditAgentModal">
+                    <i class="bi bi-robot"></i> Audit Agent <span class="badge bg-success ms-auto" style="font-size:9px;">NEW</span>
                 </button>
             </div>
         </div>
@@ -1730,6 +1735,160 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     AUDIT AGENT MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="auditAgentModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content agent-modal-content">
+
+      <!-- Header -->
+      <div class="modal-header agent-modal-header">
+        <div class="agent-header-left">
+          <div class="agent-header-icon"><i class="bi bi-robot"></i></div>
+          <div>
+            <h5 class="modal-title">Audit Agent</h5>
+            <div class="agent-header-sub">Upload reports → Agent fills your audit template automatically</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body agent-modal-body">
+
+        <!-- Step 1: Upload Files -->
+        <div class="agent-section">
+          <div class="agent-section-title"><span class="agent-step-badge">1</span> Upload Source Files</div>
+          <div class="agent-upload-grid">
+
+            <!-- Consolidate Revenue Report -->
+            <div class="agent-upload-card" id="agentCRCard">
+              <div class="agent-upload-icon"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
+              <div class="agent-upload-label">Consolidate Revenue Report</div>
+              <div class="agent-upload-sub">Excel file from toll system</div>
+              <label class="agent-upload-btn" for="agentCRInput">
+                <i class="bi bi-upload"></i> Choose File
+              </label>
+              <input type="file" id="agentCRInput" accept=".xlsx,.xls" style="display:none;">
+              <div class="agent-file-name" id="agentCRFileName">No file chosen</div>
+              <div class="agent-file-status" id="agentCRStatus"></div>
+            </div>
+
+            <!-- Violation Matrix Report -->
+            <div class="agent-upload-card" id="agentVMCard">
+              <div class="agent-upload-icon"><i class="bi bi-grid-3x3-gap-fill"></i></div>
+              <div class="agent-upload-label">Violation Matrix Report</div>
+              <div class="agent-upload-sub">Audit validation matrix Excel</div>
+              <label class="agent-upload-btn" for="agentVMInput">
+                <i class="bi bi-upload"></i> Choose File
+              </label>
+              <input type="file" id="agentVMInput" accept=".xlsx,.xls" style="display:none;">
+              <div class="agent-file-name" id="agentVMFileName">No file chosen</div>
+              <div class="agent-file-status" id="agentVMStatus"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Step 2: Tariff Config -->
+        <div class="agent-section" id="agentTariffSection" style="display:none;">
+          <div class="agent-section-title"><span class="agent-step-badge">2</span> Confirm Tariff Values</div>
+          <div class="agent-tariff-note"><i class="bi bi-info-circle-fill"></i> These are pre-set from your template. Edit only if changed.</div>
+          <div class="agent-tariff-grid" id="agentTariffGrid">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- Step 3: Process -->
+        <div class="agent-section" id="agentProcessSection" style="display:none;">
+          <div class="agent-section-title"><span class="agent-step-badge">3</span> Process &amp; Generate Report</div>
+          <button class="agent-run-btn" id="agentRunBtn" type="button">
+            <i class="bi bi-lightning-charge-fill"></i> Generate Audit Template
+          </button>
+          <div class="agent-progress" id="agentProgress" style="display:none;">
+            <div class="agent-progress-bar" id="agentProgressBar"></div>
+          </div>
+          <div class="agent-log" id="agentLog"></div>
+        </div>
+
+        <!-- Step 4: Preview & Download -->
+        <div class="agent-section" id="agentPreviewSection" style="display:none;">
+          <div class="agent-section-title"><span class="agent-step-badge">4</span> Preview &amp; Download</div>
+
+          <!-- Summary chips -->
+          <div class="agent-summary-bar" id="agentSummaryBar"></div>
+
+          <!-- Main Audit Table Preview -->
+          <div class="agent-preview-label"><i class="bi bi-table"></i> Main Audit Table</div>
+          <div class="agent-table-wrap">
+            <table class="agent-table" id="agentMainTable">
+              <thead>
+                <tr>
+                  <th rowspan="2">Class</th>
+                  <th colspan="2">Tariff</th>
+                  <th colspan="7">Paid Traffic</th>
+                  <th colspan="5">Exempted &amp; Violation</th>
+                  <th rowspan="2">Total Traffic</th>
+                  <th rowspan="2">Loss in %</th>
+                </tr>
+                <tr>
+                  <th>Single</th><th>Return</th>
+                  <th>Cash</th><th>Return</th><th>Barcode</th><th>Digital</th><th>ETC</th><th>Pass</th><th>Total</th>
+                  <th>Violation</th><th>Rev Loss</th><th>Exemption</th><th>Rev Loss</th><th>Total Loss</th>
+                </tr>
+              </thead>
+              <tbody id="agentMainTbody"></tbody>
+              <tfoot id="agentMainTfoot"></tfoot>
+            </table>
+          </div>
+
+          <!-- Non-Tollable Table -->
+          <div class="agent-preview-label mt-3"><i class="bi bi-list-check"></i> Non-Tollable Exemption &amp; Violation</div>
+          <div class="agent-table-wrap">
+            <table class="agent-table" id="agentNTTable">
+              <thead><tr><th>Category</th><th>Violation</th><th>Exemption</th><th>Total</th></tr></thead>
+              <tbody id="agentNTTbody"></tbody>
+              <tfoot id="agentNTTfoot"></tfoot>
+            </table>
+          </div>
+
+          <!-- Total Collection Table -->
+          <div class="agent-preview-label mt-3"><i class="bi bi-cash-stack"></i> Total Collection Classwise</div>
+          <div class="agent-table-wrap">
+            <table class="agent-table" id="agentTCTable">
+              <thead><tr><th>Class</th><th>Cash</th><th>Return</th><th>Digital</th><th>ETC</th><th>Total Traffic</th></tr></thead>
+              <tbody id="agentTCTbody"></tbody>
+              <tfoot id="agentTCTfoot"></tfoot>
+            </table>
+          </div>
+
+          <!-- Anomaly Flags -->
+          <div class="agent-anomaly-box" id="agentAnomalyBox" style="display:none;">
+            <div class="agent-anomaly-title"><i class="bi bi-exclamation-triangle-fill"></i> Anomalies Detected</div>
+            <ul class="agent-anomaly-list" id="agentAnomalyList"></ul>
+          </div>
+
+          <!-- Download Button -->
+          <button class="agent-download-btn" id="agentDownloadBtn" type="button">
+            <i class="bi bi-file-earmark-excel-fill"></i> Download Filled Audit Template (.xlsx)
+          </button>
+        </div>
+
+      </div><!-- /.modal-body -->
+
+      <div class="modal-footer agent-modal-footer">
+        <span class="agent-footer-note" id="agentFooterNote"></span>
+        <button type="button" class="btn btn-outline-secondary" id="agentResetBtn">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1754,6 +1913,7 @@
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
 <script src="excel-import.js?v=1"></script>
+<script src="agent.js?v=1"></script>
 <!-- Sidebar backdrop overlay (mobile) -->
 <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
