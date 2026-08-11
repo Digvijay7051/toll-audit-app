@@ -1761,30 +1761,48 @@
           <div class="agent-section-title"><span class="agent-step-badge">1</span> Upload Source Files</div>
           <div class="agent-upload-grid">
 
-            <!-- Consolidate Revenue Report -->
+            <!-- 1. Consolidate Revenue Report -->
             <div class="agent-upload-card" id="agentCRCard">
               <div class="agent-upload-icon"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
               <div class="agent-upload-label">Consolidate Revenue Report</div>
-              <div class="agent-upload-sub">Excel file from toll system</div>
-              <label class="agent-upload-btn" for="agentCRInput">
-                <i class="bi bi-upload"></i> Choose File
-              </label>
+              <div class="agent-upload-sub">Cash / Digital / ETC counts</div>
+              <label class="agent-upload-btn" for="agentCRInput"><i class="bi bi-upload"></i> Choose File</label>
               <input type="file" id="agentCRInput" accept=".xlsx,.xls" style="display:none;">
               <div class="agent-file-name" id="agentCRFileName">No file chosen</div>
               <div class="agent-file-status" id="agentCRStatus"></div>
             </div>
 
-            <!-- Violation Matrix Report -->
+            <!-- 2. Traffic Count Report -->
+            <div class="agent-upload-card" id="agentTCCard">
+              <div class="agent-upload-icon"><i class="bi bi-list-ol"></i></div>
+              <div class="agent-upload-label">Traffic Count Report</div>
+              <div class="agent-upload-sub">Return Barcode counts (MOP-wise)</div>
+              <label class="agent-upload-btn" for="agentTCInput"><i class="bi bi-upload"></i> Choose File</label>
+              <input type="file" id="agentTCInput" accept=".xlsx,.xls" style="display:none;">
+              <div class="agent-file-name" id="agentTCFileName">No file chosen</div>
+              <div class="agent-file-status" id="agentTCStatus"></div>
+            </div>
+
+            <!-- 3. Violation Matrix -->
             <div class="agent-upload-card" id="agentVMCard">
-              <div class="agent-upload-icon"><i class="bi bi-grid-3x3-gap-fill"></i></div>
-              <div class="agent-upload-label">Violation Matrix Report</div>
-              <div class="agent-upload-sub">Audit validation matrix Excel</div>
-              <label class="agent-upload-btn" for="agentVMInput">
-                <i class="bi bi-upload"></i> Choose File
-              </label>
+              <div class="agent-upload-icon"><i class="bi bi-exclamation-triangle-fill" style="color:#ef4444"></i></div>
+              <div class="agent-upload-label">Violation Matrix</div>
+              <div class="agent-upload-sub">Violation audit matrix Excel</div>
+              <label class="agent-upload-btn" for="agentVMInput"><i class="bi bi-upload"></i> Choose File</label>
               <input type="file" id="agentVMInput" accept=".xlsx,.xls" style="display:none;">
               <div class="agent-file-name" id="agentVMFileName">No file chosen</div>
               <div class="agent-file-status" id="agentVMStatus"></div>
+            </div>
+
+            <!-- 4. Exemption Matrix -->
+            <div class="agent-upload-card" id="agentEMCard">
+              <div class="agent-upload-icon"><i class="bi bi-patch-check-fill" style="color:#16a34a"></i></div>
+              <div class="agent-upload-label">Exemption Matrix</div>
+              <div class="agent-upload-sub">Exemption audit matrix Excel</div>
+              <label class="agent-upload-btn" for="agentEMInput"><i class="bi bi-upload"></i> Choose File</label>
+              <input type="file" id="agentEMInput" accept=".xlsx,.xls" style="display:none;">
+              <div class="agent-file-name" id="agentEMFileName">No file chosen</div>
+              <div class="agent-file-status" id="agentEMStatus"></div>
             </div>
 
           </div>
@@ -1878,10 +1896,58 @@
 
       <div class="modal-footer agent-modal-footer">
         <span class="agent-footer-note" id="agentFooterNote"></span>
+        <button type="button" class="btn btn-outline-info" id="agentViewRulesBtn">
+          <i class="bi bi-brain"></i> Agent Rules
+        </button>
         <button type="button" class="btn btn-outline-secondary" id="agentResetBtn">
           <i class="bi bi-arrow-counterclockwise"></i> Reset
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+
+      <!-- ── Edit Cell Overlay ── -->
+      <div class="agent-edit-overlay" id="agentEditOverlay" style="display:none;">
+        <div class="agent-edit-card">
+          <div class="agent-edit-title" id="agentEditTitle">Correct Value</div>
+          <div class="agent-edit-row">
+            <span class="agent-edit-label">Agent said:</span>
+            <span class="agent-edit-old" id="agentEditOldVal">—</span>
+          </div>
+          <input type="hidden" id="agentEditRowKey">
+          <input type="hidden" id="agentEditField">
+          <div class="agent-edit-row">
+            <label class="agent-edit-label">Correct value:</label>
+            <input type="number" id="agentEditNewVal" class="agent-edit-input" min="0">
+          </div>
+          <div class="agent-edit-row">
+            <label class="agent-edit-label">Reason <span style="color:#9ca3af">(optional):</span></label>
+            <input type="text" id="agentEditReason" class="agent-edit-input" placeholder="e.g. manual recount">
+          </div>
+          <div class="agent-edit-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="agentEditCancel">Cancel</button>
+            <button type="button" class="btn btn-success btn-sm" id="agentEditSave">
+              <i class="bi bi-robot"></i> Save &amp; Teach Agent
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Rules Panel ── -->
+      <div class="agent-rules-panel" id="agentRulesPanel" style="display:none;">
+        <div class="agent-rules-header">
+          <div class="agent-rules-title"><i class="bi bi-brain"></i> Agent Learned Rules</div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-sm btn-outline-danger" id="agentRulesClearBtn">
+              <i class="bi bi-trash"></i> Clear All
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" id="agentRulesClose">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        <div class="agent-rules-list" id="agentRulesList">
+          <div class="agent-rules-empty"><i class="bi bi-robot"></i><p>No rules yet.</p></div>
+        </div>
       </div>
 
     </div>
