@@ -1491,18 +1491,24 @@ ${recentAppEventsText()}`;
         if (uiReady) return;
         uiReady = true;
 
-        /* ── Floating bubble ── */
+        /* ── Floating bubble (pill FAB) ── */
         const bubble = document.createElement('div');
         bubble.id = 'assistantBubble';
         bubble.className = 'asst-bubble';
         bubble.innerHTML = `
-            <svg viewBox="0 0 36 36" fill="none" width="26" height="26">
-                <path d="M10 11h16v9a2 2 0 0 1-2 2h-5l-4 3v-3H12a2 2 0 0 1-2-2V11Z"
-                      stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
-                <circle cx="15" cy="15.5" r="1.2" fill="currentColor"/>
-                <circle cx="18" cy="15.5" r="1.2" fill="currentColor"/>
-                <circle cx="21" cy="15.5" r="1.2" fill="currentColor"/>
-            </svg>
+            <div class="asst-bubble-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
+                    <path d="M12 2C6.48 2 2 5.92 2 10.75c0 2.52 1.26 4.78 3.25 6.31L4.5 21l4.07-2.04A11.1 11.1 0 0 0 12 19.5c5.52 0 10-3.92 10-8.75S17.52 2 12 2Z"
+                          fill="rgba(255,255,255,0.22)" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <circle cx="8.5"  cy="10.75" r="1.1" fill="currentColor"/>
+                    <circle cx="12"   cy="10.75" r="1.1" fill="currentColor"/>
+                    <circle cx="15.5" cy="10.75" r="1.1" fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="asst-bubble-label">
+                <span class="asst-bubble-label-main">AI Assistant</span>
+                <span class="asst-bubble-label-sub" id="asstBubbleSub">Ask me anything</span>
+            </div>
             <span class="asst-badge" id="asstBadge" style="display:none;">0</span>
         `;
         document.body.appendChild(bubble);
@@ -1606,7 +1612,8 @@ ${recentAppEventsText()}`;
     }
 
     function updateStatusLine() {
-        const el = document.getElementById('asstStatusLine');
+        const el    = document.getElementById('asstStatusLine');
+        const subEl = document.getElementById('asstBubbleSub');
         if (!el) return;
         const cnt      = _passIndex.length;
         const active   = hasAIKey();
@@ -1618,6 +1625,7 @@ ${recentAppEventsText()}`;
                       : '⊕ GPT-4o';
             el.textContent = cnt > 0 ? `${lbl} · ${cnt} passes` : `${lbl} · AI Active`;
             el.style.color = '#86efac';
+            if (subEl) subEl.textContent = cnt > 0 ? `${cnt} passes · ${lbl}` : `${lbl} · Ask anything`;
             if (avatar) avatar.style.background =
                   provider === 'gemini' ? 'linear-gradient(135deg,#1a73e8,#0d47a1)'
                 : provider === 'groq'   ? 'linear-gradient(135deg,#f97316,#ea580c)'
@@ -1625,6 +1633,7 @@ ${recentAppEventsText()}`;
         } else {
             el.textContent = cnt > 0 ? `Local · ${cnt} passes` : 'Local · Add key for AI';
             el.style.color = '#6ee7b7';
+            if (subEl) subEl.textContent = cnt > 0 ? `${cnt} passes loaded` : 'Ask me anything';
             if (avatar) avatar.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
         }
     }

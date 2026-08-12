@@ -4,67 +4,131 @@
 ══════════════════════════════════════════════════════════════ */
 
 /* ─────────────────────────────────────────────
-   FLOATING BUBBLE
+   FLOATING BUBBLE — pill FAB
 ───────────────────────────────────────────── */
 .asst-bubble {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 28px;
+    right: 22px;
     z-index: 9900;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #16a34a 0%, #0d7a33 100%);
+    height: 52px;
+    padding: 0 20px 0 16px;
+    border-radius: 26px;
+    background: linear-gradient(135deg, #0f9549 0%, #0a7a3a 60%, #064d25 100%);
     color: #fff;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(16, 163, 74, 0.45), 0 2px 6px rgba(0,0,0,.22);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    box-shadow:
+        0 4px 20px rgba(15, 149, 73, 0.55),
+        0 1px 4px rgba(0,0,0,.30),
+        inset 0 1px 0 rgba(255,255,255,.14);
+    transition: transform 0.18s cubic-bezier(.34,1.56,.64,1),
+                box-shadow 0.18s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    overflow: visible;
 }
 
-/* Pulse ring — draws attention */
-.asst-bubble::before {
+/* Animated glow ring */
+.asst-bubble::after {
     content: '';
     position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    border: 2px solid rgba(22, 163, 74, 0.5);
-    animation: asstPulseRing 2.4s ease-out infinite;
+    inset: -4px;
+    border-radius: 30px;
+    background: transparent;
+    border: 2px solid rgba(22, 197, 94, 0.55);
+    animation: asstGlow 2.8s ease-out infinite;
     pointer-events: none;
 }
 
-@keyframes asstPulseRing {
-    0%   { transform: scale(1);    opacity: 0.7; }
-    70%  { transform: scale(1.28); opacity: 0; }
-    100% { transform: scale(1.28); opacity: 0; }
+@keyframes asstGlow {
+    0%   { opacity: 0.9; transform: scale(1); }
+    65%  { opacity: 0;   transform: scale(1.12); }
+    100% { opacity: 0;   transform: scale(1.12); }
 }
 
-.asst-bubble:hover { transform: scale(1.09); box-shadow: 0 6px 24px rgba(16, 163, 74, 0.55), 0 3px 10px rgba(0,0,0,.28); }
-.asst-bubble:hover::before { animation: none; opacity: 0; }
-.asst-bubble:active { transform: scale(0.96); }
-.asst-bubble-icon { display: block; }
+.asst-bubble:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow:
+        0 8px 28px rgba(15, 149, 73, 0.65),
+        0 2px 8px rgba(0,0,0,.25),
+        inset 0 1px 0 rgba(255,255,255,.18);
+}
+.asst-bubble:hover::after  { animation: none; opacity: 0; }
+.asst-bubble:active { transform: scale(0.97) translateY(0); }
 
+/* Icon wrapper */
+.asst-bubble-icon-wrap {
+    width: 30px;
+    height: 30px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    backdrop-filter: blur(4px);
+}
+
+/* Label text */
+.asst-bubble-label {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+.asst-bubble-label-main {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+    color: #fff;
+}
+.asst-bubble-label-sub {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.70);
+    letter-spacing: 0.2px;
+}
+
+/* Unread badge */
 .asst-badge {
     position: absolute;
-    top: -3px;
-    right: -3px;
+    top: -5px;
+    right: -5px;
     background: #ef4444;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 9px;
+    min-width: 19px;
+    height: 19px;
+    border-radius: 10px;
     padding: 0 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px solid #fff;
     line-height: 1;
+    animation: asstBadgePop 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+
+@keyframes asstBadgePop {
+    from { transform: scale(0); }
+    to   { transform: scale(1); }
+}
+
+/* On mobile: collapse to icon-only circle */
+@media (max-width: 420px) {
+    .asst-bubble {
+        width: 52px;
+        height: 52px;
+        padding: 0;
+        border-radius: 50%;
+        justify-content: center;
+    }
+    .asst-bubble-label { display: none; }
+    .asst-bubble-icon-wrap { width: 34px; height: 34px; }
+    .asst-bubble::after { border-radius: 50%; }
 }
 
 /* ─────────────────────────────────────────────
