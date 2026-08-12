@@ -589,17 +589,26 @@ IMPORTANT RULES:
     }
 
     /* Pre-resolve data queries before sending to Groq.
-       Detects vehicle numbers and status queries in the
-       user message and fetches real data upfront. */
+       Extracts ALL vehicle numbers (bulk supported),
+       status queries and memory queries upfront. */
     function resolveGroqContext(userText) {
         const parts = [];
 
-        /* Vehicle number detected — fetch pass record */
-        const numMatch = userText.match(/[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/i);
-        if (numMatch) {
-            const num = numMatch[0].toUpperCase().replace(/[\s\-]+/g, '');
-            const result = executeTool('searchPass', { query: num });
-            parts.push(`Pass lookup for "${num}":\n${result}`);
+        /* ALL vehicle numbers — matchAll for bulk support */
+        const VEH_RE = /[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi;
+        const allMatches = [...userText.matchAll(VEH_RE)];
+        const seen = new Set();
+
+        if (allMatches.length > 0) {
+            const results = [];
+            allMatches.forEach(m => {
+                const num = m[0].toUpperCase().replace(/[\s\-]+/g, '');
+                if (seen.has(num)) return;
+                seen.add(num);
+                const result = executeTool('searchPass', { query: num });
+                results.push(`• ${result}`);
+            });
+            parts.push(`Pass lookup results (${seen.size} vehicles):\n` + results.join('\n\n'));
         }
 
         /* Status query */
