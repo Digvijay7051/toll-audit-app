@@ -1834,18 +1834,65 @@ ${recentAppEventsText()}`;
 
     /* ═══════════════════════════════════════════════
        SECTION 14 — INIT
+       Bubble is hidden until user is logged in.
+       We watch the #mainApp element's display via
+       MutationObserver — no changes to auth.js needed.
     ═══════════════════════════════════════════════ */
+
+    function showAssistant() {
+        const b = document.getElementById('assistantBubble');
+        if (b) { b.style.display = ''; b.style.visibility = 'visible'; }
+    }
+    function hideAssistant() {
+        const b = document.getElementById('assistantBubble');
+        if (b) { b.style.display = 'none'; }
+        /* Also close the panel if open */
+        closePanel();
+    }
+
+    /* Watch #mainApp visibility — show/hide assistant accordingly */
+    function watchAuthState() {
+        const mainApp = document.getElementById('mainApp');
+        if (!mainApp) {
+            /* DOM not ready yet, retry */
+            setTimeout(watchAuthState, 300);
+            return;
+        }
+
+        function syncVisibility() {
+            const visible = mainApp.style.display !== 'none' && mainApp.style.display !== '';
+            if (visible) showAssistant();
+            else hideAssistant();
+        }
+
+        /* Observe style attribute changes on #mainApp */
+        new MutationObserver(syncVisibility)
+            .observe(mainApp, { attributes: true, attributeFilter: ['style'] });
+
+        /* Run once immediately in case user is already logged in */
+        syncVisibility();
+    }
+
     function init() {
         loadAppEvents();
         watchPassList();
         buildUI();
+
+        /* Hide bubble immediately — only show after login */
+        const b = document.getElementById('assistantBubble');
+        if (b) b.style.display = 'none';
+
         setupPassAutocomplete();
         setupEditAutocomplete();
         setupChatInputAutocomplete();
         setupAppActionTracker();
         updateStatusLine();
         setInterval(updateStatusLine, 6000);
-        /* Announce pass list events in chat (once per session) */
+
+        /* Start watching auth state */
+        watchAuthState();
+
+        /* Announce pass list events in chat */
         document.addEventListener('passListChanged', e => {
             const { count, action } = e.detail || {};
             const msg = action === 'replace'
