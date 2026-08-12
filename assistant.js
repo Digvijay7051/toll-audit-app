@@ -539,26 +539,33 @@ IMPORTANT RULES:
 
     /* ═══════════════════════════════════════════════
        SECTION 6c — GROQ API CALL (FREE)
-       Model: llama-3.3-70b-versatile — very fast, free
-       Groq uses OpenAI-compatible API format.
+       Model: llama-3.3-70b-versatile
+       No function-calling — instead we pre-resolve
+       any data queries and inject them into the
+       system prompt so the model just answers text.
     ═══════════════════════════════════════════════ */
     async function callGroq(userText) {
         const key = getGroqKey();
         if (!key) throw new Error('NO_KEY');
 
-        const historyMsgs = chatHistory.slice(-14).map(m => ({
+        /* Pre-resolve data the model might need */
+        const extraData = resolveGroqContext(userText);
+
+        const systemPrompt = buildSystemPrompt()
+            + (extraData ? `\n\nPRE-FETCHED DATA FOR THIS QUERY:\n${extraData}` : '');
+
+        const historyMsgs = chatHistory.slice(-12).map(m => ({
             role: m.role === 'user' ? 'user' : 'assistant',
             content: m.text
         }));
 
         const messages = [
-            { role: 'system', content: buildSystemPrompt() },
+            { role: 'system', content: systemPrompt },
             ...historyMsgs,
             { role: 'user', content: userText }
         ];
 
-        /* Groq supports OpenAI tool format natively */
-        let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${key}`,
@@ -567,9 +574,7 @@ IMPORTANT RULES:
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages,
-                tools: AI_TOOLS,
-                tool_choice: 'auto',
-                max_tokens: 600,
+                max_tokens: 700,
                 temperature: 0.7
             })
         });
@@ -579,47 +584,37 @@ IMPORTANT RULES:
             throw new Error(err.error?.message || `HTTP ${response.status}`);
         }
 
-        let data = await response.json();
-        let choice = data.choices[0];
+        const data = await response.json();
+        return (data.choices[0]?.message?.content || '').trim();
+    }
 
-        /* Handle tool calls — same format as OpenAI */
-        while (choice.finish_reason === 'tool_calls' || choice.message?.tool_calls?.length) {
-            const toolCalls = choice.message.tool_calls;
-            const toolResults = toolCalls.map(tc => {
-                const args = JSON.parse(tc.function.arguments || '{}');
-                const result = executeTool(tc.function.name, args);
-                return { role: 'tool', tool_call_id: tc.id, content: String(result) };
-            });
+    /* Pre-resolve data queries before sending to Groq.
+       Detects vehicle numbers and status queries in the
+       user message and fetches real data upfront. */
+    function resolveGroqContext(userText) {
+        const parts = [];
 
-            messages.push(choice.message);
-            messages.push(...toolResults);
-
-            response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${key}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
-                    messages,
-                    tools: AI_TOOLS,
-                    tool_choice: 'auto',
-                    max_tokens: 600,
-                    temperature: 0.7
-                })
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error?.message || `HTTP ${response.status}`);
-            }
-            data   = await response.json();
-            choice = data.choices[0];
-            if (!choice.message?.tool_calls?.length) break;
+        /* Vehicle number detected — fetch pass record */
+        const numMatch = userText.match(/[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/i);
+        if (numMatch) {
+            const num = numMatch[0].toUpperCase().replace(/[\s\-]+/g, '');
+            const result = executeTool('searchPass', { query: num });
+            parts.push(`Pass lookup for "${num}":\n${result}`);
         }
 
-        return (choice.message?.content || '').trim();
+        /* Status query */
+        const statusRe = /status|kitna|kitne|checked|remaining|progress|aaj|today|count|total/i;
+        if (statusRe.test(userText)) {
+            parts.push(executeTool('getAuditStatus', {}));
+        }
+
+        /* Memory query */
+        const memRe = /yaad|remember|memory|memories|note/i;
+        if (memRe.test(userText) && !userText.match(/^(remember|yaad rakh)/i)) {
+            parts.push(executeTool('getMemories', {}));
+        }
+
+        return parts.join('\n\n');
     }
 
     /* ═══════════════════════════════════════════════
