@@ -85,6 +85,9 @@
 
     /* ═══════════════════════════════════════════════
        SECTION 3 — PASS LIST INDEX
+       Event-driven rebuild: listens for passListChanged
+       custom DOM events dispatched from data.js patches.
+       Also polls every 5s as a safety net.
     ═══════════════════════════════════════════════ */
     let _passIndex = [];
 
@@ -95,15 +98,57 @@
         }
     }
 
+    /* Patch global replacePassList/clearPassList to fire a custom DOM event
+       so the assistant index stays perfectly in sync without polling lag */
+    function patchPassListFunctions() {
+        if (typeof replacePassList === 'function' && !replacePassList._patched) {
+            const orig = replacePassList;
+            window.replacePassList = function(records) {
+                const result = orig.call(this, records);
+                rebuildPassIndex();
+                updateStatusLine();
+                document.dispatchEvent(new CustomEvent('passListChanged', {
+                    detail: { count: _passIndex.length, action: 'replace' }
+                }));
+                return result;
+            };
+            window.replacePassList._patched = true;
+        }
+        if (typeof clearPassList === 'function' && !clearPassList._patched) {
+            const orig = clearPassList;
+            window.clearPassList = function() {
+                const result = orig.call(this);
+                rebuildPassIndex();
+                updateStatusLine();
+                document.dispatchEvent(new CustomEvent('passListChanged', {
+                    detail: { count: 0, action: 'clear' }
+                }));
+                return result;
+            };
+            window.clearPassList._patched = true;
+        }
+    }
+
     function watchPassList() {
         rebuildPassIndex();
+        /* Patch immediately and retry until functions are available */
+        patchPassListFunctions();
+        setTimeout(patchPassListFunctions, 1500);
+        setTimeout(patchPassListFunctions, 4000);
+
         let lastCount = _passIndex.length;
         setInterval(() => {
             if (typeof monthlyPassList !== 'undefined') {
                 const cur = monthlyPassList.length;
-                if (cur !== lastCount) { lastCount = cur; rebuildPassIndex(); updateStatusLine(); }
+                if (cur !== lastCount) {
+                    lastCount = cur;
+                    rebuildPassIndex();
+                    updateStatusLine();
+                }
             }
-        }, 3000);
+            /* Re-patch if needed (e.g. if data.js loaded late) */
+            patchPassListFunctions();
+        }, 5000);
     }
 
     /* prefix-first fuzzy search, max 6 results */
@@ -130,6 +175,69 @@
         if (rec.amount)       txt += `\nAmount: ₹${rec.amount}`;
         if (rec.mobileNo)     txt += `\nMobile: ${rec.mobileNo}`;
         return txt;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION 4b — APP ACTION TRACKER
+       Watches key app events and stores them so the
+       assistant knows what happened recently.
+    ═══════════════════════════════════════════════ */
+    const APP_EVENTS_KEY = 'tollAssistantAppEvents';
+    let _appEvents = [];
+
+    function loadAppEvents() {
+        try { _appEvents = JSON.parse(localStorage.getItem(APP_EVENTS_KEY)) || []; } catch (_) { _appEvents = []; }
+    }
+    function saveAppEvents() {
+        localStorage.setItem(APP_EVENTS_KEY, JSON.stringify(_appEvents.slice(-50)));
+    }
+    function recordAppEvent(type, detail) {
+        _appEvents.push({
+            type, detail,
+            ts: new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })
+        });
+        saveAppEvents();
+    }
+    function recentAppEventsText() {
+        if (!_appEvents.length) return 'No recent app events.';
+        return _appEvents.slice(-10).map(e => `[${e.ts}] ${e.type}: ${e.detail}`).join('\n');
+    }
+
+    function setupAppActionTracker() {
+        /* Track pass list changes via passListChanged event */
+        document.addEventListener('passListChanged', e => {
+            const { count, action } = e.detail || {};
+            if (action === 'replace') recordAppEvent('PassList Updated', `${count} vehicles loaded`);
+            else if (action === 'clear') recordAppEvent('PassList Cleared', 'All pass records removed');
+        });
+        /* Track audit date changes */
+        const auditDateEl = document.getElementById('activeAuditDate');
+        if (auditDateEl) {
+            new MutationObserver(() => {
+                const d = auditDateEl.textContent?.trim();
+                if (d && d !== '—') recordAppEvent('Audit Date', d);
+            }).observe(auditDateEl, { childList: true, characterData: true, subtree: true });
+        }
+        /* Track category changes */
+        const catEl = document.getElementById('currentCategory');
+        if (catEl) {
+            new MutationObserver(() => {
+                const c = catEl.textContent?.trim();
+                if (c) recordAppEvent('Category', c);
+            }).observe(catEl, { childList: true, characterData: true, subtree: true });
+        }
+        /* Track report count increases */
+        const reportEl = document.getElementById('reportCount');
+        let lastReport = 0;
+        if (reportEl) {
+            new MutationObserver(() => {
+                const n = parseInt(reportEl.textContent) || 0;
+                if (n > lastReport) {
+                    recordAppEvent('Report Added', `Total: ${n}`);
+                    lastReport = n;
+                }
+            }).observe(reportEl, { childList: true, characterData: true, subtree: true });
+        }
     }
 
     /* ═══════════════════════════════════════════════
@@ -344,7 +452,11 @@ IMPORTANT RULES:
 5. Be concise and practical. This is a field tool used by toll auditors.
 6. Vehicle numbers follow Indian format: 2 letters + 2 digits + letters + digits (e.g. DL9SBA3104, HR26BR1234).
 7. You know about: vehicle passes, toll audit, exemptions, violations, Has Pass category, Paid/Cash/ETC/Digital payment types, vehicle classes (Car, LCV, Truck 2 Axle, Truck 3 Axle, MAV, Auto, Tractor, Bus 2 Axle, etc.).
-8. Never make up pass record data — always use the tool.`;
+8. Never make up pass record data — always use the tool.
+9. You can remember ANYTHING the user asks — toll-related or general. Be a helpful personal assistant too.
+
+RECENT APP EVENTS:
+${recentAppEventsText()}`;
     }
 
     async function callOpenAI(userText) {
@@ -623,6 +735,12 @@ IMPORTANT RULES:
             parts.push(executeTool('getMemories', {}));
         }
 
+        /* App events query */
+        const eventsRe = /app.*event|event.*kya|recent.*event|kya.*hua|kya.*hue|history|tracker/i;
+        if (eventsRe.test(userText)) {
+            parts.push(`Recent App Events:\n${recentAppEventsText()}`);
+        }
+
         return parts.join('\n\n');
     }
 
@@ -660,7 +778,7 @@ IMPORTANT RULES:
         }
         if (MEMORY_RE.test(msg)) return memoriesToText();
         if (HELP_RE.test(msg)) {
-            return `Main ye kaam kar sakta hoon:\n\n🔍 Vehicle pass check — koi bhi number type karo\n📊 Status — "aaj kitne checked?"\n🧠 Memory — "remember: shift 2pm se"\n🗂️ Memories — "kya yaad hai?"\n💬 Clear — "clear chat"\n\n💡 Tip: OpenAI key set karo (⚙️ button) for full AI answers!`;
+            return `Main ye kaam kar sakta hoon:\n\n🔍 Vehicle pass check — koi bhi number type karo (DL9SBA...)\n📊 Status — "aaj kitne checked?"\n🧠 Memory — "remember: shift 2pm se"\n🗂️ Memories — "kya yaad hai?"\n📋 Events — "recent app events kya hue?"\n💬 Clear — "clear chat"\n\n💡 Tip: ⚙️ se Groq/Gemini FREE key lagao full AI ke liye!`;
         }
         if (STATUS_RE.test(msg)) {
             const c = getAppContext();
@@ -687,12 +805,16 @@ IMPORTANT RULES:
             const c = getAppContext();
             return `🎫 Pass list mein ${c.passCount} vehicles hain.`;
         }
+        /* App events query */
+        const APP_EV_RE = /app.*event|kya.*hua|kya.*hue|recent.*event|tracker|history/i;
+        if (APP_EV_RE.test(msg)) return recentAppEventsText();
+
         const greet = /^(hi|hello|hii|hey|hy|namaste|namaskar|kya\s*hal|kaise|good)/i;
         if (greet.test(msg)) {
             const c = getAppContext();
-            return `Namaste! 👋\nAaj ${c.auditDate} — ${c.checked} checked, ${c.remaining} remaining.\n\n💡 AI mode ke liye ⚙️ se OpenAI key set karo!`;
+            return `Namaste! 👋\nAaj ${c.auditDate} — ${c.checked} checked, ${c.remaining} remaining.\n\n${_passIndex.length ? `🎫 ${_passIndex.length} passes loaded.` : '💡 AI mode ke liye ⚙️ se key set karo!'}`;
         }
-        return `Samajh nahi aaya. Try karo:\n• Vehicle number type karo\n• "status batao"\n• "remember: kuch bhi"\n• "help"\n\n💡 Full AI ke liye ⚙️ se OpenAI key lagao!`;
+        return `Samajh nahi aaya. Try karo:\n• Vehicle number type karo\n• "status batao"\n• "remember: kuch bhi"\n• "help"\n\n💡 FREE AI ke liye ⚙️ se Groq/Gemini key lagao!`;
     }
 
     /* ═══════════════════════════════════════════════
@@ -1368,19 +1490,25 @@ IMPORTANT RULES:
         if (!container) return;
         if (!chatHistory.length) {
             const ai = hasAIKey();
+            const prov = getProvider();
+            const provIcon  = prov === 'groq' ? '⚡' : prov === 'gemini' ? '✦' : '⊕';
+            const provLabel = prov === 'groq' ? 'Groq Llama 3' : prov === 'gemini' ? 'Gemini Flash' : 'GPT-4o mini';
+            const cnt = _passIndex.length;
             container.innerHTML = `
                 <div class="asst-welcome">
-                    <div class="asst-welcome-icon">${ai ? '🤖' : '👋'}</div>
-                    <div class="asst-welcome-title">${ai ? 'AI Mode Active!' : 'Namaste!'}</div>
+                    <div class="asst-welcome-icon">${ai ? provIcon : '👋'}</div>
+                    <div class="asst-welcome-title">${ai ? `${provLabel} Active!` : 'Namaste!'}</div>
                     <div class="asst-welcome-sub">
                         ${ai
-                            ? 'Main GPT-4o mini se powered hoon. Kuch bhi natural language mein poochho!'
-                            : 'Main aapka Audit Assistant hoon.<br>⚙️ se OpenAI key lagao full AI ke liye!'}
+                            ? `Main <strong>${provLabel}</strong> se powered hoon.<br>Kuch bhi Hindi/English/Hinglish mein poochho!`
+                            : 'Main aapka Audit Assistant hoon.<br>⚙️ se Groq/Gemini key lagao FREE AI ke liye!'}
+                        ${cnt > 0 ? `<br><span class="asst-pass-count-badge">🎫 ${cnt} passes loaded</span>` : ''}
                     </div>
                     <div class="asst-quick-btns">
                         <button class="asst-quick-btn" data-q="aaj ka status batao">📊 Status</button>
                         <button class="asst-quick-btn" data-q="kya yaad hai?">🧠 Memories</button>
                         <button class="asst-quick-btn" data-q="help">❓ Help</button>
+                        <button class="asst-quick-btn" data-q="recent app events kya hue?">📋 Events</button>
                         ${ai ? '<button class="asst-quick-btn" data-q="pass list mein kitne expire ho rahe hain?">⚠️ Expiry</button>' : ''}
                     </div>
                 </div>`;
@@ -1493,15 +1621,83 @@ IMPORTANT RULES:
     }
 
     /* ═══════════════════════════════════════════════
+       SECTION 13b — IN-CHAT INPUT AUTOCOMPLETE
+       As user types a vehicle number in the chat input,
+       show a small floating suggestion row above the input.
+    ═══════════════════════════════════════════════ */
+    function setupChatInputAutocomplete() {
+        const inputArea = document.querySelector('.asst-input-area');
+        const inp       = document.getElementById('asstInput');
+        if (!inputArea || !inp) return;
+
+        const row = document.createElement('div');
+        row.id = 'asstChatAcRow';
+        row.className = 'asst-chat-ac-row';
+        row.style.display = 'none';
+        inputArea.parentNode.insertBefore(row, inputArea);
+
+        let acT = null;
+        function hideRow() { row.style.display = 'none'; row.innerHTML = ''; }
+
+        inp.addEventListener('input', function () {
+            clearTimeout(acT);
+            const val = this.value.trim();
+            /* Only trigger when input looks like a partial vehicle number */
+            const VEH_PARTIAL = /[A-Z]{2}[\s\-]?\d{0,2}/i;
+            if (!val || val.length < 3 || !VEH_PARTIAL.test(val)) { hideRow(); return; }
+            acT = setTimeout(() => {
+                const hits = searchPassLocal(val);
+                if (!hits.length) { hideRow(); return; }
+                row.innerHTML = hits.slice(0, 4).map(h => {
+                    const exp = typeof isPassExpired === 'function' ? isPassExpired(h.record.validTill) : null;
+                    const tag = exp === true ? '🔴' : '🟢';
+                    const cls = h.record.vehicleClass ? ` — ${h.record.vehicleClass}` : '';
+                    return `<button class="asst-chat-ac-chip" data-num="${h.number}" title="${h.number}${cls}">
+                        ${tag} <strong>${h.number}</strong>${cls ? `<span>${cls}</span>` : ''}
+                    </button>`;
+                }).join('');
+                row.style.display = 'flex';
+                row.querySelectorAll('.asst-chat-ac-chip').forEach(chip => {
+                    chip.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        inp.value = this.dataset.num;
+                        hideRow();
+                        inp.focus();
+                        /* Auto-send after a brief moment */
+                        setTimeout(() => sendMsg(), 80);
+                    });
+                });
+            }, 100);
+        });
+
+        inp.addEventListener('keydown', e => { if (e.key === 'Escape') hideRow(); });
+        document.addEventListener('click', e => {
+            if (!row.contains(e.target) && e.target !== inp) hideRow();
+        });
+    }
+
+    /* ═══════════════════════════════════════════════
        SECTION 14 — INIT
     ═══════════════════════════════════════════════ */
     function init() {
+        loadAppEvents();
         watchPassList();
         buildUI();
         setupPassAutocomplete();
         setupEditAutocomplete();
+        setupChatInputAutocomplete();
+        setupAppActionTracker();
         updateStatusLine();
         setInterval(updateStatusLine, 6000);
+        /* Announce pass list events in chat (once per session) */
+        document.addEventListener('passListChanged', e => {
+            const { count, action } = e.detail || {};
+            const msg = action === 'replace'
+                ? `📋 Pass list updated! ${count} vehicles loaded. Index rebuilt — autocomplete ready.`
+                : `🗑️ Pass list cleared. 0 vehicles in index.`;
+            appendBotMsg(msg, false);
+            if (!chatOpen) { unreadCount++; updateBadge(); }
+        });
     }
 
     if (document.readyState === 'loading') {
