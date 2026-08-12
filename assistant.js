@@ -539,7 +539,7 @@ IMPORTANT RULES:
 
     /* ═══════════════════════════════════════════════
        SECTION 6c — GROQ API CALL (FREE)
-       Model: llama-3.1-8b-instant — very fast, free
+       Model: llama-3.3-70b-versatile — very fast, free
        Groq uses OpenAI-compatible API format.
     ═══════════════════════════════════════════════ */
     async function callGroq(userText) {
@@ -565,7 +565,7 @@ IMPORTANT RULES:
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama-3.1-8b-instant',
+                model: 'llama-3.3-70b-versatile',
                 messages,
                 tools: AI_TOOLS,
                 tool_choice: 'auto',
@@ -601,7 +601,7 @@ IMPORTANT RULES:
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'llama-3.1-8b-instant',
+                    model: 'llama-3.3-70b-versatile',
                     messages,
                     tools: AI_TOOLS,
                     tool_choice: 'auto',
@@ -900,7 +900,7 @@ IMPORTANT RULES:
                     </div>
                     <div class="asst-settings-desc">
                         <strong style="color:#16a34a">FREE — Unlimited (fair use).</strong> No credit card needed.<br>
-                        Model: <strong>llama-3.1-8b-instant</strong> · Ultra fast responses.
+                        Model: <strong>llama-3.3-70b-versatile</strong> · Ultra fast responses.
                     </div>
                     <div class="asst-key-row">
                         <input type="password" id="asstGroqKeyInput" class="asst-key-input"
