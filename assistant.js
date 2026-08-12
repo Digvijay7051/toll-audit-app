@@ -698,7 +698,73 @@ IMPORTANT RULES:
     /* ═══════════════════════════════════════════════
        SECTION 8 — MESSAGE DISPATCH
        Local tools first → correct provider → fallback
+
+       IMPORTANT: Vehicle number lookups are ALWAYS
+       handled locally — never sent to LLM for data.
+       LLM only formats/explains, never invents data.
     ═══════════════════════════════════════════════ */
+
+    /* Detect if message is PURELY a vehicle number query
+       (bulk or single) — no open-ended question attached */
+    function isPureVehicleQuery(msg) {
+        /* Strip all vehicle numbers and spaces/punctuation */
+        const stripped = msg
+            .replace(/[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi, '')
+            .replace(/[\s,;|\/\n\r]+/g, '')
+            .trim();
+        /* If nothing meaningful left → pure vehicle query */
+        return stripped.length < 8;
+    }
+
+    /* Handle bulk/single vehicle lookup with 100% local data */
+    function handleVehicleQuery(msg) {
+        const VEH_RE = /[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi;
+        const allMatches = [...msg.matchAll(VEH_RE)];
+        const seen = new Set();
+        const found = [], notFound = [];
+
+        allMatches.forEach(m => {
+            const num = m[0].toUpperCase().replace(/[\s\-]+/g, '');
+            if (seen.has(num)) return;
+            seen.add(num);
+
+            /* Exact lookup from actual pass list */
+            const rec = typeof getPassRecord === 'function' ? getPassRecord(num) : null;
+            if (rec) {
+                const exp    = typeof isPassExpired === 'function' ? isPassExpired(rec.validTill) : null;
+                const status = exp === true ? '🔴 EXPIRED' : '🟢 ACTIVE';
+                const days   = typeof remainingDays === 'function' ? remainingDays(rec.validTill) : null;
+                let line = `${status} ${rec.number}`;
+                if (rec.vehicleClass) line += `  |  ${rec.vehicleClass}`;
+                if (rec.validTill)    line += `  |  Valid: ${rec.validTill}`;
+                if (days !== null)    line += `  |  ${days < 0 ? Math.abs(days)+' days ago' : days+' days left'}`;
+                if (rec.amount)       line += `  |  ₹${rec.amount}`;
+                found.push(line);
+            } else {
+                /* Also try fuzzy search for partials */
+                const hits = searchPassLocal(num);
+                if (hits.length === 1) {
+                    const r   = hits[0].record;
+                    const exp = typeof isPassExpired === 'function' ? isPassExpired(r.validTill) : null;
+                    const tag = exp === true ? '🔴 EXPIRED' : '🟢 ACTIVE';
+                    found.push(`${tag} ${r.number} (matched "${num}")  |  ${r.vehicleClass || ''}  |  ${r.validTill || ''}`);
+                } else if (hits.length > 1) {
+                    notFound.push(`⚠️ ${num} — ${hits.length} partial matches: ${hits.map(h=>h.number).join(', ')}`);
+                } else {
+                    notFound.push(`❌ ${num} — not in pass list`);
+                }
+            }
+        });
+
+        if (seen.size === 0) return null;
+
+        let reply = `🔍 Pass check — ${seen.size} vehicle${seen.size > 1 ? 's' : ''}:\n\n`;
+        if (found.length)    reply += found.join('\n') + '\n';
+        if (notFound.length) reply += '\n' + notFound.join('\n');
+        reply += `\n\n📋 Found: ${found.length} | Not found: ${notFound.length}`;
+        return reply;
+    }
+
     async function dispatch(raw) {
         const msg = raw.trim();
 
@@ -707,6 +773,13 @@ IMPORTANT RULES:
         if (REMEMBER_RE.test(msg)) return localFallback(raw);
         if (FORGET_RE.test(msg))   return localFallback(raw);
         if (MEMORY_RE.test(msg))   return localFallback(raw);
+
+        /* Pure vehicle query → always local, never LLM
+           This prevents ANY hallucination on pass data */
+        if (isPureVehicleQuery(msg)) {
+            const result = handleVehicleQuery(msg);
+            if (result) return result;
+        }
 
         /* No key → pure local */
         if (!hasAIKey()) return localFallback(raw);
