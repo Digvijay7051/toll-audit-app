@@ -416,7 +416,7 @@ body.dark-mode .asst-chat-ac-chip:hover { background: #052e16; }
    MESSAGE BUBBLES
 ───────────────────────────────────────────── */
 .asst-msg {
-    max-width: 84%;
+    max-width: 92%;
     display: flex;
     flex-direction: column;
 }
@@ -424,6 +424,7 @@ body.dark-mode .asst-chat-ac-chip:hover { background: #052e16; }
 .asst-msg-user {
     align-self: flex-end;
     align-items: flex-end;
+    max-width: 82%;
 }
 
 .asst-msg-bot {
@@ -432,7 +433,7 @@ body.dark-mode .asst-chat-ac-chip:hover { background: #052e16; }
 }
 
 .asst-msg-text {
-    padding: 9px 13px;
+    padding: 10px 13px;
     border-radius: 14px;
     font-size: 13px;
     line-height: 1.55;
@@ -450,7 +451,8 @@ body.dark-mode .asst-chat-ac-chip:hover { background: #052e16; }
     border: 1px solid #e5e7eb;
     color: #1f2937;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    padding: 10px 11px;
 }
 
 body.dark-mode .asst-msg-bot .asst-msg-text {
@@ -465,6 +467,162 @@ body.dark-mode .asst-msg-bot .asst-msg-text {
     margin-top: 3px;
     padding: 0 3px;
 }
+
+/* ─────────────────────────────────────────────
+   RICH BOT RESPONSE ELEMENTS
+───────────────────────────────────────────── */
+
+/* Plain text line */
+.asst-line { line-height: 1.6; }
+
+/* Empty spacer */
+.asst-spacer { height: 6px; }
+
+/* Section header — "🟢 Active Passes (135 total):" */
+.asst-section-header {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #374151;
+    padding: 2px 0 6px;
+    border-bottom: 1.5px solid #e5e7eb;
+    margin-bottom: 8px;
+    letter-spacing: 0.1px;
+}
+.asst-section-header.green { color: #15803d; border-color: #bbf7d0; }
+.asst-section-header.red   { color: #dc2626; border-color: #fecaca; }
+body.dark-mode .asst-section-header         { color: #d1d5db; border-color: #374151; }
+body.dark-mode .asst-section-header.green   { color: #86efac; border-color: #166534; }
+body.dark-mode .asst-section-header.red     { color: #fca5a5; border-color: #7f1d1d; }
+
+/* Summary stat line — "🟢 Active: 135" */
+.asst-stat-line {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #15803d;
+    padding: 1px 0;
+}
+.asst-stat-line.red { color: #dc2626; }
+body.dark-mode .asst-stat-line       { color: #86efac; }
+body.dark-mode .asst-stat-line.red   { color: #fca5a5; }
+
+/* Class breakdown bullet */
+.asst-breakdown-row {
+    font-size: 12px;
+    color: #4b5563;
+    padding: 1px 0 1px 6px;
+    border-left: 2px solid #e5e7eb;
+    margin: 1px 0;
+}
+body.dark-mode .asst-breakdown-row { color: #9ca3af; border-color: #374151; }
+
+/* Footer totals */
+.asst-footer-stat {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #6b7280;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+    margin-top: 4px;
+}
+body.dark-mode .asst-footer-stat { color: #9ca3af; border-color: #2d3748; }
+
+/* ─────────────────────────────────────────────
+   PASS CARDS — rich vehicle pass display
+───────────────────────────────────────────── */
+.asst-pass-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0;
+    width: 100%;
+}
+
+.asst-pass-card {
+    border-radius: 10px;
+    padding: 8px 11px;
+    border: 1.5px solid #e5e7eb;
+    background: #f9fafb;
+    transition: background 0.12s;
+}
+
+.asst-pass-card.active {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+.asst-pass-card.expired {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+.asst-pass-card.warn {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+body.dark-mode .asst-pass-card          { background: #1a2332; border-color: #374151; }
+body.dark-mode .asst-pass-card.active   { background: #052e16; border-color: #166534; }
+body.dark-mode .asst-pass-card.expired  { background: #450a0a; border-color: #7f1d1d; }
+body.dark-mode .asst-pass-card.warn     { background: #1c1506; border-color: #854d0e; }
+
+.asst-pass-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.asst-pass-num {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #111827;
+    flex: 1;
+}
+.asst-pass-card.active  .asst-pass-num { color: #14532d; }
+.asst-pass-card.expired .asst-pass-num { color: #7f1d1d; }
+body.dark-mode .asst-pass-num           { color: #f3f4f6; }
+body.dark-mode .asst-pass-card.active  .asst-pass-num { color: #86efac; }
+body.dark-mode .asst-pass-card.expired .asst-pass-num { color: #fca5a5; }
+
+.asst-pass-cls {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.06);
+    color: #374151;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.asst-pass-card.active  .asst-pass-cls { background: #dcfce7; color: #15803d; }
+.asst-pass-card.expired .asst-pass-cls { background: #fee2e2; color: #b91c1c; }
+body.dark-mode .asst-pass-cls           { background: #374151; color: #d1d5db; }
+body.dark-mode .asst-pass-card.active  .asst-pass-cls { background: #14532d; color: #86efac; }
+body.dark-mode .asst-pass-card.expired .asst-pass-cls { background: #7f1d1d; color: #fca5a5; }
+
+.asst-pass-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.asst-pass-meta-item {
+    font-size: 11px;
+    color: #6b7280;
+    background: rgba(0,0,0,.04);
+    border-radius: 5px;
+    padding: 1px 7px;
+    white-space: nowrap;
+}
+.asst-pass-meta-item.days-ok  { color: #15803d; background: #dcfce7; }
+.asst-pass-meta-item.days-exp { color: #b91c1c; background: #fee2e2; }
+
+body.dark-mode .asst-pass-meta-item           { background: rgba(255,255,255,.06); color: #9ca3af; }
+body.dark-mode .asst-pass-meta-item.days-ok   { background: #14532d; color: #86efac; }
+body.dark-mode .asst-pass-meta-item.days-exp  { background: #7f1d1d; color: #fca5a5; }
 
 /* ─────────────────────────────────────────────
    SUGGESTIONS CHIPS

@@ -1688,21 +1688,143 @@ ${recentAppEventsText()}`;
         container.scrollTop = container.scrollHeight;
     }
 
-    function msgBubbleHTML(m) {
-        const isUser = m.role === 'user';
-        const text   = escHtml(m.text || '');
-        const time   = m.time || '';
-        const aiTag  = (!isUser && m.ai) ? '<span class="asst-ai-tag">AI</span>' : '';
-        return `<div class="asst-msg ${isUser ? 'asst-msg-user' : 'asst-msg-bot'}">
-            <div class="asst-msg-text">${aiTag}${text}</div>
-            <div class="asst-msg-time">${time}</div>
-        </div>`;
-    }
-
+    /* ── Escape HTML (no newline conversion — formatBotText handles layout) ── */
     function escHtml(str) {
         return String(str)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>');
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    /* ── Detect if a line is a pass record row ──────────────────────────────
+       Format from executeTool: "🟢 DL9SBA3104  |  CAR  |  Valid till: …  |  19 days left"
+       OR:                       "🔴 HR26BR1234  |  CAR  |  Expired: …  |  12 days ago"   */
+    const PASS_ROW_RE = /^(🟢|🔴|⚠️)\s+([A-Z0-9]{6,12})\b/;
+
+    function parsePassRow(line) {
+        /* strip leading emoji + spaces */
+        const clean = line.replace(/^(🟢|🔴|⚠️)\s*/, '').trim();
+        const parts = clean.split(/\s*\|\s*/);
+        const isExpired = line.startsWith('🔴');
+        const isWarn    = line.startsWith('⚠️');
+        const number    = parts[0] || '';
+        /* parse remaining fields */
+        let vehicleClass = '', validity = '', days = '', amount = '';
+        parts.slice(1).forEach(p => {
+            if (/valid till/i.test(p))        validity = p.replace(/valid till[:\s]*/i, '').trim();
+            else if (/expired[:\s]/i.test(p)) validity = p.replace(/expired[:\s]*/i, '').trim();
+            else if (/days left|days ago/i.test(p)) days = p.trim();
+            else if (/^₹/.test(p.trim()))     amount = p.trim();
+            else if (p.trim() && !vehicleClass) vehicleClass = p.trim();
+        });
+        return { number, vehicleClass, validity, days, amount, isExpired, isWarn };
+    }
+
+    /* ── Smart formatter: turns raw tool output into rich HTML ─────────────── */
+    function formatBotText(raw) {
+        const lines = raw.split('\n');
+        let html = '';
+        let i = 0;
+
+        while (i < lines.length) {
+            const line = lines[i];
+
+            /* ── Pass record row → card ── */
+            if (PASS_ROW_RE.test(line)) {
+                /* Collect consecutive pass rows into a table */
+                const rows = [];
+                while (i < lines.length && (PASS_ROW_RE.test(lines[i]) || lines[i].trim() === '')) {
+                    if (lines[i].trim()) rows.push(lines[i]);
+                    i++;
+                }
+                html += buildPassTable(rows);
+                continue;
+            }
+
+            /* ── Section header (e.g. "🟢 Active Passes (135 total):") ── */
+            if (/^(🟢|🔴|📋|🔍|📊)\s.+\((\d+)\s*(total|vehicle|pass)/i.test(line)) {
+                const isGood = line.startsWith('🟢') || line.startsWith('📋') || line.startsWith('📊');
+                const isBad  = line.startsWith('🔴');
+                html += `<div class="asst-section-header ${isBad ? 'red' : isGood ? 'green' : ''}">${escHtml(line)}</div>`;
+                i++; continue;
+            }
+
+            /* ── Summary stat lines: "🟢 Active: 135" / "🔴 Expired: 4" ── */
+            if (/^(🟢|🔴|📋)\s*(Active|Expired|Total)[:\s]+\d+/i.test(line)) {
+                const isRed = line.startsWith('🔴');
+                html += `<div class="asst-stat-line ${isRed ? 'red' : ''}">${escHtml(line)}</div>`;
+                i++; continue;
+            }
+
+            /* ── Class breakdown bullet "  • Car: 12" ── */
+            if (/^\s*•\s*.+:\s*\d+/.test(line)) {
+                html += `<div class="asst-breakdown-row">${escHtml(line.trim())}</div>`;
+                i++; continue;
+            }
+
+            /* ── Footer totals: "📋 Found: 4 | Not found: 2" ── */
+            if (/^📋\s*(Found|Total|Pass check)/i.test(line)) {
+                html += `<div class="asst-footer-stat">${escHtml(line)}</div>`;
+                i++; continue;
+            }
+
+            /* ── Bold markdown **text** ── */
+            const mdLine = escHtml(line)
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            /* ── Empty line → spacing ── */
+            if (!line.trim()) {
+                html += '<div class="asst-spacer"></div>';
+                i++; continue;
+            }
+
+            /* ── Default plain line ── */
+            html += `<div class="asst-line">${mdLine}</div>`;
+            i++;
+        }
+
+        return html || escHtml(raw);
+    }
+
+    function buildPassTable(rows) {
+        if (!rows.length) return '';
+        const cards = rows.map(line => {
+            const { number, vehicleClass, validity, days, amount, isExpired, isWarn } = parsePassRow(line);
+            const statusClass = isExpired ? 'expired' : isWarn ? 'warn' : 'active';
+            const dot         = isExpired ? '🔴' : isWarn ? '⚠️' : '🟢';
+            const daysClass   = isExpired ? 'days-exp' : 'days-ok';
+            return `<div class="asst-pass-card ${statusClass}">
+                <div class="asst-pass-card-top">
+                    <span class="asst-pass-num">${dot} ${escHtml(number)}</span>
+                    ${vehicleClass ? `<span class="asst-pass-cls">${escHtml(vehicleClass)}</span>` : ''}
+                </div>
+                ${validity || days || amount ? `
+                <div class="asst-pass-card-meta">
+                    ${validity ? `<span class="asst-pass-meta-item">📅 ${escHtml(validity)}</span>` : ''}
+                    ${days    ? `<span class="asst-pass-meta-item ${daysClass}">⏱ ${escHtml(days)}</span>` : ''}
+                    ${amount  ? `<span class="asst-pass-meta-item">💰 ${escHtml(amount)}</span>` : ''}
+                </div>` : ''}
+            </div>`;
+        }).join('');
+        return `<div class="asst-pass-table">${cards}</div>`;
+    }
+
+    function msgBubbleHTML(m) {
+        const isUser = m.role === 'user';
+        const time   = m.time || '';
+        const aiTag  = (!isUser && m.ai) ? '<span class="asst-ai-tag">AI</span>' : '';
+
+        let bodyHtml;
+        if (isUser) {
+            bodyHtml = escHtml(m.text || '').replace(/\n/g, '<br>');
+        } else {
+            bodyHtml = formatBotText(m.text || '');
+        }
+
+        return `<div class="asst-msg ${isUser ? 'asst-msg-user' : 'asst-msg-bot'}">
+            <div class="asst-msg-text">${aiTag}${bodyHtml}</div>
+            <div class="asst-msg-time">${time}</div>
+        </div>`;
     }
 
     function appendBotMsg(text, persist, extra) {
