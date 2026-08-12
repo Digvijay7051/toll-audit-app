@@ -351,6 +351,44 @@
                 description: 'Clear all chat history when user asks to clear or reset the conversation.',
                 parameters: { type: 'object', properties: {} }
             }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'getExpiredPasses',
+                description: 'Get the full list of all expired vehicle passes from the pass list. Use when user asks for expired passes, "expire ho gayi", "expired list", "kaunse expire hain", "4 expire", etc.',
+                parameters: { type: 'object', properties: {} }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'getActivePasses',
+                description: 'Get the full list of all currently active (non-expired) vehicle passes. Use when user asks for active passes, valid passes, "active list", "valid kaunse hain".',
+                parameters: { type: 'object', properties: {} }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'getPassesByClass',
+                description: 'Get all passes filtered by vehicle class, e.g. "Car", "LCV", "Truck 2 Axle". Use when user asks about passes for a specific vehicle type.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        vehicleClass: { type: 'string', description: 'Vehicle class name, e.g. "Car", "LCV", "Truck 2 Axle", "MAV", "Bus 2 Axle"' }
+                    },
+                    required: ['vehicleClass']
+                }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'getPassListSummary',
+                description: 'Get a full summary of the pass list: total count, expired count, active count, and breakdown by vehicle class. Use for overview/summary questions.',
+                parameters: { type: 'object', properties: {} }
+            }
         }
     ];
 
@@ -414,6 +452,83 @@
                 saveChatHistory(chatHistory);
                 setTimeout(() => renderMessages(), 50);
                 return 'Chat cleared.';
+            }
+
+            case 'getExpiredPasses': {
+                if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
+                const expired = _passIndex.filter(item =>
+                    typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) === true
+                );
+                if (!expired.length) return '✅ Koi bhi pass expire nahi hua hai! Sab active hain.';
+                const lines = expired.map(item => {
+                    const r = item.record;
+                    const days = typeof remainingDays === 'function' ? remainingDays(r.validTill) : null;
+                    let line = `🔴 ${r.number}`;
+                    if (r.vehicleClass) line += `  |  ${r.vehicleClass}`;
+                    if (r.validTill)    line += `  |  Expired: ${r.validTill}`;
+                    if (days !== null)  line += `  |  ${Math.abs(days)} days ago`;
+                    if (r.amount)       line += `  |  ₹${r.amount}`;
+                    return line;
+                });
+                return `🔴 Expired Passes (${expired.length} total):\n\n${lines.join('\n')}`;
+            }
+
+            case 'getActivePasses': {
+                if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
+                const active = _passIndex.filter(item =>
+                    typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) !== true
+                );
+                if (!active.length) return '⚠️ Koi bhi active pass nahi hai!';
+                const lines = active.map(item => {
+                    const r = item.record;
+                    const days = typeof remainingDays === 'function' ? remainingDays(r.validTill) : null;
+                    let line = `🟢 ${r.number}`;
+                    if (r.vehicleClass) line += `  |  ${r.vehicleClass}`;
+                    if (r.validTill)    line += `  |  Valid till: ${r.validTill}`;
+                    if (days !== null)  line += `  |  ${days} days left`;
+                    return line;
+                });
+                return `🟢 Active Passes (${active.length} total):\n\n${lines.join('\n')}`;
+            }
+
+            case 'getPassesByClass': {
+                const cls = (args.vehicleClass || '').trim().toLowerCase();
+                if (!cls) return 'Vehicle class batao, e.g. "Car", "LCV", "Truck 2 Axle".';
+                if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
+                const matches = _passIndex.filter(item =>
+                    (item.record.vehicleClass || '').toLowerCase().includes(cls)
+                );
+                if (!matches.length) return `"${args.vehicleClass}" class ke koi passes nahi mile.`;
+                const lines = matches.map(item => {
+                    const r = item.record;
+                    const exp = typeof isPassExpired === 'function' ? isPassExpired(r.validTill) : null;
+                    const tag = exp === true ? '🔴 EXPIRED' : '🟢 ACTIVE';
+                    let line = `${tag} ${r.number}`;
+                    if (r.validTill) line += `  |  ${r.validTill}`;
+                    if (r.amount)    line += `  |  ₹${r.amount}`;
+                    return line;
+                });
+                return `${args.vehicleClass} passes (${matches.length}):\n\n${lines.join('\n')}`;
+            }
+
+            case 'getPassListSummary': {
+                if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
+                const classCount = {};
+                let expiredCount = 0, activeCount = 0;
+                _passIndex.forEach(item => {
+                    const cls = item.record.vehicleClass || 'Unknown';
+                    classCount[cls] = (classCount[cls] || 0) + 1;
+                    if (typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) === true) {
+                        expiredCount++;
+                    } else {
+                        activeCount++;
+                    }
+                });
+                const breakdown = Object.entries(classCount)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([k, v]) => `  • ${k}: ${v}`)
+                    .join('\n');
+                return `📋 Pass List Summary:\n\nTotal: ${_passIndex.length}\n🟢 Active: ${activeCount}\n🔴 Expired: ${expiredCount}\n\nBy Class:\n${breakdown}`;
             }
 
             default:
@@ -735,6 +850,24 @@ ${recentAppEventsText()}`;
             parts.push(executeTool('getMemories', {}));
         }
 
+        /* Expired passes query */
+        const expRe = /expir|expire|expired|khatam|pass.*band|band.*pass/i;
+        if (expRe.test(userText)) {
+            parts.push(executeTool('getExpiredPasses', {}));
+        }
+
+        /* Active passes query */
+        const actRe = /active.*pass|valid.*pass|pass.*active|pass.*valid/i;
+        if (actRe.test(userText)) {
+            parts.push(executeTool('getActivePasses', {}));
+        }
+
+        /* Pass list summary */
+        const sumRe = /summary|kitne.*type|class.*wise|breakdown/i;
+        if (sumRe.test(userText)) {
+            parts.push(executeTool('getPassListSummary', {}));
+        }
+
         /* App events query */
         const eventsRe = /app.*event|event.*kya|recent.*event|kya.*hua|kya.*hue|history|tracker/i;
         if (eventsRe.test(userText)) {
@@ -755,6 +888,9 @@ ${recentAppEventsText()}`;
     const HELP_RE       = /^(help|kya\s*kar|guide|feature|kya\s*karta|what.*do)/i;
     const CLEAR_RE      = /clear\s*chat|chat\s*clear|history\s*clear|chat\s*reset/i;
     const PASS_RE       = /pass|vehicle|gadi|gaadi|number\s*plate/i;
+    const EXPIRED_RE    = /expir|expire|expired|khatam.*pass|pass.*khatam|band.*pass|pass.*band|expire.*list|expired.*pass|pass.*expire/i;
+    const ACTIVE_RE     = /active.*pass|valid.*pass|pass.*active|pass.*valid|active.*list|valid.*list/i;
+    const SUMMARY_RE    = /pass.*summary|summary.*pass|kitne.*type|class.*wise|breakdown|pass.*total.*class/i;
 
     function localFallback(raw) {
         const msg = raw.trim();
@@ -777,6 +913,12 @@ ${recentAppEventsText()}`;
             return `"${q}" se match koi memory nahi mili.`;
         }
         if (MEMORY_RE.test(msg)) return memoriesToText();
+
+        /* Expired / active / summary pass queries — 100% local, no LLM needed */
+        if (EXPIRED_RE.test(msg)) return executeTool('getExpiredPasses', {});
+        if (ACTIVE_RE.test(msg))  return executeTool('getActivePasses', {});
+        if (SUMMARY_RE.test(msg)) return executeTool('getPassListSummary', {});
+
         if (HELP_RE.test(msg)) {
             return `Main ye kaam kar sakta hoon:\n\n🔍 Vehicle pass check — koi bhi number type karo (DL9SBA...)\n📊 Status — "aaj kitne checked?"\n🧠 Memory — "remember: shift 2pm se"\n🗂️ Memories — "kya yaad hai?"\n📋 Events — "recent app events kya hue?"\n💬 Clear — "clear chat"\n\n💡 Tip: ⚙️ se Groq/Gemini FREE key lagao full AI ke liye!`;
         }
@@ -895,6 +1037,11 @@ ${recentAppEventsText()}`;
         if (REMEMBER_RE.test(msg)) return localFallback(raw);
         if (FORGET_RE.test(msg))   return localFallback(raw);
         if (MEMORY_RE.test(msg))   return localFallback(raw);
+
+        /* Pass list queries — always local, 100% accurate, no hallucination */
+        if (EXPIRED_RE.test(msg))  return executeTool('getExpiredPasses', {});
+        if (ACTIVE_RE.test(msg))   return executeTool('getActivePasses', {});
+        if (SUMMARY_RE.test(msg))  return executeTool('getPassListSummary', {});
 
         /* Pure vehicle query → always local, never LLM
            This prevents ANY hallucination on pass data */
