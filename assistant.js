@@ -50,10 +50,11 @@
 
     /* ═══════════════════════════════════════════════
        SECTION 2 — AI KEY STORE + PROVIDER
-       provider: 'openai' | 'gemini'
+       provider: 'openai' | 'gemini' | 'groq'
     ═══════════════════════════════════════════════ */
     const PROVIDER_KEY    = 'tollAssistantProvider';
     const GEMINI_KEY_KEY  = 'tollAssistantGeminiKey';
+    const GROQ_KEY_KEY    = 'tollAssistantGroqKey';
 
     /* OpenAI */
     function getAIKey()      { return localStorage.getItem(AIKEY_KEY) || ''; }
@@ -65,14 +66,21 @@
     function setGeminiKey(k) { localStorage.setItem(GEMINI_KEY_KEY, k.trim()); }
     function clearGeminiKey(){ localStorage.removeItem(GEMINI_KEY_KEY); }
 
-    /* Active provider */
-    function getProvider()   { return localStorage.getItem(PROVIDER_KEY) || 'gemini'; }
+    /* Groq */
+    function getGroqKey()    { return localStorage.getItem(GROQ_KEY_KEY) || ''; }
+    function setGroqKey(k)   { localStorage.setItem(GROQ_KEY_KEY, k.trim()); }
+    function clearGroqKey()  { localStorage.removeItem(GROQ_KEY_KEY); }
+
+    /* Active provider — default groq (user has the key already) */
+    function getProvider()   { return localStorage.getItem(PROVIDER_KEY) || 'groq'; }
     function setProvider(p)  { localStorage.setItem(PROVIDER_KEY, p); }
 
     /* Generic "has any key" */
     function hasAIKey() {
         const p = getProvider();
-        return p === 'gemini' ? !!getGeminiKey() : !!getAIKey();
+        if (p === 'gemini') return !!getGeminiKey();
+        if (p === 'groq')   return !!getGroqKey();
+        return !!getAIKey();
     }
 
     /* ═══════════════════════════════════════════════
@@ -530,6 +538,91 @@ IMPORTANT RULES:
     }
 
     /* ═══════════════════════════════════════════════
+       SECTION 6c — GROQ API CALL (FREE)
+       Model: llama-3.1-8b-instant — very fast, free
+       Groq uses OpenAI-compatible API format.
+    ═══════════════════════════════════════════════ */
+    async function callGroq(userText) {
+        const key = getGroqKey();
+        if (!key) throw new Error('NO_KEY');
+
+        const historyMsgs = chatHistory.slice(-14).map(m => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.text
+        }));
+
+        const messages = [
+            { role: 'system', content: buildSystemPrompt() },
+            ...historyMsgs,
+            { role: 'user', content: userText }
+        ];
+
+        /* Groq supports OpenAI tool format natively */
+        let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.1-8b-instant',
+                messages,
+                tools: AI_TOOLS,
+                tool_choice: 'auto',
+                max_tokens: 600,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error?.message || `HTTP ${response.status}`);
+        }
+
+        let data = await response.json();
+        let choice = data.choices[0];
+
+        /* Handle tool calls — same format as OpenAI */
+        while (choice.finish_reason === 'tool_calls' || choice.message?.tool_calls?.length) {
+            const toolCalls = choice.message.tool_calls;
+            const toolResults = toolCalls.map(tc => {
+                const args = JSON.parse(tc.function.arguments || '{}');
+                const result = executeTool(tc.function.name, args);
+                return { role: 'tool', tool_call_id: tc.id, content: String(result) };
+            });
+
+            messages.push(choice.message);
+            messages.push(...toolResults);
+
+            response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages,
+                    tools: AI_TOOLS,
+                    tool_choice: 'auto',
+                    max_tokens: 600,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `HTTP ${response.status}`);
+            }
+            data   = await response.json();
+            choice = data.choices[0];
+            if (!choice.message?.tool_calls?.length) break;
+        }
+
+        return (choice.message?.content || '').trim();
+    }
+
+    /* ═══════════════════════════════════════════════
        SECTION 7 — LOCAL FALLBACK ENGINE
        Used when: no API key, or API error
     ═══════════════════════════════════════════════ */
@@ -617,9 +710,9 @@ IMPORTANT RULES:
         /* Route to selected provider */
         const provider = getProvider();
         try {
-            return provider === 'gemini'
-                ? await callGemini(raw)
-                : await callOpenAI(raw);
+            if (provider === 'gemini') return await callGemini(raw);
+            if (provider === 'groq')   return await callGroq(raw);
+            return await callOpenAI(raw);
         } catch (err) {
             if (err.message === 'NO_KEY') return localFallback(raw);
             console.warn(`[Assistant] ${provider} error:`, err.message);
@@ -781,9 +874,14 @@ IMPORTANT RULES:
                 <div class="asst-settings-section">
                     <div class="asst-settings-label">🤖 AI Provider</div>
                     <div class="asst-provider-tabs">
+                        <button class="asst-provider-tab" id="asstTabGroq" data-p="groq">
+                            <span class="asst-provider-icon">⚡</span>
+                            <span>Groq</span>
+                            <span class="asst-provider-tag free">FREE</span>
+                        </button>
                         <button class="asst-provider-tab" id="asstTabGemini" data-p="gemini">
                             <span class="asst-provider-icon">✦</span>
-                            <span>Google Gemini</span>
+                            <span>Gemini</span>
                             <span class="asst-provider-tag free">FREE</span>
                         </button>
                         <button class="asst-provider-tab" id="asstTabOpenAI" data-p="openai">
@@ -794,8 +892,30 @@ IMPORTANT RULES:
                     </div>
                 </div>
 
+                <!-- Groq key section -->
+                <div class="asst-settings-section" id="asstGroqSection">
+                    <div class="asst-settings-label">
+                        ⚡ Groq API Key
+                        <a href="https://console.groq.com/keys" target="_blank" class="asst-settings-link">Get free key →</a>
+                    </div>
+                    <div class="asst-settings-desc">
+                        <strong style="color:#16a34a">FREE — Unlimited (fair use).</strong> No credit card needed.<br>
+                        Model: <strong>llama-3.1-8b-instant</strong> · Ultra fast responses.
+                    </div>
+                    <div class="asst-key-row">
+                        <input type="password" id="asstGroqKeyInput" class="asst-key-input"
+                               placeholder="gsk_..." autocomplete="off" spellcheck="false">
+                        <button class="asst-key-toggle" id="asstGroqKeyToggle" title="Show/hide">👁️</button>
+                    </div>
+                    <div class="asst-key-actions">
+                        <button class="asst-key-save-btn" id="asstGroqKeySave">✅ Save & Activate</button>
+                        <button class="asst-key-clear-btn" id="asstGroqKeyClear">🗑️ Remove</button>
+                    </div>
+                    <div class="asst-key-status" id="asstGroqKeyStatus"></div>
+                </div>
+
                 <!-- Gemini key section -->
-                <div class="asst-settings-section" id="asstGeminiSection">
+                <div class="asst-settings-section" id="asstGeminiSection" style="display:none;">
                     <div class="asst-settings-label">
                         ✦ Gemini API Key
                         <a href="https://aistudio.google.com/apikey" target="_blank" class="asst-settings-link">Get free key →</a>
@@ -866,12 +986,15 @@ IMPORTANT RULES:
         /* ── Provider tab switching ── */
         function activateProviderTab(p) {
             setProvider(p);
+            document.getElementById('asstGroqSection').style.display   = p === 'groq'   ? '' : 'none';
             document.getElementById('asstGeminiSection').style.display = p === 'gemini' ? '' : 'none';
             document.getElementById('asstOpenAISection').style.display = p === 'openai' ? '' : 'none';
+            document.getElementById('asstTabGroq').classList.toggle('active',   p === 'groq');
             document.getElementById('asstTabGemini').classList.toggle('active', p === 'gemini');
             document.getElementById('asstTabOpenAI').classList.toggle('active', p === 'openai');
         }
 
+        document.getElementById('asstTabGroq').addEventListener('click',   () => activateProviderTab('groq'));
         document.getElementById('asstTabGemini').addEventListener('click', () => activateProviderTab('gemini'));
         document.getElementById('asstTabOpenAI').addEventListener('click', () => activateProviderTab('openai'));
 
@@ -879,17 +1002,52 @@ IMPORTANT RULES:
         activateProviderTab(getProvider());
 
         /* Pre-fill saved keys */
+        const groqInp   = document.getElementById('asstGroqKeyInput');
         const geminiInp = document.getElementById('asstGeminiKeyInput');
         const openaiInp = document.getElementById('asstKeyInput');
+        if (getGroqKey())   groqInp.value   = getGroqKey();
         if (getGeminiKey()) geminiInp.value = getGeminiKey();
         if (getAIKey())     openaiInp.value = getAIKey();
 
         /* Show/hide toggles */
+        document.getElementById('asstGroqKeyToggle').addEventListener('click', () => {
+            groqInp.type = groqInp.type === 'password' ? 'text' : 'password';
+        });
         document.getElementById('asstGeminiKeyToggle').addEventListener('click', () => {
             geminiInp.type = geminiInp.type === 'password' ? 'text' : 'password';
         });
         document.getElementById('asstKeyToggle').addEventListener('click', () => {
             openaiInp.type = openaiInp.type === 'password' ? 'text' : 'password';
+        });
+
+        /* ── Save Groq key ── */
+        const groqStatus = document.getElementById('asstGroqKeyStatus');
+        document.getElementById('asstGroqKeySave').addEventListener('click', async () => {
+            const k = groqInp.value.trim();
+            if (!k) { groqStatus.textContent = '⚠️ Key empty hai.'; groqStatus.className = 'asst-key-status err'; return; }
+            if (!k.startsWith('gsk_')) { groqStatus.textContent = '⚠️ Groq key "gsk_" se shuru honi chahiye.'; groqStatus.className = 'asst-key-status err'; return; }
+            groqStatus.textContent = '🔄 Verifying…'; groqStatus.className = 'asst-key-status';
+            try {
+                const resp = await fetch('https://api.groq.com/openai/v1/models', {
+                    headers: { 'Authorization': `Bearer ${k}` }
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                setGroqKey(k);
+                setProvider('groq');
+                groqStatus.textContent = '✅ Saved! Groq AI mode active.'; groqStatus.className = 'asst-key-status ok';
+                updateStatusLine();
+                setTimeout(() => {
+                    appendBotMsg('🎉 Groq AI mode ON! Ab main Llama 3.1 se powered hoon.\n\nFREE aur ultra-fast! Kuch bhi poochho — Hindi, English, Hinglish!', false);
+                    if (!chatOpen) { unreadCount++; updateBadge(); }
+                }, 200);
+            } catch (e) {
+                groqStatus.textContent = `❌ ${e.message}`; groqStatus.className = 'asst-key-status err';
+            }
+        });
+        document.getElementById('asstGroqKeyClear').addEventListener('click', () => {
+            clearGroqKey(); groqInp.value = '';
+            groqStatus.textContent = 'Key removed.'; groqStatus.className = 'asst-key-status';
+            updateStatusLine();
         });
 
         /* ── Save Gemini key ── */
@@ -1109,11 +1267,14 @@ IMPORTANT RULES:
         const provider = getProvider();
         const avatar   = document.getElementById('asstAvatarDot');
         if (active) {
-            const lbl = provider === 'gemini' ? '✦ Gemini' : '⊕ GPT-4o';
+            const lbl = provider === 'gemini' ? '✦ Gemini'
+                      : provider === 'groq'   ? '⚡ Groq'
+                      : '⊕ GPT-4o';
             el.textContent = cnt > 0 ? `${lbl} · ${cnt} passes` : `${lbl} · AI Active`;
             el.style.color = '#86efac';
-            if (avatar) avatar.style.background = provider === 'gemini'
-                ? 'linear-gradient(135deg,#1a73e8,#0d47a1)'
+            if (avatar) avatar.style.background =
+                  provider === 'gemini' ? 'linear-gradient(135deg,#1a73e8,#0d47a1)'
+                : provider === 'groq'   ? 'linear-gradient(135deg,#f97316,#ea580c)'
                 : 'linear-gradient(135deg,#7c3aed,#4f46e5)';
         } else {
             el.textContent = cnt > 0 ? `Local · ${cnt} passes` : 'Local · Add key for AI';

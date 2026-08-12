@@ -774,7 +774,7 @@ body.dark-mode .asst-key-clear-btn { background: #1f2937; border-color: #7f1d1d;
 ───────────────────────────────────────────── */
 .asst-provider-tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
     margin-top: 6px;
 }
