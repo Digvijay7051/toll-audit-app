@@ -1,21 +1,22 @@
 /* ==========================================================
    excel-import.css
-   Excel Import Modal — Review & Edit table
+   Excel Import Modal — Grounded Skeuomorphism design
 ========================================================== */
 
 /* ── Modal shell ── */
 .xl-import-modal-content {
-  background: var(--bg-mid);
+  background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  color: var(--text);
+  border-top: 2px solid var(--yellow);
+  border-radius: 0;
+  color: var(--ink);
 }
 
 /* ── Header ── */
 .xl-import-header {
-  background: var(--bg-dark);
+  background: var(--panel-2);
   border-bottom: 1px solid var(--line);
-  padding: 14px 20px;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,35 +25,41 @@
 .xl-import-header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .xl-import-icon {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 36px; height: 36px;
+  border-radius: 0;
   background: var(--blue-soft);
-  border: 1px solid rgba(76,141,255,.3);
+  border: 1px solid rgba(59,130,212,.3);
   display: flex; align-items: center; justify-content: center;
   color: var(--blue);
-  font-size: 18px;
+  font-size: 16px;
   flex-shrink: 0;
 }
 .xl-import-header .modal-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 2px;
+  text-transform: uppercase;
   margin: 0;
 }
 .xl-import-subtitle {
-  font-size: 12px;
-  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: .06em;
+  text-transform: uppercase;
   margin-top: 2px;
 }
 
 /* ── Body ── */
 .xl-import-body {
-  padding: 20px 20px 8px;
+  padding: 18px 18px 8px;
   min-height: 200px;
-  background: var(--bg-mid);
+  background: var(--panel);
 }
 
 /* ── Empty / Loading / Error states ── */
@@ -63,14 +70,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 20px;
-  gap: 12px;
-  color: var(--text-faint);
-  font-size: 14px;
+  padding: 44px 20px;
+  gap: 10px;
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-family: var(--font-mono);
 }
 .xl-import-empty i,
 .xl-loading i,
-.xl-error i { font-size: 36px; }
+.xl-error i { font-size: 32px; }
 .xl-error { color: var(--red); }
 .xl-error i { color: var(--red); }
 
@@ -79,202 +87,206 @@
   display: flex;
   gap: 0;
   list-style: none;
-  margin: 0 0 0 0;
+  margin: 0;
   padding: 0;
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 .xl-tab-item { display: flex; }
 .xl-tab-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-dim);
+  padding: 9px 20px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-dim);
   background: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   cursor: pointer;
-  transition: color .15s, border-color .15s;
-  letter-spacing: .02em;
+  transition: color .12s, border-color .12s;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
-.xl-tab-btn:hover { color: var(--text); }
-.xl-tab-btn.xl-tab-active { color: var(--text); border-bottom-color: var(--blue); }
+.xl-tab-btn:hover { color: var(--ink); }
+.xl-tab-btn.xl-tab-active { color: var(--ink); border-bottom-color: var(--blue); }
 .xl-tab-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
+  width: 7px; height: 7px;
+  border-radius: 0;
   flex-shrink: 0;
 }
 .xl-dot-violation { background: var(--red); }
 .xl-dot-exemption { background: var(--green); }
-.xl-tab-btn.xl-tab-active .xl-dot-violation { box-shadow: 0 0 0 2px rgba(229,72,77,.3); }
-.xl-tab-btn.xl-tab-active .xl-dot-exemption { box-shadow: 0 0 0 2px rgba(47,182,115,.3); }
 .xl-tab-count {
-  background: var(--bg-panel);
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 10px;
-  padding: 1px 8px;
+  background: var(--panel-2);
+  color: var(--ink-dim);
   font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
 }
-.xl-tab-btn.xl-tab-active .xl-tab-count { background: var(--blue-soft); color: var(--blue); }
+.xl-tab-btn.xl-tab-active .xl-tab-count { background: var(--blue-soft); color: var(--blue); border-color: rgba(59,130,212,.3); }
 
 /* ── Tab pane ── */
-.xl-tab-pane { padding-top: 16px; }
+.xl-tab-pane { padding-top: 14px; }
 .xl-tab-pane-hidden { display: none; }
 
 /* ── Paid virtual row ── */
-.xl-paid-virtual-row td { background: rgba(255,176,32,.05) !important; }
-.xl-paid-veh-label { color: var(--amber) !important; }
+.xl-paid-virtual-row td { background: rgba(217,164,0,.06) !important; }
+.xl-paid-veh-label { color: var(--yellow) !important; }
 .xl-paid-tag {
   display: inline-block;
-  background: var(--amber-soft);
-  color: var(--amber);
+  background: var(--yellow-soft);
+  color: var(--yellow);
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 1px 5px;
   vertical-align: middle;
   text-transform: uppercase;
+  border: 1px solid rgba(217,164,0,.3);
 }
 
 /* ── th vehicle column min-width ── */
-.xl-th-vehicle { min-width: 160px !important; text-align: left !important; }
+.xl-th-vehicle { min-width: 150px !important; text-align: left !important; }
 
 /* ── Table scroll wrapper ── */
 .xl-table-scroll {
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
 }
 
 /* ── Review table ── */
 .xl-review-table {
   width: 100%;
   border-collapse: collapse;
+  font-family: var(--font-mono);
   font-size: 12px;
   min-width: 900px;
 }
 .xl-review-table th {
-  background: var(--bg-panel);
-  color: var(--text-dim);
-  font-weight: 700;
-  padding: 8px 10px;
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  font-weight: 600;
+  padding: 7px 8px;
   text-align: center;
   border: 1px solid var(--line);
   white-space: nowrap;
-  font-size: 11px;
-  letter-spacing: .02em;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 .xl-review-table th:first-child {
   text-align: left;
-  min-width: 150px;
+  min-width: 140px;
 }
 .xl-review-table td {
   border: 1px solid var(--line);
   padding: 4px 6px;
   text-align: center;
   vertical-align: middle;
-  background: var(--bg-mid);
+  background: var(--panel);
+  color: var(--ink);
 }
 .xl-review-table td:first-child {
   text-align: left;
   font-weight: 600;
-  color: var(--text);
-  background: var(--bg-lift);
+  color: var(--ink);
+  background: var(--panel-2);
   white-space: nowrap;
   padding-left: 10px;
 }
 
-/* ── Report count row (yellow equivalent) ── */
+/* ── Report count row ── */
 .xl-report-row td {
-  background: rgba(255, 176, 32, .10) !important;
+  background: rgba(217,164,0,.08) !important;
 }
 .xl-rc-label {
   font-size: 11px !important;
   font-weight: 700 !important;
-  color: var(--amber) !important;
-  letter-spacing: .02em;
+  color: var(--yellow) !important;
+  letter-spacing: .04em;
 }
 .xl-rc-total {
   font-weight: 700 !important;
-  color: var(--amber) !important;
+  color: var(--yellow) !important;
 }
 
 /* ── Col total row ── */
 .xl-col-total-row td {
-  background: var(--bg-panel) !important;
+  background: var(--panel-2) !important;
   font-weight: 700 !important;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   font-size: 11px;
 }
 .xl-col-total-row td:first-child {
-  color: var(--text-dim);
+  color: var(--ink-dim);
   font-size: 11px;
 }
 
 /* ── Row total cell ── */
 .xl-row-total {
   font-weight: 700 !important;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 /* ── Editable inputs inside table ── */
 .xl-rc-input,
 .xl-cell-input {
   width: 100%;
-  min-width: 44px;
+  min-width: 40px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 12px;
+  border-radius: 0;
+  color: var(--ink);
   font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
   padding: 3px 4px;
-  transition: border-color .15s, background .15s;
+  transition: border-color .12s, background .12s;
 }
 .xl-rc-input:focus,
 .xl-cell-input:focus {
   outline: none;
-  border-color: var(--amber);
-  background: var(--bg-lift);
-  box-shadow: 0 0 0 2px var(--amber-soft);
+  border-color: var(--yellow);
+  background: var(--panel-2);
 }
 .xl-rc-input:hover,
 .xl-cell-input:hover {
   border-color: var(--line);
-  background: var(--bg-lift);
+  background: var(--panel-2);
 }
-/* Style non-zero cells more prominently */
-.xl-cell-input:not([value="0"]) {
-  color: var(--blue);
-}
+.xl-cell-input:not([value="0"]) { color: var(--blue); }
 
 /* ── Vehicle label column ── */
 .xl-veh-label {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  font-family: var(--font-mono);
 }
 
 /* ── Footer ── */
 .xl-import-footer {
-  background: var(--bg-dark);
+  background: var(--panel-2);
   border-top: 1px solid var(--line);
-  padding: 12px 20px;
+  padding: 10px 18px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .xl-import-footer-note {
-  font-size: 12px;
-  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -286,83 +298,94 @@
   align-items: center;
 }
 .xl-import-status {
-  font-size: 12px;
-  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--yellow);
   font-weight: 600;
+  letter-spacing: .04em;
 }
+/* Confirm button — embossed */
 .xl-import-confirm-btn {
-  background: linear-gradient(135deg, var(--blue), #3a7bd5);
+  background: var(--blue);
   color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 8px 20px;
-  border-radius: var(--radius-sm);
-  border: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  border: 1px solid rgba(59,130,212,.6);
+  border-radius: 0;
   display: flex;
   align-items: center;
   gap: 7px;
-  transition: filter .15s, transform .1s;
+  box-shadow: 0 3px 0 rgba(0,0,0,.35);
+  transition: box-shadow .1s, transform .1s, filter .1s;
 }
 .xl-import-confirm-btn:hover  { filter: brightness(1.08); color: #fff; }
-.xl-import-confirm-btn:active { transform: scale(.97); }
+.xl-import-confirm-btn:active { transform: translateY(3px); box-shadow: 0 0 0 rgba(0,0,0,.35); }
 
-/* ── Light theme overrides ── */
-body.light-theme .xl-import-modal-content { background: var(--bg-mid); border-color: var(--line); }
-body.light-theme .xl-import-header        { background: var(--bg-lift); border-bottom-color: var(--line); }
-body.light-theme .xl-import-footer        { background: var(--bg-lift); border-top-color: var(--line); }
-body.light-theme .xl-review-table th      { background: var(--bg-panel); color: var(--text-dim); border-color: var(--line); }
-body.light-theme .xl-review-table td      { border-color: var(--line); background: var(--bg-mid); }
-body.light-theme .xl-review-table td:first-child { background: var(--bg-lift); }
-body.light-theme .xl-col-total-row td     { background: var(--bg-panel) !important; }
+/* ── Light theme overrides (inherit from dark system) ── */
+body.light-theme .xl-import-modal-content { background: var(--panel); border-color: var(--line); }
+body.light-theme .xl-import-header        { background: var(--panel-2); border-bottom-color: var(--line); }
+body.light-theme .xl-import-footer        { background: var(--panel-2); border-top-color: var(--line); }
+body.light-theme .xl-review-table th      { background: var(--panel-2); color: var(--ink-dim); border-color: var(--line); }
+body.light-theme .xl-review-table td      { border-color: var(--line); background: var(--panel); }
+body.light-theme .xl-review-table td:first-child { background: var(--panel-2); }
+body.light-theme .xl-col-total-row td     { background: var(--panel-2) !important; }
 body.light-theme .xl-rc-input,
-body.light-theme .xl-cell-input           { color: var(--text); }
+body.light-theme .xl-cell-input           { color: var(--ink); }
 body.light-theme .xl-rc-input:focus,
-body.light-theme .xl-cell-input:focus     { background: var(--bg-mid); }
+body.light-theme .xl-cell-input:focus     { background: var(--panel-2); }
 
 /* ── Already Paid section ── */
 .xl-paid-section {
-  margin-top: 14px;
-  border: 1px solid rgba(255,176,32,.3);
-  border-radius: var(--radius-sm);
+  margin-top: 12px;
+  border: 1px solid rgba(217,164,0,.3);
+  border-left: 3px solid var(--yellow);
+  border-radius: 0;
   overflow: hidden;
-  background: rgba(255,176,32,.04);
+  background: rgba(217,164,0,.04);
 }
 .xl-paid-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  background: rgba(255,176,32,.10);
-  border-bottom: 1px solid rgba(255,176,32,.2);
-  font-size: 13px;
+  padding: 8px 12px;
+  background: rgba(217,164,0,.08);
+  border-bottom: 1px solid rgba(217,164,0,.2);
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 700;
-  color: var(--amber);
+  color: var(--yellow);
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 .xl-paid-badge {
   margin-left: auto;
-  background: var(--amber);
-  color: #1a1200;
+  background: var(--yellow);
+  color: #1a0f00;
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 800;
-  border-radius: 10px;
-  padding: 2px 9px;
-  min-width: 26px;
+  font-weight: 700;
+  border-radius: 0;
+  padding: 1px 8px;
+  min-width: 24px;
   text-align: center;
 }
-.xl-paid-body {
-  padding: 12px 14px;
-}
+.xl-paid-body { padding: 10px 12px; }
 .xl-paid-hint {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin-bottom: 12px;
-  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+  line-height: 1.6;
 }
 .xl-paid-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 0;
+  gap: 10px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--line-soft);
 }
 .xl-paid-row:last-child { border-bottom: none; }
@@ -370,48 +393,46 @@ body.light-theme .xl-cell-input:focus     { background: var(--bg-mid); }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 130px;
+  min-width: 120px;
 }
 .xl-paid-cat-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--ink);
+  font-family: var(--font-base);
 }
 .xl-paid-cat-count {
-  font-size: 11px;
-  color: var(--text-faint);
   font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
 }
-.xl-paid-row-select {
-  flex: 1;
-}
+.xl-paid-row-select { flex: 1; }
 .xl-paid-mode-select {
   width: 100%;
-  background: var(--bg-lift);
+  background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 13px;
+  border-radius: 0;
+  color: var(--ink);
   font-family: var(--font-base);
-  padding: 6px 10px;
+  font-size: 12px;
+  padding: 5px 8px;
   cursor: pointer;
-  transition: border-color .15s;
+  transition: border-color .12s;
 }
 .xl-paid-mode-select:focus {
   outline: none;
-  border-color: var(--amber);
-  box-shadow: 0 0 0 2px var(--amber-soft);
+  border-color: var(--yellow);
 }
 body.light-theme .xl-paid-section {
-  background: rgba(201,106,0,.04);
-  border-color: rgba(201,106,0,.25);
+  background: rgba(217,164,0,.04);
+  border-color: rgba(217,164,0,.25);
 }
 body.light-theme .xl-paid-header {
-  background: rgba(201,106,0,.08);
-  border-bottom-color: rgba(201,106,0,.18);
+  background: rgba(217,164,0,.08);
+  border-bottom-color: rgba(217,164,0,.18);
 }
 body.light-theme .xl-paid-mode-select {
-  background: var(--bg-mid);
+  background: var(--panel-2);
   border-color: var(--line);
-  color: var(--text);
+  color: var(--ink);
 }

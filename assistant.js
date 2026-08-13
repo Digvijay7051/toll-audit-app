@@ -473,6 +473,36 @@
                 return `🔴 Expired Passes (${expired.length} total):\n\n${lines.join('\n')}`;
             }
 
+            case 'removeExpiredPasses': {
+                if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
+                const expired = _passIndex.filter(item =>
+                    typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) === true
+                );
+                if (!expired.length) return '✅ Koi bhi expired pass nahi hai — kuch delete karne ki zaroorat nahi!';
+
+                /* Confirmation step: if not yet confirmed, show what will be removed */
+                if (!args.confirmed) {
+                    _pendingAction = { tool: 'removeExpiredPasses', args: { confirmed: true } };
+                    const preview = expired.map(item => `🔴 ${item.record.number}  |  ${item.record.vehicleClass || ''}  |  Expired: ${item.record.validTill}`).join('\n');
+                    return `⚠️ Yeh ${expired.length} expired pass(es) DELETE ho jaayenge:\n\n${preview}\n\n` +
+                           `Confirm karne ke liye type karo: "haan hata do" ya "yes remove"\n` +
+                           `Cancel karne ke liye type karo: "nahi" ya "cancel"`;
+                }
+
+                /* Actually remove — keep only active passes */
+                const activeRecords = _passIndex
+                    .filter(item => !(typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) === true))
+                    .map(item => item.record);
+
+                if (typeof replacePassList === 'function') {
+                    replacePassList(activeRecords);
+                    _pendingAction = null;
+                    return `✅ ${expired.length} expired pass(es) remove kar diye!\n🎫 Ab ${activeRecords.length} active passes hain.`;
+                }
+                _pendingAction = null;
+                return `❌ Pass list update nahi ho saki — replacePassList function available nahi hai.`;
+            }
+
             case 'getActivePasses': {
                 if (!_passIndex.length) return 'Pass list abhi load nahi hui hai.';
                 const active = _passIndex.filter(item =>
