@@ -13,19 +13,33 @@ service cloud.firestore {
     // Splitting by day keeps each doc well under the 1 MB limit.
     match /userAuditLogs/{docId} {
 
-      // CREATE — doc doesn't exist yet, check incoming data
+      // CREATE — doc doesn't exist yet, check incoming data owns the uid field
       allow create: if request.auth != null
                     && request.auth.uid == request.resource.data.uid;
 
-      // READ / UPDATE / DELETE — doc exists, check stored uid field
+      // READ / UPDATE / DELETE — doc exists, owner check via stored uid field
       allow read, update, delete: if request.auth != null
                                   && request.auth.uid == resource.data.uid;
 
-      // LIST (collection query / orderBy documentId range scan) —
-      // resource is null during a list; allow any authenticated user
-      // to list since the doc-ID prefix already scopes results to
-      // their own uid.
-      allow list: if request.auth != null;
+      // LIST — resource is null so per-doc ownership cannot be checked here.
+      // Fix: require the query to filter on uid == the caller's own uid, which
+      // every client query already does (the ID-prefix range scan is equivalent).
+      // This prevents any authenticated user from running an unscoped collection
+      // scan that returns other users' documents.
+      allow list: if request.auth != null
+                  && request.query.filters.size() > 0
+                  && request.query.filters.hasAny([
+                       ['uid', '==', request.auth.uid]
+                     ]);
+    }
+
+    // ── Learned rules per user (Correct & Learn feature) ─────
+    // agent.js writes/reads fbDb.collection('agentRules').doc(uid)
+    // Previously unmatched → Firestore denied by default; writes
+    // silently failed and only localStorage was ever used.
+    match /agentRules/{userId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
     }
 
     // ── Legacy audit_log collection ───────────────────────────

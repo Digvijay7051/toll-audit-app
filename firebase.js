@@ -419,16 +419,14 @@ async function fbLoadAuditLogDates() {
 
     try {
 
-        /* Doc IDs are "{uid}_{dateKey}" — use a prefix range scan on the
-           document ID itself. No composite index needed at all.
-           startAt / endAt with "\uf8ff" covers all keys with this uid prefix. */
-        const prefix = uid + "_";
+        /* Query by uid field — enforced by Firestore security rules.
+           This replaces the old document-ID prefix range scan: the uid field
+           is stored on every document and is the authoritative ownership check. */
         const snap = await fbDb.collection("userAuditLogs")
-            .orderBy(firebase.firestore.FieldPath.documentId())
-            .startAt(prefix)
-            .endAt(prefix + "\uf8ff")
+            .where("uid", "==", uid)
             .get();
 
+        const prefix = uid + "_";   // fallback for old docs lacking a dateKey field
         const entries = snap.docs.map(doc => {
             const d = doc.data();
             return {

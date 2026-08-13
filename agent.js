@@ -15,12 +15,12 @@
 
   /* ── TARIFF DEFAULTS ── */
   const DEFAULT_TARIFFS = [
-    { key: 'car',   label: 'Car',         single: 85,  ret: 130 },
-    { key: 'lcv',   label: 'LCV/Mini Bus', single: 130, ret: 195 },
-    { key: 'bus',   label: 'Bus',          single: 255, ret: 385 },
-    { key: 'truck', label: 'Truck',        single: 255, ret: 385 },
-    { key: 'mav',   label: 'MAV 3-6 Axl', single: 415, ret: 625 },
-    { key: 'osv',   label: 'OSV',          single: 510, ret: 770 },
+    { key: 'car',   label: 'Car',         single: 85,  tariffRet: 130 },
+    { key: 'lcv',   label: 'LCV/Mini Bus', single: 130, tariffRet: 195 },
+    { key: 'bus',   label: 'Bus',          single: 255, tariffRet: 385 },
+    { key: 'truck', label: 'Truck',        single: 255, tariffRet: 385 },
+    { key: 'mav',   label: 'MAV 3-6 Axl', single: 415, tariffRet: 625 },
+    { key: 'osv',   label: 'OSV',          single: 510, tariffRet: 770 },
   ];
 
   /* ── CONSOLIDATE REVENUE → audit key ── */
@@ -120,8 +120,8 @@
       <div class="agent-tariff-item">
         <label>${t.label}</label>
         <div style="display:flex;gap:6px;">
-          <input type="number" id="tariff_${t.key}_s" value="${t.single}" min="0" placeholder="Single" style="width:50%">
-          <input type="number" id="tariff_${t.key}_r" value="${t.ret}"    min="0" placeholder="Return" style="width:50%">
+          <input type="number" id="tariff_${t.key}_s" value="${t.single}"    min="0" placeholder="Single" style="width:50%">
+          <input type="number" id="tariff_${t.key}_r" value="${t.tariffRet}" min="0" placeholder="Return" style="width:50%">
         </div>
         <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Single / Return</div>
       </div>`).join('');
@@ -131,12 +131,12 @@
     tariffs.forEach(t => {
       const s = document.getElementById(`tariff_${t.key}_s`);
       const r = document.getElementById(`tariff_${t.key}_r`);
-      if (s) t.single = parseFloat(s.value) || 0;
-      if (r) t.ret    = parseFloat(r.value) || 0;
+      if (s) t.single    = parseFloat(s.value) || 0;
+      if (r) t.tariffRet = parseFloat(r.value) || 0;
     });
   }
 
-  function getTariff(key) { return tariffs.find(t => t.key === key) || {single:0,ret:0}; }
+  function getTariff(key) { return tariffs.find(t => t.key === key) || {single:0,tariffRet:0}; }
 
   /* ═══════════════ FILE HANDLING ═══════════════ */
   function handleFile(file, type) {
@@ -199,12 +199,13 @@
     const cols = detectCRCols(rows, subHdr, grpHdr);
 
     const data = {};
+    const unmappedRows = [];
     for (let i = subHdr + 1; i < rows.length - 1; i++) {
       const row  = rows[i];
       const name = String(row[0]||'').trim().toUpperCase();
       if (!name || name === 'TOTAL') continue;
       const key  = CR_MAP[name];
-      if (!key) continue;
+      if (!key) { unmappedRows.push(`CR: unmapped label "${name}" — row skipped`); continue; }
       if (!data[key]) data[key] = emptyCR();
 
       const revRow = rows[i+1];
@@ -225,7 +226,7 @@
         i++;
       }
     }
-    return data;
+    return { data, unmappedRows };
   }
 
   function detectCRCols(rows, subHdr, grpHdr) {
@@ -326,6 +327,7 @@
       diagonal:  { car:0, lcv:0, bus:0, truck:0, mav:0, osv:0 },
       passPerClass: { car:0, lcv:0, bus:0, truck:0, mav:0, osv:0 },
       nt: { ambulance:0, auto:0, bike:0, tractor:0, jcb:0, govt:0, police:0, forcefully:0 },
+      unmappedRows: [],
     };
 
     // Yellow row = system totals (usually row hdrRow+1)
@@ -343,8 +345,16 @@
         continue;
       }
 
-      // Diagonal row (correctly classified)
       const diagKey = VM_DIAG_MAP[actualCls];
+      const ntKey   = NT_KEY_MAP[actualCls];
+
+      // Log rows whose label is not in any map
+      if (!diagKey && !ntKey) {
+        result.unmappedRows.push(`Matrix: unmapped label "${actualCls}" — row skipped`);
+        continue;
+      }
+
+      // Diagonal row (correctly classified)
       if (diagKey) {
         Object.entries(colKeyMap).forEach(([ci, key]) => {
           if (key === diagKey) result.diagonal[diagKey] = (result.diagonal[diagKey]||0) + n(row[ci]);
@@ -352,7 +362,6 @@
       }
 
       // Pass row — distribute per class column
-      const ntKey = NT_KEY_MAP[actualCls];
       if (ntKey === 'pass') {
         Object.entries(colKeyMap).forEach(([ci, key]) => {
           result.passPerClass[key] = (result.passPerClass[key]||0) + n(row[ci]);
@@ -366,13 +375,6 @@
         Object.keys(colKeyMap).forEach(ci => { rowTotal += n(row[ci]); });
         result.nt[ntKey] = (result.nt[ntKey]||0) + rowTotal;
       }
-
-      // Also accumulate column totals from all rows
-      Object.entries(colKeyMap).forEach(([ci, key]) => {
-        if (actualCls !== 'TOTAL') {
-          // Only sum up if it's not already counted as a system-total row
-        }
-      });
     }
 
     // If colTotal is all zeros (no explicit Total row), sum from all rows
@@ -388,7 +390,7 @@
       }
     }
 
-    return result;
+    return result;   // includes result.unmappedRows
   }
 
   /* ═══════════════ MAIN RUN ═══════════════ */
@@ -409,7 +411,9 @@
     setTimeout(() => {
       try {
         addLog(log, '📊 Parsing Consolidate Revenue Report…');
-        const crData = parseCR(files.cr);
+        const crRaw  = parseCR(files.cr);
+        const crData = crRaw.data;
+        crRaw.unmappedRows.forEach(m => addLog(log, '⚠️ ' + m, 'warn'));
         setProgress(bar, 25);
 
         addLog(log, '🎫 Parsing Traffic Count Report (Barcode)…');
@@ -418,15 +422,17 @@
 
         addLog(log, '🔴 Parsing Violation Matrix…');
         const vmData = parseMatrix(files.vm);
+        vmData.unmappedRows.forEach(m => addLog(log, '⚠️ ' + m, 'warn'));
         setProgress(bar, 65);
 
         addLog(log, '🟢 Parsing Exemption Matrix…');
         const emData = parseMatrix(files.em);
+        emData.unmappedRows.forEach(m => addLog(log, '⚠️ ' + m, 'warn'));
         setProgress(bar, 80);
 
         addLog(log, '🧠 Applying learned rules…');
         result = buildAuditData(crData, tcData, vmData, emData);
-        applyLearnedRules(result);
+        applyLearnedRules(result, log);
         setProgress(bar, 95);
 
         addLog(log, '📋 Rendering preview…');
@@ -455,43 +461,59 @@
       const tf = getTariff(key);
 
       // Paid Traffic
-      const cash     = c.cashSingle;
-      const ret      = c.cashReturn + c.digReturn;
-      const barcode  = tc.barcode[key] || 0;
-      const digital  = c.digSingle;
-      const etc      = c.fastag;
-      const pass     = (vm.passPerClass[key]||0) + (em.passPerClass[key]||0);
-      const paidTotal = cash + ret + barcode + digital + etc + pass;
+      const cash      = c.cashSingle;
+      const retCount  = c.cashReturn + c.digReturn;   // traffic return count
+      const barcode   = tc.barcode[key] || 0;
+      const digital   = c.digSingle;
+      const etc       = c.fastag;
+      const pass      = (vm.passPerClass[key]||0) + (em.passPerClass[key]||0);
+      const paidTotal = cash + retCount + barcode + digital + etc + pass;
 
       // Violation = colTotal - diagonal (from Violation Matrix)
-      const vmColTotal = vm.colTotal[key] || 0;
-      const vmDiag     = vm.diagonal[key] || 0;
-      const violation  = Math.max(0, vmColTotal - vmDiag);
+      const vmColTotal  = vm.colTotal[key] || 0;
+      const vmDiag      = vm.diagonal[key] || 0;
+      // If diagonal exceeds column total the source file is malformed — flag it
+      // rather than silently clamping: a negative result hides a parse failure.
+      if (vmDiag > vmColTotal) {
+        anomalies.push(
+          `${AUDIT_LABELS[key]}: Violation Matrix diagonal (${vmDiag}) exceeds column ` +
+          `total (${vmColTotal}) — possible column-detection or source file error. ` +
+          `Violation count set to 0.`
+        );
+      }
+      const violation   = Math.max(0, vmColTotal - vmDiag);
       const revLossViol = violation * tf.single;
 
       // Exemption = colTotal - diagonal (from Exemption Matrix)
       const emColTotal  = em.colTotal[key] || 0;
       const emDiag      = em.diagonal[key] || 0;
+      if (emDiag > emColTotal) {
+        anomalies.push(
+          `${AUDIT_LABELS[key]}: Exemption Matrix diagonal (${emDiag}) exceeds column ` +
+          `total (${emColTotal}) — possible column-detection or source file error. ` +
+          `Exemption count set to 0.`
+        );
+      }
       const exemption   = Math.max(0, emColTotal - emDiag);
       const revLossExem = exemption * tf.single;
 
       const totalUnpaid  = violation + exemption;
       const totalLoss    = revLossViol + revLossExem;
       const totalTraffic = paidTotal + totalUnpaid;
-      const totalRevenue = (cash*tf.single) + (ret*tf.ret) + (barcode*tf.ret) +
-                           (digital*tf.single) + (etc*tf.single);
+      const totalRevenue = (cash * tf.single) + (retCount * tf.tariffRet) +
+                           (barcode * tf.tariffRet) + (digital * tf.single) + (etc * tf.single);
       const lossPercent  = totalTraffic > 0
         ? Math.round((totalUnpaid / totalTraffic) * 100) : 0;
 
-      // Revenue check
+      // Revenue check — cash single count vs reported revenue
       const expectedCashRev = cash * tf.single;
       if (c.cashSingleRev > 0 && Math.abs(c.cashSingleRev - expectedCashRev) > 200) {
         anomalies.push(`${AUDIT_LABELS[key]}: Cash revenue mismatch — Expected ₹${fmt(expectedCashRev)}, Report shows ₹${fmt(c.cashSingleRev)}`);
       }
 
       rows.push({ key, label: AUDIT_LABELS[key],
-        single: tf.single, ret: tf.ret,
-        cash, ret, barcode, digital, etc, pass, paidTotal,
+        single: tf.single, tariffRet: tf.tariffRet,    // tariff prices
+        cash, retCount, barcode, digital, etc, pass, paidTotal,
         violation, revLossViol, exemption, revLossExem,
         totalUnpaid, totalLoss, totalTraffic, lossPercent, totalRevenue,
       });
@@ -501,11 +523,36 @@
     const ntViol = Object.values(vm.nt).reduce((a,b)=>a+b,0);
     const ntExem = Object.values(em.nt).reduce((a,b)=>a+b,0);
     rows.push({ key:'nt', label:'Non-Tollable',
-      single:0, ret:0, cash:0, ret:0, barcode:0, digital:0, etc:0, pass:0, paidTotal:0,
+      single:0, tariffRet:0, cash:0, retCount:0, barcode:0, digital:0, etc:0, pass:0, paidTotal:0,
       violation: ntViol, revLossViol:0, exemption: ntExem, revLossExem:0,
       totalUnpaid: ntViol+ntExem, totalLoss:0,
       totalTraffic: ntViol+ntExem, lossPercent:0, totalRevenue:0,
     });
+
+    // ── Cross-file traffic reconciliation check ──────────────────────────────
+    // Grand total from Traffic Count (VM colTotal is a superset-of-paid check;
+    // actual TC grand total = sum of all vm.colTotal entries for tollable classes
+    // plus pass traffic from both matrices — i.e. everything that passed through
+    // a booth and was recorded in the matrices).
+    // Formula: violation + exemption + paidTotal (per key) should equal
+    //          vm.colTotal[key] + em.colTotal[key] for each tollable class.
+    // At the aggregate level: sum(vm.colTotal) + sum(em.colTotal)  vs
+    //                          sum(violation) + sum(exemption) + sum(paidTotal)
+    const matricesTotalVehicles = AUDIT_KEYS.reduce((s, k) =>
+      s + (vm.colTotal[k]||0) + (em.colTotal[k]||0), 0);
+    const auditTotalVehicles = rows.reduce((s, r) => {
+      if (r.key === 'nt') return s;
+      return s + r.violation + r.exemption + r.paidTotal;
+    }, 0);
+    const trafficDiff = Math.abs(matricesTotalVehicles - auditTotalVehicles);
+    const TRAFFIC_TOLERANCE = 5;
+    if (matricesTotalVehicles > 0 && trafficDiff > TRAFFIC_TOLERANCE) {
+      anomalies.push(
+        `Traffic count mismatch: Violation+Exemption+Paid totals (${auditTotalVehicles}) differ from ` +
+        `matrix grand totals (${matricesTotalVehicles}) by ${trafficDiff} vehicles. ` +
+        `Check for unmapped rows or double-counting.`
+      );
+    }
 
     // Merge NT from both matrices
     const ntCombined = {};
@@ -528,7 +575,7 @@
   }
 
   /* ═══════════════ APPLY LEARNED RULES ═══════════════ */
-  function applyLearnedRules(data) {
+  function applyLearnedRules(data, log) {
     Object.entries(learnedRules).forEach(([fieldKey, rule]) => {
       // fieldKey format: "rowKey_fieldName"  e.g. "car_barcode"
       const [rowKey, field] = fieldKey.split('_');
@@ -536,6 +583,15 @@
       if (row && field && rule.value !== undefined) {
         row[field] = rule.value;
         row['_corrected_' + field] = true;
+        // Always surface applied overrides in the run log so users know
+        // a stored rule is silently changing a number.
+        const date = new Date(rule.timestamp).toLocaleDateString('en-IN');
+        addLog(log,
+          `🧠 Applied learned rule: ${rule.label} = ${rule.value}` +
+          (rule.reason ? ` (reason: "${rule.reason}")` : '') +
+          ` [saved ${date}]`,
+          'warn'
+        );
       }
     });
   }
@@ -552,14 +608,14 @@
   function renderMainTable(rows) {
     const tbody = document.getElementById('agentMainTbody');
     const tfoot = document.getElementById('agentMainTfoot');
-    const T = { cash:0,ret:0,barcode:0,digital:0,etc:0,pass:0,paidTotal:0,
+    const T = { cash:0,retCount:0,barcode:0,digital:0,etc:0,pass:0,paidTotal:0,
                 violation:0,revLossViol:0,exemption:0,revLossExem:0,
                 totalUnpaid:0,totalLoss:0,totalTraffic:0 };
 
     tbody.innerHTML = rows.map(r => {
       const isNT = r.key === 'nt';
       if (!isNT) {
-        T.cash+=r.cash; T.ret+=r.ret; T.barcode+=r.barcode;
+        T.cash+=r.cash; T.retCount+=r.retCount; T.barcode+=r.barcode;
         T.digital+=r.digital; T.etc+=r.etc; T.pass+=r.pass;
         T.paidTotal+=r.paidTotal; T.violation+=r.violation;
         T.revLossViol+=r.revLossViol; T.exemption+=r.exemption;
@@ -583,8 +639,8 @@
 
       return `<tr>
         <td class="cls-name">${r.label}</td>
-        <td>${r.single}</td><td>${r.ret}</td>
-        ${cell(r.cash,'cash')}${cell(r.ret,'ret')}${cell(r.barcode,'barcode')}
+        <td>${r.single}</td><td>${r.tariffRet}</td>
+        ${cell(r.cash,'cash')}${cell(r.retCount,'retCount')}${cell(r.barcode,'barcode')}
         ${cell(r.digital,'digital')}${cell(r.etc,'etc')}${cell(r.pass,'pass')}
         <td><strong>${r.paidTotal}</strong></td>
         ${cell(r.violation,'violation')}
@@ -599,7 +655,7 @@
 
     tfoot.innerHTML = `<tr>
       <td class="cls-name">Total</td><td></td><td></td>
-      <td>${T.cash}</td><td>${T.ret}</td><td>${T.barcode}</td>
+      <td>${T.cash}</td><td>${T.retCount}</td><td>${T.barcode}</td>
       <td>${T.digital}</td><td>${T.etc}</td><td>${T.pass}</td><td>${T.paidTotal}</td>
       <td>${T.violation}</td><td>${fmt(T.revLossViol)}</td>
       <td>${T.exemption}</td><td>${fmt(T.revLossExem)}</td>
@@ -711,7 +767,7 @@
   });
 
   function recalcRow(r) {
-    r.paidTotal   = r.cash + r.ret + r.barcode + r.digital + r.etc + r.pass;
+    r.paidTotal   = r.cash + r.retCount + r.barcode + r.digital + r.etc + r.pass;
     const tf      = getTariff(r.key);
     r.revLossViol = r.violation * tf.single;
     r.revLossExem = r.exemption * tf.single;
@@ -735,17 +791,51 @@
       list.innerHTML = '<div class="agent-rules-empty"><i class="bi bi-robot"></i><p>No rules learned yet.<br>Correct cells in the preview and the agent will learn.</p></div>';
       return;
     }
-    list.innerHTML = keys.map(k => {
-      const r = learnedRules[k];
+    // Build items using DOM manipulation so user-supplied text (r.reason, r.label)
+    // is set via textContent and never interpreted as HTML — prevents self-XSS.
+    const fragment = document.createDocumentFragment();
+    keys.forEach(k => {
+      const r    = learnedRules[k];
       const date = new Date(r.timestamp).toLocaleDateString('en-IN');
-      return `<div class="agent-rule-item">
-        <div class="agent-rule-label"><i class="bi bi-check-circle-fill" style="color:#16a34a"></i> ${r.label}</div>
-        <div class="agent-rule-val">Corrected value: <strong>${r.value}</strong></div>
-        ${r.reason ? `<div class="agent-rule-reason">"${r.reason}"</div>` : ''}
-        <div class="agent-rule-meta">${date}</div>
-        <button class="agent-rule-del" onclick="agentDeleteRule('${k}')"><i class="bi bi-trash"></i></button>
-      </div>`;
-    }).join('');
+
+      const item = document.createElement('div');
+      item.className = 'agent-rule-item';
+
+      const lbl = document.createElement('div');
+      lbl.className = 'agent-rule-label';
+      lbl.innerHTML = '<i class="bi bi-check-circle-fill" style="color:#16a34a"></i> ';
+      lbl.appendChild(document.createTextNode(r.label));
+
+      const val = document.createElement('div');
+      val.className = 'agent-rule-val';
+      val.innerHTML = 'Corrected value: <strong></strong>';
+      val.querySelector('strong').textContent = r.value;
+
+      const meta = document.createElement('div');
+      meta.className = 'agent-rule-meta';
+      meta.textContent = date;
+
+      const btn = document.createElement('button');
+      btn.className = 'agent-rule-del';
+      btn.innerHTML = '<i class="bi bi-trash"></i>';
+      btn.addEventListener('click', () => window.agentDeleteRule(k));
+
+      item.appendChild(lbl);
+      item.appendChild(val);
+
+      if (r.reason) {
+        const reason = document.createElement('div');
+        reason.className = 'agent-rule-reason';
+        reason.textContent = '\u201c' + r.reason + '\u201d';  // " … " via textContent
+        item.appendChild(reason);
+      }
+
+      item.appendChild(meta);
+      item.appendChild(btn);
+      fragment.appendChild(item);
+    });
+    list.innerHTML = '';
+    list.appendChild(fragment);
   }
 
   window.agentDeleteRule = function(key) {
@@ -805,8 +895,8 @@
                     'Violation','Revenue Loss','Exemption','Revenue Loss (Exempt)',
                     'Total Unpaid','Total Loss','Total Traffic','Loss in %']];
     const data1 = result.rows.map(r => [
-      r.label, r.single, r.ret,
-      r.cash, r.ret, r.barcode, r.digital, r.etc, r.pass, r.paidTotal,
+      r.label, r.single, r.tariffRet,           // ← tariff prices, not traffic counts
+      r.cash, r.retCount, r.barcode, r.digital, r.etc, r.pass, r.paidTotal,
       r.violation, r.revLossViol, r.exemption, r.revLossExem,
       r.totalUnpaid, r.totalLoss, r.totalTraffic,
       r.key==='nt'?'-':(r.lossPercent+'%'),
@@ -878,7 +968,7 @@
   function setProgress(bar,p){ if(bar) bar.style.width=p+'%'; }
   function setFooterNote(t){ setText('agentFooterNote',t); }
   function addLog(el,msg,cls){ if(!el)return; const d=document.createElement('div'); d.className=cls?'log-'+cls:''; d.textContent=msg; el.appendChild(d); }
-  function fieldLabel(f){ return {cash:'Cash',ret:'Return',barcode:'Barcode',digital:'Digital',etc:'ETC',pass:'Pass',violation:'Violation',exemption:'Exemption'}[f]||f; }
+  function fieldLabel(f){ return {cash:'Cash',retCount:'Return',barcode:'Barcode',digital:'Digital',etc:'ETC',pass:'Pass',violation:'Violation',exemption:'Exemption'}[f]||f; }
   function showToastMsg(msg) {
     if (typeof showToast === 'function') { showToast(msg); return; }
     const t=document.createElement('div');

@@ -114,12 +114,12 @@ function setupCloudBackupExport() {
         try {
 
             const uid    = fbAuth.currentUser.uid;
-            const prefix = uid + "_";
+            const prefix = uid + "_";   // retained for the doc.id fallback below
 
+            /* Query by uid field — the security rule enforces uid == caller.
+               Replaces the old document-ID prefix range scan. */
             const snap = await fbDb.collection("userAuditLogs")
-                .orderBy(firebase.firestore.FieldPath.documentId())
-                .startAt(prefix)
-                .endAt(prefix + "\uf8ff")
+                .where("uid", "==", uid)
                 .get();
 
             /* Merge cloud docs into a fresh auditDataStore clone */

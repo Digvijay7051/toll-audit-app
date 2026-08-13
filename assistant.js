@@ -951,12 +951,12 @@ ${recentAppEventsText()}`;
         const APP_EV_RE = /app.*event|kya.*hua|kya.*hue|recent.*event|tracker|history/i;
         if (APP_EV_RE.test(msg)) return recentAppEventsText();
 
-        const greet = /^(hi|hello|hii|hey|hy|namaste|namaskar|kya\s*hal|kaise|good)/i;
+        const greet = /^(hi|hello|hii|hey|hy|namaste|namaskar|kya\s*hal|kaise|good|how\s*(are|r)\s*(you|u)|how\s*are|what'?s\s*up|sup\b|theek\s*ho|kya\s*chal|kya\s*haal)/i;
         if (greet.test(msg)) {
             const c = getAppContext();
-            return `Namaste! 👋\nAaj ${c.auditDate} — ${c.checked} checked, ${c.remaining} remaining.\n\n${_passIndex.length ? `🎫 ${_passIndex.length} passes loaded.` : '💡 AI mode ke liye ⚙️ se key set karo!'}`;
+            return `Main theek hoon, shukriya! 😊\nAaj ${c.auditDate} — ${c.checked} checked, ${c.remaining} remaining.\n\n${_passIndex.length ? `🎫 ${_passIndex.length} passes loaded.` : '💡 General sawalon ke jawaab ke liye ⚙️ se FREE Groq/Gemini key lagao!'}`;
         }
-        return `Samajh nahi aaya. Try karo:\n• Vehicle number type karo\n• "status batao"\n• "remember: kuch bhi"\n• "help"\n\n💡 FREE AI ke liye ⚙️ se Groq/Gemini key lagao!`;
+        return `Samajh nahi aaya. Try karo:\n• Vehicle number type karo\n• "status batao"\n• "remember: kuch bhi"\n• "help"\n\n💡 "how are you" jaise general sawalon ke liye ⚙️ se FREE Groq/Gemini key lagao — tab main kuch bhi samjhunga!`;
     }
 
     /* ═══════════════════════════════════════════════
