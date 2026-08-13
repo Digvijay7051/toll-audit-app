@@ -479,6 +479,19 @@
                     typeof isPassExpired === 'function' && isPassExpired(item.record.validTill) !== true
                 );
                 if (!active.length) return '⚠️ Koi bhi active pass nahi hai!';
+
+                /* If caller wants just one example, return a single random entry */
+                if (args && args.singleExample) {
+                    const pick = active[Math.floor(Math.random() * active.length)];
+                    const r = pick.record;
+                    const days = typeof remainingDays === 'function' ? remainingDays(r.validTill) : null;
+                    let line = `🟢 ${r.number}`;
+                    if (r.vehicleClass) line += `  |  ${r.vehicleClass}`;
+                    if (r.validTill)    line += `  |  Valid till: ${r.validTill}`;
+                    if (days !== null)  line += `  |  ${days} days left`;
+                    return `Yeh lo ek active pass ka number:\n\n${line}`;
+                }
+
                 const lines = active.map(item => {
                     const r = item.record;
                     const days = typeof remainingDays === 'function' ? remainingDays(r.validTill) : null;
@@ -916,7 +929,11 @@ ${recentAppEventsText()}`;
 
         /* Expired / active / summary pass queries — 100% local, no LLM needed */
         if (EXPIRED_RE.test(msg)) return executeTool('getExpiredPasses', {});
-        if (ACTIVE_RE.test(msg))  return executeTool('getActivePasses', {});
+        if (ACTIVE_RE.test(msg)) {
+            /* "koi ek do", "1 number do", "give me one example" → single random, not full list */
+            const wantOne = /\b(ek|1|one|single|koi\s*ek|any\s*one|random|example|bata\s*do|do|dena|de\s*do)\b/i.test(msg);
+            return executeTool('getActivePasses', { singleExample: wantOne });
+        }
         if (SUMMARY_RE.test(msg)) return executeTool('getPassListSummary', {});
 
         if (HELP_RE.test(msg)) {
@@ -1040,7 +1057,10 @@ ${recentAppEventsText()}`;
 
         /* Pass list queries — always local, 100% accurate, no hallucination */
         if (EXPIRED_RE.test(msg))  return executeTool('getExpiredPasses', {});
-        if (ACTIVE_RE.test(msg))   return executeTool('getActivePasses', {});
+        if (ACTIVE_RE.test(msg)) {
+            const wantOne = /\b(ek|1|one|single|koi\s*ek|any\s*one|random|example|bata\s*do|do|dena|de\s*do)\b/i.test(msg);
+            return executeTool('getActivePasses', { singleExample: wantOne });
+        }
         if (SUMMARY_RE.test(msg))  return executeTool('getPassListSummary', {});
 
         /* Pure vehicle query → always local, never LLM
