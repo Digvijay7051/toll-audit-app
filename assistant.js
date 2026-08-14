@@ -75,6 +75,26 @@
     function getProvider()   { return localStorage.getItem(PROVIDER_KEY) || 'groq'; }
     function setProvider(p)  { localStorage.setItem(PROVIDER_KEY, p); }
 
+    /* ═══════════════════════════════════════════════
+       AGENT NAME  (user-customisable display name)
+    ═══════════════════════════════════════════════ */
+    const AGENT_NAME_KEY     = 'asstAgentName';
+    const AGENT_NAME_DEFAULT = 'Audit Assistant';
+
+    function getAgentName() {
+        return localStorage.getItem(AGENT_NAME_KEY) || AGENT_NAME_DEFAULT;
+    }
+    function setAgentName(name) {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        localStorage.setItem(AGENT_NAME_KEY, trimmed);
+        /* Live-update every element that shows the name */
+        const bubble  = document.getElementById('asstBubbleNameLabel');
+        const header  = document.getElementById('asstHeaderName');
+        if (bubble)  bubble.textContent  = trimmed;
+        if (header)  header.textContent  = trimmed;
+    }
+
     /* Generic "has any key" */
     function hasAIKey() {
         const p = getProvider();
@@ -589,7 +609,7 @@
         const mem = userMemories.length
             ? userMemories.map((m, i) => `${i + 1}. ${m.text} (saved: ${m.ts})`).join('\n')
             : 'None saved yet.';
-        return `You are "Audit Assistant", an intelligent AI assistant built into the Toll Audit App used at Rodwal Toll Plaza, India.
+        return `You are "${getAgentName()}", an intelligent AI assistant built into the Toll Audit App used at Rodwal Toll Plaza, India.
 
 LIVE APP CONTEXT (real-time):
 - Audit Date: ${c.auditDate}
@@ -1266,6 +1286,18 @@ ${recentAppEventsText()}`;
             </div>
             <div class="asst-settings-body">
 
+                <!-- Agent Name -->
+                <div class="asst-settings-section">
+                    <div class="asst-settings-label">✏️ Agent Name</div>
+                    <div class="asst-settings-desc">Jo naam bubble aur chat header mein dikhega.</div>
+                    <div class="asst-key-row" style="gap:6px;">
+                        <input type="text" id="asstNameInput" class="asst-key-input"
+                               placeholder="e.g. Raj Assistant" autocomplete="off" maxlength="32">
+                        <button class="asst-key-save-btn" id="asstNameSave" style="white-space:nowrap;">✅ Save</button>
+                    </div>
+                    <div class="asst-key-status" id="asstNameStatus"></div>
+                </div>
+
                 <!-- Provider selector -->
                 <div class="asst-settings-section">
                     <div class="asst-settings-label">🤖 AI Provider</div>
@@ -1378,6 +1410,22 @@ ${recentAppEventsText()}`;
 
     function wireSettingsEvents() {
         document.getElementById('asstSettingsClose').addEventListener('click', closeSettings);
+
+        /* ── Agent Name ── */
+        const nameInp    = document.getElementById('asstNameInput');
+        const nameStatus = document.getElementById('asstNameStatus');
+        if (nameInp) nameInp.value = getAgentName();
+        document.getElementById('asstNameSave').addEventListener('click', () => {
+            const val = nameInp.value.trim();
+            if (!val) { nameStatus.textContent = '⚠️ Naam khali nahi ho sakta.'; nameStatus.className = 'asst-key-status err'; return; }
+            setAgentName(val);
+            nameStatus.textContent = `✅ "${val}" save ho gaya!`;
+            nameStatus.className   = 'asst-key-status ok';
+            setTimeout(() => { nameStatus.textContent = ''; nameStatus.className = 'asst-key-status'; }, 2500);
+        });
+        nameInp && nameInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('asstNameSave').click();
+        });
 
         /* ── Provider tab switching ── */
         function activateProviderTab(p) {
@@ -1511,10 +1559,12 @@ ${recentAppEventsText()}`;
     }
 
     function refreshSettingsInfo() {
-        const mc = document.getElementById('asstSettingsMemCount');
-        const pc = document.getElementById('asstSettingsPassCount');
-        if (mc) mc.textContent = `${userMemories.length} memories saved.`;
-        if (pc) pc.textContent = _passIndex.length;
+        const mc  = document.getElementById('asstSettingsMemCount');
+        const pc  = document.getElementById('asstSettingsPassCount');
+        const ni  = document.getElementById('asstNameInput');
+        if (mc)  mc.textContent  = `${userMemories.length} memories saved.`;
+        if (pc)  pc.textContent  = _passIndex.length;
+        if (ni)  ni.value        = getAgentName();   // keep input in sync
     }
 
     function openSettings() {
@@ -1677,7 +1727,7 @@ ${recentAppEventsText()}`;
                 </svg>
             </div>
             <div class="asst-bubble-label">
-                <span class="asst-bubble-label-main">AI Assistant</span>
+                <span class="asst-bubble-label-main" id="asstBubbleNameLabel">${getAgentName()}</span>
                 <span class="asst-bubble-label-sub" id="asstBubbleSub">Ask me anything</span>
             </div>
             <span class="asst-badge" id="asstBadge" style="display:none;">0</span>
@@ -1725,7 +1775,7 @@ ${recentAppEventsText()}`;
                         </svg>
                     </div>
                     <div>
-                        <div class="asst-header-name">Audit Assistant</div>
+                        <div class="asst-header-name" id="asstHeaderName">${getAgentName()}</div>
                         <div class="asst-header-sub" id="asstStatusLine">Initializing…</div>
                     </div>
                 </div>
@@ -1911,7 +1961,7 @@ ${recentAppEventsText()}`;
                     <div class="asst-welcome-sub">
                         ${ai
                             ? `Main <strong>${provLabel}</strong> se powered hoon.<br>Kuch bhi Hindi/English/Hinglish mein poochho!`
-                            : 'Main aapka Audit Assistant hoon.<br>⚙️ se Groq/Gemini key lagao FREE AI ke liye!'}
+                            : `Main aapka <strong>${getAgentName()}</strong> hoon.<br>⚙️ se Groq/Gemini key lagao FREE AI ke liye!`}
                         ${cnt > 0 ? `<br><span class="asst-pass-count-badge">🎫 ${cnt} passes loaded</span>` : ''}
                     </div>
                     <div class="asst-quick-btns">
