@@ -1821,6 +1821,24 @@
         <!-- Step 3: Process -->
         <div class="agent-section" id="agentProcessSection" style="display:none;">
           <div class="agent-section-title"><span class="agent-step-badge">3</span> Process &amp; Generate Report</div>
+
+          <!-- Autonomy + Verbosity controls -->
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:600;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;">Mode:</span>
+            <button class="btn btn-sm btn-outline-secondary" id="agentMode_suggest" type="button">Suggest</button>
+            <button class="btn btn-sm btn-outline-warning"   id="agentMode_confirm" type="button">Confirm</button>
+            <button class="btn btn-sm btn-outline-success"   id="agentMode_auto"    type="button">Auto</button>
+            <span style="font-size:12px;font-weight:600;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-left:8px;">Log:</span>
+            <button class="btn btn-sm btn-outline-secondary" id="agentVerbositySummary" type="button">Summary</button>
+            <button class="btn btn-sm btn-outline-secondary" id="agentVerbosityDetail"  type="button">Detailed</button>
+            <button class="btn btn-sm btn-outline-info ms-auto" id="agentDownloadTrail" type="button">
+              <i class="bi bi-download"></i> Audit Trail JSON
+            </button>
+          </div>
+
+          <!-- Step tracker -->
+          <div id="agentStepTracker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;font-size:12px;"></div>
+
           <button class="agent-run-btn" id="agentRunBtn" type="button">
             <i class="bi bi-lightning-charge-fill"></i> Generate Audit Template
           </button>
@@ -1924,6 +1942,13 @@
             <label class="agent-edit-label">Reason <span style="color:#9ca3af">(optional):</span></label>
             <input type="text" id="agentEditReason" class="agent-edit-input" placeholder="e.g. manual recount">
           </div>
+          <div class="agent-edit-row">
+            <label class="agent-edit-label">Apply this rule:</label>
+            <select id="agentEditScope" class="agent-edit-input" style="padding:6px 8px;">
+              <option value="session">This audit date only</option>
+              <option value="all">All future audits (global)</option>
+            </select>
+          </div>
           <div class="agent-edit-actions">
             <button type="button" class="btn btn-secondary btn-sm" id="agentEditCancel">Cancel</button>
             <button type="button" class="btn btn-success btn-sm" id="agentEditSave">
@@ -1958,6 +1983,9 @@
 <!-- ═══════════════════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════════════════ -->
+<!-- Sidebar backdrop overlay (mobile) — must be inside <body> -->
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -1980,10 +2008,8 @@
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
 <script src="excel-import.js?v=1"></script>
-<script src="agent.js?v=1"></script>
-<script src="assistant.js?v=1"></script>
-<!-- Sidebar backdrop overlay (mobile) -->
-<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+<script src="agent.js?v=4"></script>
+<script src="assistant.js?v=2"></script>
 
 </body>
 </html>

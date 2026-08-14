@@ -864,6 +864,11 @@
     if (!_files.cr || !_files.tc || !_files.vm || !_files.em) {
       alert('Please upload all 4 files first!'); return;
     }
+    /* Sync audit date with the main app's selected date so that
+       date-scoped learned rules always match the correct session. */
+    if (typeof selectedAuditDate !== 'undefined' && selectedAuditDate) {
+      _auditDate = selectedAuditDate;
+    }
     readTariffsFromUI();
     AgentTrail.reset();
 
@@ -1260,14 +1265,35 @@
   /* ══════════════════════════════════════════════════════════════
      MODE + VERBOSITY + TRAIL  (items 14, 15, 19)
   ══════════════════════════════════════════════════════════════ */
+  function _updateModeButtons() {
+    ['suggest','confirm','auto'].forEach(m => {
+      const btn = document.getElementById(`agentMode_${m}`);
+      if (!btn) return;
+      btn.classList.toggle('btn-warning',   m === 'confirm' && _autonomy === m);
+      btn.classList.toggle('btn-success',   m === 'auto'    && _autonomy === m);
+      btn.classList.toggle('btn-secondary', _autonomy === m && m === 'suggest');
+      btn.classList.toggle('btn-outline-secondary', _autonomy !== m && m === 'suggest');
+      btn.classList.toggle('btn-outline-warning',   _autonomy !== m && m === 'confirm');
+      btn.classList.toggle('btn-outline-success',   _autonomy !== m && m === 'auto');
+    });
+    ['summary','detail'].forEach(v => {
+      const btn = document.getElementById(`agentVerbosity${v.charAt(0).toUpperCase()+v.slice(1)}`);
+      if (!btn) return;
+      btn.classList.toggle('btn-secondary',         _verbosity === v);
+      btn.classList.toggle('btn-outline-secondary', _verbosity !== v);
+    });
+  }
+
   function setAutonomyMode(mode) {
     _autonomy = mode;
     localStorage.setItem(AgentConfig.AUTONOMY_STORAGE_KEY, mode);
+    _updateModeButtons();
     showToastMsg(`Agent mode: ${mode.toUpperCase()}`);
   }
   function setVerbosity(v) {
     _verbosity = v;
     localStorage.setItem('agentVerbosity', v);
+    _updateModeButtons();
     showToastMsg(`Log: ${v}`);
   }
   function downloadTrail() {
@@ -1360,6 +1386,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     RulesEngine.load();
     renderTariffGrid();
+    _updateModeButtons();
 
     const bindInput = (id, type) => {
       const el = document.getElementById(id);
