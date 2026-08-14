@@ -409,6 +409,32 @@
                 description: 'Get a full summary of the pass list: total count, expired count, active count, and breakdown by vehicle class. Use for overview/summary questions.',
                 parameters: { type: 'object', properties: {} }
             }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'getAuditByDate',
+                description: 'Get complete audit data for ANY specific date — total transactions, vehicle-class breakdown, violation counts, exemption counts, report counts, and per-category vehicle tallies. Use whenever user asks about a specific past or current date\'s audit data, e.g. "4 August ko kitne Car violation?" or "5 aug ka exemption data" or "total car on 2025-08-04".',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        date: {
+                            type: 'string',
+                            description: 'Date in YYYY-MM-DD format, e.g. "2025-08-04". If user says "4 August" or "4 aug" convert to YYYY-MM-DD using current year.'
+                        },
+                        mode: {
+                            type: 'string',
+                            description: 'Audit mode filter: "Violation", "Exemption", or "both". Default "both".',
+                            enum: ['Violation', 'Exemption', 'both']
+                        },
+                        category: {
+                            type: 'string',
+                            description: 'Optional: filter to a specific report category/vehicle class, e.g. "Car", "LCV", "Truck 2 Axle". Leave empty for all categories.'
+                        }
+                    },
+                    required: ['date']
+                }
+            }
         }
     ];
 
@@ -594,6 +620,69 @@
                 return `📋 Pass List Summary:\n\nTotal: ${_passIndex.length}\n🟢 Active: ${activeCount}\n🔴 Expired: ${expiredCount}\n\nBy Class:\n${breakdown}`;
             }
 
+            case 'getAuditByDate': {
+                const dateKey = (args.date || '').trim();
+                if (!dateKey) return 'Date provide karo, e.g. "2025-08-04".';
+                if (typeof auditDataStore === 'undefined') return 'Audit data store available nahi hai.';
+
+                const bucket = auditDataStore[dateKey];
+                if (!bucket) return `📅 ${dateKey} ka koi data nahi mila. Yeh date audit mein nahi hai ya data save nahi hua.`;
+
+                const filterMode     = (args.mode || 'both');
+                const filterCategory = (args.category || '').trim();
+                const MODES          = filterMode === 'both' ? ['Violation', 'Exemption'] : [filterMode];
+                const CATS           = typeof REPORT_CATEGORIES !== 'undefined' ? REPORT_CATEGORIES : Object.keys(bucket['Violation'] || bucket['Exemption'] || {}).filter(k => k !== '_meta');
+
+                const lines = [`📅 Audit Data — ${dateKey}\n`];
+
+                MODES.forEach(mode => {
+                    const modeData = bucket[mode];
+                    if (!modeData) return;
+
+                    const cats = filterCategory
+                        ? CATS.filter(c => c.toLowerCase().includes(filterCategory.toLowerCase()))
+                        : CATS;
+
+                    let modeTotal = 0, modeReport = 0;
+                    const catLines = [];
+
+                    cats.forEach(cat => {
+                        const cd = modeData[cat];
+                        if (!cd) return;
+                        const txnCount  = (cd.transactions || []).length;
+                        const rptCount  = cd.reportCount || 0;
+                        modeTotal  += txnCount;
+                        modeReport += rptCount;
+
+                        /* Vehicle breakdown from transactions */
+                        const vehCounts = {};
+                        (cd.transactions || []).forEach(t => {
+                            const v = t.actualVehicle || 'Unknown';
+                            vehCounts[v] = (vehCounts[v] || 0) + 1;
+                        });
+                        const vehBreakdown = Object.entries(vehCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([v, n]) => `    ↳ ${v}: ${n}`)
+                            .join('\n');
+
+                        if (rptCount > 0 || txnCount > 0) {
+                            catLines.push(
+                                `  📂 ${cat}: Report=${rptCount} | Checked=${txnCount}` +
+                                (vehBreakdown ? `\n${vehBreakdown}` : '')
+                            );
+                        }
+                    });
+
+                    if (catLines.length || modeTotal > 0) {
+                        lines.push(`━━ ${mode.toUpperCase()} ━━`);
+                        lines.push(`Total checked: ${modeTotal} | Total report: ${modeReport}`);
+                        if (catLines.length) lines.push(catLines.join('\n'));
+                    }
+                });
+
+                return lines.join('\n') || `${dateKey} par koi audit transactions nahi mile.`;
+            }
+
             default:
                 return `Unknown tool: ${name}`;
         }
@@ -625,13 +714,15 @@ ${mem}
 IMPORTANT RULES:
 1. Always reply in the same language the user writes in — Hindi, English, or Hinglish mix.
 2. For vehicle pass lookups, ALWAYS use the searchPass tool — never guess.
-3. For any audit stats question, use getAuditStatus tool to get real-time data.
+3. For any audit stats question about TODAY, use getAuditStatus. For ANY OTHER DATE use getAuditByDate.
 4. When user says "remember", "yaad rakh", "note this" — use saveMemory tool.
 5. Be concise and practical. This is a field tool used by toll auditors.
 6. Vehicle numbers follow Indian format: 2 letters + 2 digits + letters + digits (e.g. DL9SBA3104, HR26BR1234).
 7. You know about: vehicle passes, toll audit, exemptions, violations, Has Pass category, Paid/Cash/ETC/Digital payment types, vehicle classes (Car, LCV, Truck 2 Axle, Truck 3 Axle, MAV, Auto, Tractor, Bus 2 Axle, etc.).
 8. Never make up pass record data — always use the tool.
 9. You can remember ANYTHING the user asks — toll-related or general. Be a helpful personal assistant too.
+10. For date queries: "4 August" = convert to 2025-08-04, "kal" = yesterday's date, "aaj" = today's date. Always call getAuditByDate with the correct YYYY-MM-DD date.
+11. When answering date queries, clearly separate Violation and Exemption results, and highlight the specific vehicle class the user asked about.
 
 RECENT APP EVENTS:
 ${recentAppEventsText()}`;
@@ -878,6 +969,67 @@ ${recentAppEventsText()}`;
         return (data.choices[0]?.message?.content || '').trim();
     }
 
+    /* ── Natural date parser ──
+       Converts "4 august", "4 aug", "kal", "2025-08-04" → "YYYY-MM-DD"
+       Returns null if no recognisable date found. */
+    function _resolveNaturalDate(text) {
+        const t = text.toLowerCase();
+        const now = new Date();
+        const yr  = now.getFullYear();
+
+        /* ISO format already */
+        const iso = text.match(/(\d{4}-\d{2}-\d{2})/);
+        if (iso) return iso[1];
+
+        /* "kal" = yesterday, "parso" = day before yesterday */
+        if (/\bkal\b/.test(t)) {
+            const d = new Date(now); d.setDate(d.getDate() - 1);
+            return d.toISOString().slice(0, 10);
+        }
+        if (/\bparso\b/.test(t)) {
+            const d = new Date(now); d.setDate(d.getDate() - 2);
+            return d.toISOString().slice(0, 10);
+        }
+        if (/\baaj\b/.test(t)) return now.toISOString().slice(0, 10);
+
+        const MONTHS = {
+            jan:1, january:1, feb:2, february:2, mar:3, march:3,
+            apr:4, april:4, may:5, jun:6, june:6, jul:7, july:7,
+            aug:8, august:8, sep:9, september:9, oct:10, october:10,
+            nov:11, november:11, dec:12, december:12,
+        };
+
+        /* "4 august", "4 aug", "august 4" */
+        const m1 = t.match(/(\d{1,2})\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)/);
+        const m2 = t.match(/(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})/);
+        const hit = m1 ? { day: m1[1], mon: m1[2] } : m2 ? { day: m2[2], mon: m2[1] } : null;
+        if (hit) {
+            const monKey = hit.mon.slice(0, 3).toLowerCase();
+            const monNum = MONTHS[monKey] || MONTHS[hit.mon.toLowerCase()];
+            if (monNum) {
+                const mm  = String(monNum).padStart(2, '0');
+                const dd  = String(parseInt(hit.day)).padStart(2, '0');
+                return `${yr}-${mm}-${dd}`;
+            }
+        }
+        return null;
+    }
+
+    /* Extract a category hint from user text */
+    function _extractCategoryHint(text) {
+        const t = text.toLowerCase();
+        if (/\bcar\b/.test(t))                          return 'Car';
+        if (/\blcv\b/.test(t))                          return 'LCV';
+        if (/\bbus\b/.test(t))                          return 'Bus 2 Axle';
+        if (/truck.*3|3.*axl|teen.*axl/i.test(t))       return 'Truck 3 Axle';
+        if (/truck.*2|2.*axl|do.*axl/i.test(t))         return 'Truck 2 Axle';
+        if (/\btruck\b/.test(t))                        return 'Truck 2 Axle';
+        if (/\bmav\b/.test(t))                          return 'MAV';
+        if (/\bauto\b/.test(t))                         return 'Auto';
+        if (/tractor/i.test(t))                         return 'Tractor';
+        return '';
+    }
+
     /* Pre-resolve data queries before sending to Groq.
        Extracts ALL vehicle numbers (bulk supported),
        status queries and memory queries upfront. */
@@ -901,9 +1053,23 @@ ${recentAppEventsText()}`;
             parts.push(`Pass lookup results (${seen.size} vehicles):\n` + results.join('\n\n'));
         }
 
-        /* Status query */
+        /* Date-specific audit query — resolve before sending to Groq */
+        const dateRe = /(\d{1,2})\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|(\d{4}-\d{2}-\d{2})|kal\b|parso\b/i;
+        const dateMatch = userText.match(dateRe);
+        if (dateMatch) {
+            const resolvedDate = _resolveNaturalDate(userText);
+            if (resolvedDate) {
+                /* Extract vehicle/mode hints from query */
+                const modeHint = /exemption|exempt/i.test(userText) ? 'Exemption'
+                               : /violation|violat/i.test(userText) ? 'Violation' : 'both';
+                const catHint  = _extractCategoryHint(userText);
+                parts.push(executeTool('getAuditByDate', { date: resolvedDate, mode: modeHint, category: catHint }));
+            }
+        }
+
+        /* Status query (today) */
         const statusRe = /status|kitna|kitne|checked|remaining|progress|aaj|today|count|total/i;
-        if (statusRe.test(userText)) {
+        if (statusRe.test(userText) && !dateMatch) {
             parts.push(executeTool('getAuditStatus', {}));
         }
 
@@ -954,9 +1120,22 @@ ${recentAppEventsText()}`;
     const EXPIRED_RE    = /expir|expire|expired|khatam.*pass|pass.*khatam|band.*pass|pass.*band|expire.*list|expired.*pass|pass.*expire/i;
     const ACTIVE_RE     = /active.*pass|valid.*pass|pass.*active|pass.*valid|active.*list|valid.*list/i;
     const SUMMARY_RE    = /pass.*summary|summary.*pass|kitne.*type|class.*wise|breakdown|pass.*total.*class/i;
+    const DATE_AUDIT_RE = /(\d{1,2})\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|(\d{4}-\d{2}-\d{2})|\bkal\b|\bparso\b/i;
 
     function localFallback(raw) {
         const msg = raw.trim();
+
+        /* Date-specific audit query — works without AI key */
+        if (DATE_AUDIT_RE.test(msg)) {
+            const resolvedDate = _resolveNaturalDate(msg);
+            if (resolvedDate) {
+                const modeHint = /exemption|exempt/i.test(msg) ? 'Exemption'
+                               : /violation|violat/i.test(msg) ? 'Violation' : 'both';
+                const catHint  = _extractCategoryHint(msg);
+                const result   = executeTool('getAuditByDate', { date: resolvedDate, mode: modeHint, category: catHint });
+                return result;
+            }
+        }
 
         if (CLEAR_RE.test(msg)) {
             chatHistory = []; saveChatHistory(chatHistory);
@@ -1118,6 +1297,19 @@ ${recentAppEventsText()}`;
         if (isPureVehicleQuery(msg)) {
             const result = handleVehicleQuery(msg);
             if (result) return result;
+        }
+
+        /* Date audit query — always resolved locally from auditDataStore.
+           If no AI key, return the raw tool result directly.
+           If AI key present, let resolveGroqContext/tool-call inject it. */
+        if (DATE_AUDIT_RE.test(msg)) {
+            const resolvedDate = _resolveNaturalDate(msg);
+            if (resolvedDate && !hasAIKey()) {
+                const modeHint = /exemption|exempt/i.test(msg) ? 'Exemption'
+                               : /violation|violat/i.test(msg) ? 'Violation' : 'both';
+                const catHint  = _extractCategoryHint(msg);
+                return executeTool('getAuditByDate', { date: resolvedDate, mode: modeHint, category: catHint });
+            }
         }
 
         /* No key → pure local */
