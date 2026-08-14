@@ -8,6 +8,7 @@
 ────────────────────────────────────── */
 .asst-bubble {
   position: fixed;
+  /* bottom/right default — JS overrides with left/top once dragged */
   bottom: 24px;
   right: 24px;
   z-index: 3000;
@@ -18,15 +19,23 @@
   border: 1px solid var(--line);
   border-radius: 0;
   padding: 10px 16px 10px 10px;
-  cursor: pointer;
-  transition: border-color .12s, background .12s;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.asst-bubble.asst-dragging {
+  cursor: grabbing;
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  border-color: var(--yellow);
+  transition: none; /* no lag while dragging */
 }
 .asst-bubble::after { display: none; }
 .asst-bubble:hover {
   border-color: var(--yellow);
   background: var(--bg-lift);
 }
-.asst-bubble:active { transform: scale(0.97); }
+.asst-bubble:active { transform: none; } /* drag handles its own feedback */
 
 .asst-bubble-icon-wrap {
   width: 36px;
@@ -80,7 +89,7 @@
 }
 
 @media (max-width: 420px) {
-  .asst-bubble { bottom: 14px; right: 14px; padding: 8px 12px 8px 8px; }
+  .asst-bubble { padding: 8px 12px 8px 8px; }
   .asst-bubble-label { display: none; }
   .asst-bubble-icon-wrap { width: 34px; height: 34px; }
 }
@@ -90,8 +99,7 @@
 ────────────────────────────────────── */
 .asst-panel {
   position: fixed;
-  bottom: 80px;
-  right: 24px;
+  /* position is set entirely by JS — no default bottom/right */
   width: 420px;
   height: 620px;
   max-height: calc(100vh - 100px);
@@ -103,6 +111,10 @@
   flex-direction: column;
   overflow: hidden;
   z-index: 2999;
+}
+/* Drag handle on the panel header */
+.asst-header {
+  cursor: move;
 }
 .asst-panel-hidden {
   display: none;

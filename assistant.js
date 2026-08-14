@@ -1537,6 +1537,127 @@ ${recentAppEventsText()}`;
     ═══════════════════════════════════════════════ */
     let uiReady = false, chatOpen = false, unreadCount = 0;
 
+    /* ═══════════════════════════════════════════════
+       DRAG SYSTEM
+       ─────────────────────────────────────────────
+       • Bubble is the drag handle — drag it anywhere.
+       • Panel floats relative to bubble (above or below,
+         whichever fits better on screen).
+       • Position persisted in localStorage so it survives
+         page reload.
+       • Works with mouse AND touch (pointer events).
+    ═══════════════════════════════════════════════ */
+    const DRAG_STORE_KEY = 'asstBubblePos';
+    const PANEL_GAP      = 10;  // px gap between bubble and panel
+
+    /* Load saved position — returns {left, top} or null */
+    function _loadBubblePos() {
+        try { return JSON.parse(localStorage.getItem(DRAG_STORE_KEY)) || null; }
+        catch (_) { return null; }
+    }
+    function _saveBubblePos(left, top) {
+        try { localStorage.setItem(DRAG_STORE_KEY, JSON.stringify({ left, top })); }
+        catch (_) {}
+    }
+
+    /* Clamp so the bubble is never off-screen */
+    function _clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+    /* Apply bubble position — uses left/top, unsets bottom/right */
+    function _applyBubblePos(bubble, left, top) {
+        bubble.style.left   = left + 'px';
+        bubble.style.top    = top  + 'px';
+        bubble.style.right  = 'auto';
+        bubble.style.bottom = 'auto';
+    }
+
+    /* Place panel adjacent to the bubble, keeping it on-screen */
+    function _positionPanel(bubble, panel) {
+        if (!panel || panel.classList.contains('asst-panel-hidden')) return;
+        const bRect = bubble.getBoundingClientRect();
+        const pW    = panel.offsetWidth  || 420;
+        const pH    = panel.offsetHeight || 520;
+        const vw    = window.innerWidth;
+        const vh    = window.innerHeight;
+
+        /* Prefer showing panel ABOVE bubble; fall back to below */
+        let pTop = bRect.top - pH - PANEL_GAP;
+        if (pTop < 8) pTop = bRect.bottom + PANEL_GAP;
+        if (pTop + pH > vh - 8) pTop = vh - pH - 8;
+
+        /* Align panel right edge with bubble right edge; clamp left */
+        let pLeft = bRect.right - pW;
+        if (pLeft < 8) pLeft = 8;
+        if (pLeft + pW > vw - 8) pLeft = vw - pW - 8;
+
+        panel.style.left   = _clamp(pLeft, 8, vw - pW - 8) + 'px';
+        panel.style.top    = _clamp(pTop,  8, vh - pH - 8) + 'px';
+        panel.style.right  = 'auto';
+        panel.style.bottom = 'auto';
+    }
+
+    /* Attach drag behaviour to an element.
+       dragEl = element that receives pointer events (the handle).
+       moveEl = element that actually moves (same or different). */
+    function _makeDraggable(dragEl, moveEl, onDragEnd) {
+        let dragging = false;
+        let startX, startY, startLeft, startTop;
+
+        function getPos(e) {
+            const src = e.touches ? e.touches[0] : e;
+            return { x: src.clientX, y: src.clientY };
+        }
+
+        function onStart(e) {
+            /* Allow clicks on buttons inside the drag handle to pass through */
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+            dragging = true;
+            const p  = getPos(e);
+            startX   = p.x;
+            startY   = p.y;
+            const cs = window.getComputedStyle(moveEl);
+            startLeft = parseFloat(cs.left)   || (window.innerWidth  - moveEl.offsetWidth  - 24);
+            startTop  = parseFloat(cs.top)    || (window.innerHeight - moveEl.offsetHeight - 24);
+            moveEl.classList.add('asst-dragging');
+            e.preventDefault();
+        }
+        function onMove(e) {
+            if (!dragging) return;
+            const p    = getPos(e);
+            const dx   = p.x - startX;
+            const dy   = p.y - startY;
+            const newL = _clamp(startLeft + dx, 0, window.innerWidth  - moveEl.offsetWidth);
+            const newT = _clamp(startTop  + dy, 0, window.innerHeight - moveEl.offsetHeight);
+            moveEl.style.left   = newL + 'px';
+            moveEl.style.top    = newT + 'px';
+            moveEl.style.right  = 'auto';
+            moveEl.style.bottom = 'auto';
+            e.preventDefault();
+        }
+        function onEnd() {
+            if (!dragging) return;
+            dragging = false;
+            moveEl.classList.remove('asst-dragging');
+            if (onDragEnd) onDragEnd();
+        }
+
+        /* Mouse */
+        dragEl.addEventListener('mousedown',  onStart, { passive: false });
+        document.addEventListener('mousemove', onMove,  { passive: false });
+        document.addEventListener('mouseup',   onEnd);
+        /* Touch */
+        dragEl.addEventListener('touchstart',  onStart, { passive: false });
+        document.addEventListener('touchmove',  onMove,  { passive: false });
+        document.addEventListener('touchend',   onEnd);
+    }
+
+    /* Distinguish a drag from a click:
+       if the pointer moved < 6px it's a click, not a drag. */
+    function _isDragClick(el) {
+        /* We track movement in _makeDraggable; expose via data attribute */
+        return !(el._asstDragged);
+    }
+
     function buildUI() {
         if (uiReady) return;
         uiReady = true;
@@ -1562,14 +1683,39 @@ ${recentAppEventsText()}`;
             <span class="asst-badge" id="asstBadge" style="display:none;">0</span>
         `;
         document.body.appendChild(bubble);
-        bubble.addEventListener('click', togglePanel);
+
+        /* Restore saved position or default to bottom-right */
+        const savedPos = _loadBubblePos();
+        if (savedPos) {
+            _applyBubblePos(bubble,
+                _clamp(savedPos.left, 0, window.innerWidth  - bubble.offsetWidth  || window.innerWidth  - 200),
+                _clamp(savedPos.top,  0, window.innerHeight - bubble.offsetHeight || window.innerHeight - 60)
+            );
+        }
+        /* After DOM paint, re-clamp with real dimensions */
+        requestAnimationFrame(() => {
+            const w = bubble.offsetWidth  || 160;
+            const h = bubble.offsetHeight || 52;
+            if (savedPos) {
+                _applyBubblePos(bubble,
+                    _clamp(savedPos.left, 0, window.innerWidth  - w),
+                    _clamp(savedPos.top,  0, window.innerHeight - h)
+                );
+            } else {
+                /* Default: bottom-right corner */
+                _applyBubblePos(bubble,
+                    window.innerWidth  - w - 24,
+                    window.innerHeight - h - 24
+                );
+            }
+        });
 
         /* ── Chat panel ── */
         const panel = document.createElement('div');
         panel.id = 'assistantPanel';
         panel.className = 'asst-panel asst-panel-hidden';
         panel.innerHTML = `
-            <div class="asst-header">
+            <div class="asst-header" id="asstPanelHeader">
                 <div class="asst-header-left">
                     <div class="asst-header-avatar" id="asstAvatarDot">
                         <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
@@ -1606,6 +1752,61 @@ ${recentAppEventsText()}`;
 
         buildSettingsPanel();
 
+        /* ── Attach drag to bubble — moves bubble, panel repositions ── */
+        let _dragMoved = false;
+        {
+            let dragging = false, sx, sy, sl, st;
+            function _getXY(e) { const s = e.touches ? e.touches[0] : e; return { x: s.clientX, y: s.clientY }; }
+
+            bubble.addEventListener('mousedown', _onBubbleDown, { passive: false });
+            bubble.addEventListener('touchstart', _onBubbleDown, { passive: false });
+
+            function _onBubbleDown(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                dragging   = true;
+                _dragMoved = false;
+                const p    = _getXY(e);
+                sx = p.x; sy = p.y;
+                const cs = window.getComputedStyle(bubble);
+                sl = parseFloat(cs.left) || (window.innerWidth  - bubble.offsetWidth  - 24);
+                st = parseFloat(cs.top)  || (window.innerHeight - bubble.offsetHeight - 24);
+                bubble.classList.add('asst-dragging');
+                e.preventDefault();
+            }
+            function _onBubbleMove(e) {
+                if (!dragging) return;
+                const p  = _getXY(e);
+                const dx = p.x - sx, dy = p.y - sy;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) _dragMoved = true;
+                const nl = _clamp(sl + dx, 0, window.innerWidth  - bubble.offsetWidth);
+                const nt = _clamp(st + dy, 0, window.innerHeight - bubble.offsetHeight);
+                _applyBubblePos(bubble, nl, nt);
+                _positionPanel(bubble, panel);
+                e.preventDefault();
+            }
+            function _onBubbleUp() {
+                if (!dragging) return;
+                dragging = false;
+                bubble.classList.remove('asst-dragging');
+                const cs = window.getComputedStyle(bubble);
+                _saveBubblePos(parseFloat(cs.left), parseFloat(cs.top));
+            }
+            document.addEventListener('mousemove', _onBubbleMove, { passive: false });
+            document.addEventListener('mouseup',   _onBubbleUp);
+            document.addEventListener('touchmove',  _onBubbleMove, { passive: false });
+            document.addEventListener('touchend',   _onBubbleUp);
+        }
+
+        /* Click only fires togglePanel if the pointer didn't move */
+        bubble.addEventListener('click', () => { if (!_dragMoved) togglePanel(); });
+
+        /* ── Attach drag to panel header — lets panel be moved independently ── */
+        _makeDraggable(
+            document.getElementById('asstPanelHeader') || panel,
+            panel,
+            null
+        );
+
         /* Wire panel events */
         document.getElementById('asstCloseBtn').addEventListener('click', closePanel);
         document.getElementById('asstSendBtn').addEventListener('click', sendMsg);
@@ -1632,8 +1833,11 @@ ${recentAppEventsText()}`;
         chatOpen = true;
         closeSettings();
         const p = document.getElementById('assistantPanel');
+        const b = document.getElementById('assistantBubble');
         p.classList.remove('asst-panel-hidden');
         p.classList.add('asst-panel-open');
+        /* Position panel next to bubble after it becomes visible */
+        requestAnimationFrame(() => { if (b && p) _positionPanel(b, p); });
         unreadCount = 0; updateBadge();
         setTimeout(() => {
             const m = document.getElementById('asstMessages');
