@@ -276,7 +276,7 @@ function setupAuthForms() {
 
             /* Fallback localStorage */
 
-            if (displayName === null) displayName = validateUser(email, password);
+            if (displayName === null) displayName = await validateUser(email, password);
 
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> Login'; }
 
@@ -394,7 +394,7 @@ function setupAuthForms() {
 
             /* Fallback: localStorage only */
 
-            const result = registerUser(email, password);
+            const result = await registerUser(email, password);
 
             if (!result.success && !fbResult) {
 

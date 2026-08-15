@@ -1368,52 +1368,53 @@ function saveUsers(users) {
 
 }
 
-function registerUser(username, password) {
-
-    const users = getUsers();
-
-    const key = username.toLowerCase();
-
-    if (users[key]) {
-
-        return {
-
-            success: false,
-
-            message: "This username is already taken."
-
-        };
-
-    }
-
-    users[key] = {
-
-        displayName: username,
-
-        password: password
-
-    };
-
-    saveUsers(users);
-
-    return { success: true };
-
+function _randomSalt() {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-function validateUser(username, password) {
+async function _hashPassword(password, salt) {
+    const enc = new TextEncoder();
+    const data = enc.encode(salt + ":" + password);
+    const buf = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
+async function registerUser(username, password) {
     const users = getUsers();
-
     const key = username.toLowerCase();
+    if (users[key]) {
+        return { success: false, message: "This username is already taken." };
+    }
+    const salt = _randomSalt();
+    const passwordHash = await _hashPassword(password, salt);
+    users[key] = { displayName: username, passwordHash, salt };
+    saveUsers(users);
+    return { success: true };
+}
 
+async function validateUser(username, password) {
+    const users = getUsers();
+    const key = username.toLowerCase();
     const record = users[key];
-
     if (!record) return null;
 
-    if (record.password !== password) return null;
+    /* Legacy plaintext account → verify once, then silently migrate to hash */
+    if (record.password !== undefined) {
+        if (record.password !== password) return null;
+        const salt = _randomSalt();
+        record.passwordHash = await _hashPassword(password, salt);
+        record.salt = salt;
+        delete record.password;
+        users[key] = record;
+        saveUsers(users);
+        return record.displayName;
+    }
 
+    const hash = await _hashPassword(password, record.salt);
+    if (hash !== record.passwordHash) return null;
     return record.displayName;
-
 }
 
 /* ===============================

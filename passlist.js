@@ -6,6 +6,14 @@
    quickly check any vehicle number against it while auditing.
 ========================================================== */
 
+function _escHtml(str) {
+    return String(str == null ? "" : str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     /* Always load from localStorage first so the UI isn't blank */
@@ -699,11 +707,11 @@ function buildPassResultCard(record, expired) {
                 <div class="prc-field-grid">
                     <div class="prc-field prc-field-highlight">
                         <div class="prc-field-label">Vehicle Number</div>
-                        <div class="prc-field-value prc-veh-number">${record.number}</div>
+                        <div class="prc-field-value prc-veh-number">${_escHtml(record.number)}</div>
                     </div>
                     <div class="prc-field prc-field-highlight">
                         <div class="prc-field-label">Vehicle Class</div>
-                        <div class="prc-field-value">${record.vehicleClass || "—"}</div>
+                        <div class="prc-field-value">${_escHtml(record.vehicleClass) || "—"}</div>
                     </div>
                     <div class="prc-field">
                         <div class="prc-field-label">Pass Status</div>
@@ -713,7 +721,7 @@ function buildPassResultCard(record, expired) {
                             </span>
                         </div>
                     </div>
-                    ${record.slNo ? `<div class="prc-field"><div class="prc-field-label">SL No.</div><div class="prc-field-value">${record.slNo}</div></div>` : ""}
+                    ${record.slNo ? `<div class="prc-field"><div class="prc-field-label">SL No.</div><div class="prc-field-value">${_escHtml(record.slNo)}</div></div>` : ""}
                 </div>
             </div>
 
@@ -748,7 +756,7 @@ function buildPassResultCard(record, expired) {
                 <div class="prc-field-grid">
                     <div class="prc-field">
                         <div class="prc-field-label">Payment Mode</div>
-                        <div class="prc-field-value">${record.modeOfPayment || "—"}</div>
+                        <div class="prc-field-value">${_escHtml(record.modeOfPayment) || "—"}</div>
                     </div>
                     <div class="prc-field prc-field-highlight">
                         <div class="prc-field-label">Amount</div>
@@ -756,7 +764,7 @@ function buildPassResultCard(record, expired) {
                     </div>
                     ${record.utr ? `<div class="prc-field" style="grid-column:1/-1;">
                         <div class="prc-field-label">UTR Number</div>
-                        <div class="prc-field-value prc-utr">${record.utr}</div>
+                        <div class="prc-field-value prc-utr">${_escHtml(record.utr)}</div>
                     </div>` : ""}
                 </div>
             </div>
