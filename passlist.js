@@ -1037,6 +1037,56 @@ function setupPassCheckWidget() {
 
     });
 
+    /* ── Paste-and-search button ─────────────────────────────────
+       Reads clipboard text, fills the input, then fires search.
+       Shows a brief error in the result area if permission is
+       denied — never throws or crashes the app.
+    ────────────────────────────────────────────────────────────── */
+    const pasteAndSearch = () => {
+
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            /* Browser does not support Clipboard API (e.g. old Firefox) */
+            _showClipboardError("Clipboard API is not supported in this browser.");
+            return;
+        }
+
+        navigator.clipboard.readText()
+            .then(text => {
+                const trimmed = text.trim();
+                if (!trimmed) return;          // clipboard was empty — do nothing
+                input.value = trimmed;
+                runCheck();
+            })
+            .catch(() => {
+                _showClipboardError(
+                    "Clipboard access blocked — please allow it in browser settings."
+                );
+            });
+
+    };
+
+    function _showClipboardError(msg) {
+        const resultEl = document.getElementById("passCheckResult");
+        if (!resultEl) return;
+        resultEl.className = "pass-check-result pass-warning";
+        resultEl.innerHTML =
+            `<i class="bi bi-clipboard-x me-1"></i>${msg}`;
+    }
+
+    /* Wire paste button */
+    const pasteBtn = document.getElementById("passCheckPasteBtn");
+    if (pasteBtn) pasteBtn.addEventListener("click", pasteAndSearch);
+
+    /* Keyboard shortcut: Ctrl+Shift+V while input is focused */
+    input.addEventListener("keydown", function (e) {
+
+        if (e.ctrlKey && e.shiftKey && e.key === "V") {
+            e.preventDefault();
+            pasteAndSearch();
+        }
+
+    });
+
 }
 
 /* ===============================
