@@ -834,33 +834,57 @@
 
     <!-- ── Verify Pass ── -->
     <div class="veh-section mb-4 verify-pass-card">
-        <!-- Section heading -->
-        <div class="veh-section-head">
+        <!-- Section heading + mode toggle -->
+        <div class="veh-section-head vp-section-head">
             <span class="veh-section-icon"><i class="bi bi-patch-check-fill"></i></span>
             VERIFY PASS
+            <div class="vp-mode-tabs ms-auto">
+                <button class="vp-mode-tab active" id="passModeSingleBtn" type="button">
+                    <i class="bi bi-search"></i> Single
+                </button>
+                <button class="vp-mode-tab" id="passModeBulkBtn" type="button">
+                    <i class="bi bi-table"></i> Bulk
+                </button>
+            </div>
         </div>
-        <!-- Search bar -->
-        <div class="vp-bar">
-            <div class="vp-bar-left">
-                <span class="vp-icon"><i class="bi bi-patch-check-fill"></i></span>
-                <div>
-                    <div class="vp-title">Verify Pass</div>
-                    <div class="vp-sub">Enter vehicle number to check monthly pass status</div>
+
+        <!-- Single mode -->
+        <div id="vpSingleMode">
+            <div class="vp-bar">
+                <div class="vp-bar-left">
+                    <span class="vp-icon"><i class="bi bi-patch-check-fill"></i></span>
+                    <div>
+                        <div class="vp-title">Verify Pass</div>
+                        <div class="vp-sub">Enter vehicle number to check monthly pass status</div>
+                    </div>
+                </div>
+                <div class="vp-search-wrap">
+                    <input type="text" id="passCheckInput" class="pass-search-input vp-input"
+                           placeholder="One or multiple numbers — DL9SBA3104, DL9SBA3105…" autocomplete="off" spellcheck="false">
+                    <button class="vp-paste-btn" id="passCheckPasteBtn" type="button"
+                            title="Paste from clipboard &amp; search (Ctrl+Shift+V)">
+                        <i class="bi bi-clipboard2-check"></i>
+                    </button>
+                    <button class="vp-search-btn" id="passCheckBtn" type="button">
+                        <i class="bi bi-search"></i> Search
+                    </button>
                 </div>
             </div>
-            <div class="vp-search-wrap">
-                <input type="text" id="passCheckInput" class="pass-search-input vp-input"
-                       placeholder="One or multiple numbers — DL9SBA3104, DL9SBA3105…" autocomplete="off" spellcheck="false">
-                <button class="vp-paste-btn" id="passCheckPasteBtn" type="button"
-                        title="Paste from clipboard &amp; search (Ctrl+Shift+V)">
-                    <i class="bi bi-clipboard2-check"></i>
-                </button>
-                <button class="vp-search-btn" id="passCheckBtn" type="button">
-                    <i class="bi bi-search"></i> Search
+            <div id="passCheckResult" class="pass-check-result"></div>
+        </div>
+
+        <!-- Bulk mode -->
+        <div id="vpBulkMode" style="display:none;">
+            <div class="vp-bulk-bar">
+                <textarea id="passBulkInput" class="vp-bulk-textarea"
+                          placeholder="Paste multiple vehicle numbers — one per line, or comma-separated&#10;e.g.  DL9SBA3104&#10;       DL9SBA3105, DL9SBA3106&#10;       HR26DX1234"
+                          rows="5" spellcheck="false"></textarea>
+                <button class="vp-search-btn" id="passBulkSearchBtn" type="button">
+                    <i class="bi bi-table"></i> Search All
                 </button>
             </div>
+            <div id="passBulkResults"></div>
         </div>
-        <div id="passCheckResult" class="pass-check-result"></div>
     </div>
 
     <!-- ── Counts + History ── -->

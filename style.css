@@ -1164,6 +1164,126 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
 /* ══════════════════════════════════════
    VERIFY PASS BAR
 ══════════════════════════════════════ */
+/* Mode tabs — sit in the section header */
+.vp-section-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.vp-mode-tabs {
+  display: flex; gap: 4px;
+}
+.vp-mode-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 12px; font-size: 11px; font-weight: 700;
+  font-family: var(--font-mono); letter-spacing: .05em; text-transform: uppercase;
+  background: var(--panel); border: 1px solid var(--line);
+  color: var(--ink-dim); cursor: pointer;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.vp-mode-tab:hover  { color: var(--ink); border-color: var(--ink-dim); }
+.vp-mode-tab.active { background: var(--violet-soft); color: var(--violet); border-color: rgba(124,92,216,.5); }
+.vp-mode-tab i      { font-size: 12px; }
+
+/* Bulk mode bar */
+.vp-bulk-bar {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  padding: 12px 14px;
+}
+.vp-bulk-textarea {
+  width: 100%; background: var(--panel); border: 1px solid var(--line);
+  color: var(--ink); font-family: var(--font-mono); font-size: 12px;
+  padding: 10px 12px; resize: vertical; outline: none;
+  text-transform: uppercase; line-height: 1.6;
+  transition: border-color .12s;
+}
+.vp-bulk-textarea:focus    { border-color: var(--blue); }
+.vp-bulk-textarea::placeholder { color: var(--ink-faint); text-transform: none; font-family: var(--font-base); font-size: 12px; }
+
+/* ── Bulk results panel (.pbr-*) ─────────────── */
+#passBulkResults { padding: 0; }
+
+.pbr-warn {
+  padding: 10px 16px; font-size: 12px; font-weight: 600;
+  font-family: var(--font-mono); color: var(--yellow);
+}
+
+.pbr-header {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.pbr-summary {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+}
+.pbr-total {
+  font-size: 12px; font-weight: 700; font-family: var(--font-mono);
+  color: var(--ink-dim); margin-right: 4px;
+}
+.pbr-sum-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+  padding: 2px 9px;
+}
+.pbr-sum-active  { background: var(--green-soft);  color: var(--green); }
+.pbr-sum-expired { background: var(--yellow-soft); color: var(--yellow-dk); }
+.pbr-sum-none    { background: var(--red-soft);    color: var(--red); }
+
+/* Copy button */
+.pbr-copy-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; font-size: 11px; font-weight: 700;
+  font-family: var(--font-mono); letter-spacing: .05em; text-transform: uppercase;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--ink-dim); cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.pbr-copy-btn:hover { color: var(--blue); border-color: var(--blue); }
+
+/* Scrollable table wrapper */
+.pbr-table-wrap { overflow-x: auto; }
+.pbr-table {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.pbr-th {
+  padding: 7px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-faint); background: var(--surface);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+
+/* Row base + coloured left-border tint */
+.pbr-row { border-bottom: 1px solid var(--line); }
+.pbr-row-active  { background: color-mix(in srgb, var(--green)  6%, transparent); border-left: 3px solid var(--green); }
+.pbr-row-expired { background: color-mix(in srgb, var(--yellow) 6%, transparent); border-left: 3px solid var(--yellow); }
+.pbr-row-none    { background: transparent; border-left: 3px solid var(--line); }
+
+.pbr-td { padding: 8px 12px; vertical-align: middle; }
+
+/* Vehicle number cell */
+.pbr-num {
+  font-weight: 700; font-size: 13px; color: var(--ink); letter-spacing: .04em; white-space: nowrap;
+}
+
+/* Status cell pills */
+.pbr-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 10px; white-space: nowrap;
+}
+.pbr-pill-active  { background: var(--green-soft);  color: var(--green); }
+.pbr-pill-expired { background: var(--yellow-soft); color: var(--yellow-dk, #8A6600); }
+.pbr-pill-none    { background: var(--red-soft);    color: var(--red); }
+
+/* Valid-till cell */
+.pbr-valid { color: var(--ink-dim); white-space: nowrap; }
+.pbr-days  { font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: 4px; }
+.pbr-days-ok   { background: var(--green-soft);  color: var(--green); }
+.pbr-days-over { background: var(--red-soft);    color: var(--red); }
+
+/* Class cell */
+.pbr-class { color: var(--ink-dim); }
+
 .vp-bar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   background: var(--panel-2); border: 1px solid var(--line);

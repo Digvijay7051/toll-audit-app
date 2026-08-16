@@ -34,6 +34,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     setupPassCheckWidget();
 
+    setupBulkSearchWidget();
+
     setupPassSheetSync();
 
     setupPassEditWidget();
@@ -1085,6 +1087,201 @@ function setupPassCheckWidget() {
             pasteAndSearch();
         }
 
+    });
+
+}
+
+/* ===============================
+   BULK PASS SEARCH WIDGET
+   "Bulk" tab — paste many vehicle
+   numbers at once, get a table of
+   pass statuses in one shot.
+=============================== */
+
+function setupBulkSearchWidget() {
+
+    const singleBtn  = document.getElementById("passModeSingleBtn");
+    const bulkBtn    = document.getElementById("passModeBulkBtn");
+    const singlePane = document.getElementById("vpSingleMode");
+    const bulkPane   = document.getElementById("vpBulkMode");
+    const textarea   = document.getElementById("passBulkInput");
+    const searchBtn  = document.getElementById("passBulkSearchBtn");
+    const resultsEl  = document.getElementById("passBulkResults");
+
+    if (!singleBtn || !bulkBtn || !singlePane || !bulkPane) return;
+
+    /* ── Mode switcher ── */
+    function switchToSingle() {
+        singlePane.style.display = "";
+        bulkPane.style.display   = "none";
+        singleBtn.classList.add("active");
+        bulkBtn.classList.remove("active");
+        /* Clear both result areas on switch */
+        const singleResult = document.getElementById("passCheckResult");
+        if (singleResult) { singleResult.className = "pass-check-result"; singleResult.innerHTML = ""; }
+        if (resultsEl)    { resultsEl.innerHTML = ""; }
+        const inp = document.getElementById("passCheckInput");
+        if (inp) inp.value = "";
+    }
+
+    function switchToBulk() {
+        singlePane.style.display = "none";
+        bulkPane.style.display   = "";
+        bulkBtn.classList.add("active");
+        singleBtn.classList.remove("active");
+        /* Clear both result areas on switch */
+        const singleResult = document.getElementById("passCheckResult");
+        if (singleResult) { singleResult.className = "pass-check-result"; singleResult.innerHTML = ""; }
+        if (resultsEl)    { resultsEl.innerHTML = ""; }
+        if (textarea)     { textarea.value = ""; textarea.focus(); }
+    }
+
+    singleBtn.addEventListener("click", switchToSingle);
+    bulkBtn.addEventListener("click",   switchToBulk);
+
+    if (!searchBtn || !textarea || !resultsEl) return;
+
+    /* ── Parse textarea into unique normalised numbers ── */
+    function parseNumbers(raw) {
+        const seen   = new Set();
+        const unique = [];
+        raw.split(/[\n\r,]+/)
+           .map(t => t.trim().toUpperCase().replace(/[\s\-]+/g, ""))
+           .filter(Boolean)
+           .forEach(n => { if (!seen.has(n)) { seen.add(n); unique.push(n); } });
+        return unique;
+    }
+
+    /* ── Build the results table ── */
+    function runBulkSearch() {
+
+        const numbers = parseNumbers(textarea.value);
+
+        if (!numbers.length) {
+            resultsEl.innerHTML = "";
+            return;
+        }
+
+        if (getPassListCount() === 0) {
+            resultsEl.innerHTML =
+                `<div class="pbr-warn"><i class="bi bi-exclamation-circle"></i> No pass list loaded yet — use "Monthly Pass List" in the sidebar first.</div>`;
+            return;
+        }
+
+        /* Lookup every number */
+        let cntActive = 0, cntExpired = 0, cntNone = 0;
+
+        const rows = numbers.map(num => {
+            const record  = getPassRecord(num);
+            const expired = record ? isPassExpired(record.validTill) : null;
+            const isActive = record && expired !== true;
+
+            let statusCell, rowCls;
+            if (!record) {
+                statusCell = `<td class="pbr-td pbr-status pbr-status-none"><span class="pbr-pill pbr-pill-none"><i class="bi bi-x-circle-fill"></i> No Pass</span></td>`;
+                rowCls = "pbr-row-none";
+                cntNone++;
+            } else if (isActive) {
+                statusCell = `<td class="pbr-td pbr-status pbr-status-active"><span class="pbr-pill pbr-pill-active"><i class="bi bi-check-circle-fill"></i> Valid Pass</span></td>`;
+                rowCls = "pbr-row-active";
+                cntActive++;
+            } else {
+                statusCell = `<td class="pbr-td pbr-status pbr-status-expired"><span class="pbr-pill pbr-pill-expired"><i class="bi bi-clock-history"></i> Expired</span></td>`;
+                rowCls = "pbr-row-expired";
+                cntExpired++;
+            }
+
+            const validTill    = record ? fmtPassDate(record.validTill)    : "—";
+            const vehicleClass = record ? (_escHtml(record.vehicleClass) || "—") : "—";
+            const daysLeft     = record ? remainingDays(record.validTill)   : null;
+            const daysCell     = daysLeft !== null
+                ? (daysLeft < 0
+                    ? `<span class="pbr-days pbr-days-over">${Math.abs(daysLeft)}d ago</span>`
+                    : `<span class="pbr-days pbr-days-ok">${daysLeft}d left</span>`)
+                : "";
+
+            return `
+                <tr class="pbr-row ${rowCls}">
+                    <td class="pbr-td pbr-num">${_escHtml(num)}</td>
+                    ${statusCell}
+                    <td class="pbr-td pbr-valid">${validTill} ${daysCell}</td>
+                    <td class="pbr-td pbr-class">${vehicleClass}</td>
+                </tr>`;
+        }).join("");
+
+        const total = numbers.length;
+        const summaryParts = [];
+        if (cntActive)  summaryParts.push(`<span class="pbr-sum-chip pbr-sum-active"><i class="bi bi-check-circle-fill"></i> ${cntActive} valid</span>`);
+        if (cntExpired) summaryParts.push(`<span class="pbr-sum-chip pbr-sum-expired"><i class="bi bi-clock-history"></i> ${cntExpired} expired</span>`);
+        if (cntNone)    summaryParts.push(`<span class="pbr-sum-chip pbr-sum-none"><i class="bi bi-x-circle-fill"></i> ${cntNone} not found</span>`);
+
+        resultsEl.innerHTML = `
+            <div class="pbr-header">
+                <div class="pbr-summary">
+                    <span class="pbr-total">${total} vehicle${total !== 1 ? "s" : ""} checked</span>
+                    ${summaryParts.join("")}
+                </div>
+                <button class="pbr-copy-btn" id="passBulkCopyBtn" type="button" title="Copy results as CSV">
+                    <i class="bi bi-clipboard"></i> Copy CSV
+                </button>
+            </div>
+            <div class="pbr-table-wrap">
+                <table class="pbr-table">
+                    <thead>
+                        <tr>
+                            <th class="pbr-th">Vehicle Number</th>
+                            <th class="pbr-th">Status</th>
+                            <th class="pbr-th">Valid Till</th>
+                            <th class="pbr-th">Class</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+
+        /* Animate in */
+        resultsEl.style.opacity = "0";
+        requestAnimationFrame(() => {
+            resultsEl.style.transition = "opacity .22s ease";
+            resultsEl.style.opacity    = "1";
+        });
+
+        /* Wire Copy CSV button */
+        const copyBtn = document.getElementById("passBulkCopyBtn");
+        if (copyBtn) {
+            copyBtn.addEventListener("click", () => {
+                const lines = ["Vehicle Number,Status,Valid Till,Vehicle Class"];
+                numbers.forEach(num => {
+                    const record  = getPassRecord(num);
+                    const expired = record ? isPassExpired(record.validTill) : null;
+                    const status  = !record ? "No Pass" : (expired !== true ? "Valid Pass" : "Expired");
+                    const validTill    = record ? (record.validTill || "") : "";
+                    const vehicleClass = record ? (record.vehicleClass || "") : "";
+                    lines.push(`${num},${status},${validTill},${vehicleClass}`);
+                });
+                const csv = lines.join("\n");
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(csv).then(() => {
+                        copyBtn.innerHTML = `<i class="bi bi-clipboard-check"></i> Copied!`;
+                        setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
+                    }).catch(() => {
+                        copyBtn.innerHTML = `<i class="bi bi-clipboard-x"></i> Failed`;
+                        setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
+                    });
+                }
+            });
+        }
+
+    }
+
+    searchBtn.addEventListener("click", runBulkSearch);
+
+    /* Ctrl+Enter inside textarea also triggers search */
+    textarea.addEventListener("keydown", function (e) {
+        if (e.ctrlKey && e.key === "Enter") {
+            e.preventDefault();
+            runBulkSearch();
+        }
     });
 
 }
