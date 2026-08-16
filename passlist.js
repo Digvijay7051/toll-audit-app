@@ -801,6 +801,62 @@ function buildPassResultCard(record, expired) {
 
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Build one compact row for the batch results panel.
+   Shows: vehicle number, optional repeat badge, pass status,
+   and a collapsible details section.
+──────────────────────────────────────────────────────────────── */
+function buildBatchRow(normalized, rawInput, count, record) {
+
+    const hasPass  = !!record;
+    const expired  = hasPass ? isPassExpired(record.validTill) : null;
+    const isActive = hasPass && expired !== true;
+    const days     = hasPass ? remainingDays(record.validTill) : null;
+
+    /* Repeat badge — shown when the same number appeared > 1 time */
+    const repeatBadge = count > 1
+        ? `<span class="pcb-repeat-badge" title="Appeared ${count} times in your input">
+               <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 7.9 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+               ×${count} times
+           </span>`
+        : "";
+
+    /* Status pill */
+    let statusPill, detailsHtml;
+
+    if (!hasPass) {
+        statusPill = `<span class="pcb-status-pill pcb-pill-none">NO PASS</span>`;
+        detailsHtml = "";
+    } else if (isActive) {
+        statusPill = `<span class="pcb-status-pill pcb-pill-active">PASS ACTIVE</span>`;
+        detailsHtml = `
+            <div class="pcb-details">
+                <span class="pcb-detail-item"><span class="pcb-detail-lbl">Class</span> ${_escHtml(record.vehicleClass) || "—"}</span>
+                <span class="pcb-detail-item"><span class="pcb-detail-lbl">Valid Till</span> ${fmtPassDate(record.validTill)}${days !== null ? ` <em>(${days} days left)</em>` : ""}</span>
+                ${record.modeOfPayment ? `<span class="pcb-detail-item"><span class="pcb-detail-lbl">Mode</span> ${_escHtml(record.modeOfPayment)}</span>` : ""}
+                ${record.amount ? `<span class="pcb-detail-item"><span class="pcb-detail-lbl">Amount</span> ${fmtPassAmount(record.amount)}</span>` : ""}
+                ${record.mobileNo ? `<span class="pcb-detail-item"><span class="pcb-detail-lbl">Mobile</span> ${fmtPassPhone(record.mobileNo)}</span>` : ""}
+            </div>`;
+    } else {
+        statusPill = `<span class="pcb-status-pill pcb-pill-expired">EXPIRED</span>`;
+        detailsHtml = `
+            <div class="pcb-details">
+                <span class="pcb-detail-item"><span class="pcb-detail-lbl">Expired On</span> ${fmtPassDate(record.validTill)}</span>
+                <span class="pcb-detail-item pcb-detail-warn">Treat as no pass — log under actual vehicle class.</span>
+            </div>`;
+    }
+
+    return `
+        <div class="pcb-row pcb-row-${isActive ? "active" : (hasPass ? "expired" : "none")}">
+            <div class="pcb-row-main">
+                <span class="pcb-veh-num">${_escHtml(normalized)}</span>
+                ${repeatBadge}
+                ${statusPill}
+            </div>
+            ${detailsHtml}
+        </div>`;
+}
+
 function setupPassCheckWidget() {
 
     const input = document.getElementById("passCheckInput");
@@ -808,6 +864,12 @@ function setupPassCheckWidget() {
     const btn = document.getElementById("passCheckBtn");
 
     if (!input || !btn) return;
+
+    const clearResult = () => {
+        const resultEl = document.getElementById("passCheckResult");
+        if (resultEl) { resultEl.className = "pass-check-result"; resultEl.innerHTML = ""; }
+        input.value = "";
+    };
 
     const runCheck = () => {
 
@@ -818,87 +880,152 @@ function setupPassCheckWidget() {
         if (!resultEl) return;
 
         if (!value || !value.trim()) {
-
             resultEl.className = "pass-check-result";
-
             resultEl.innerHTML = "";
-
             return;
-
         }
 
         if (getPassListCount() === 0) {
-
             resultEl.className = "pass-check-result pass-warning";
-
             resultEl.innerHTML =
                 `<i class="bi bi-exclamation-circle"></i> No pass list loaded yet — use "Monthly Pass List" in the sidebar first.`;
-
             return;
-
         }
 
-        const record = getPassRecord(value);
+        /* ── Split input into individual tokens ──────────────────────
+           Accepts any mix of commas, spaces, dots, semicolons,
+           newlines, or pipe characters as separators.
+        ─────────────────────────────────────────────────────────────── */
+        const tokens = value
+            .split(/[\s,;.|\/\n\r]+/)
+            .map(t => t.trim())
+            .filter(Boolean);
 
-        if (record) {
+        /* Single vehicle — keep the original full-card behaviour */
+        if (tokens.length === 1) {
 
-            const expired = isPassExpired(record.validTill);
+            const record = getPassRecord(tokens[0]);
 
-            /* Use premium card layout */
-            resultEl.className = "pass-check-result";
-            resultEl.innerHTML  = buildPassResultCard(record, expired);
+            if (record) {
 
-            /* Animate in */
-            const wrapper = resultEl.querySelector(".prc-wrapper");
-            if (wrapper) {
-                wrapper.style.opacity = "0";
-                wrapper.style.transform = "translateY(8px)";
-                requestAnimationFrame(() => {
-                    wrapper.style.transition = "opacity .28s ease, transform .28s ease";
-                    wrapper.style.opacity    = "1";
-                    wrapper.style.transform  = "translateY(0)";
-                });
+                const expired = isPassExpired(record.validTill);
+
+                resultEl.className = "pass-check-result";
+                resultEl.innerHTML  = buildPassResultCard(record, expired);
+
+                const wrapper = resultEl.querySelector(".prc-wrapper");
+                if (wrapper) {
+                    wrapper.style.opacity = "0";
+                    wrapper.style.transform = "translateY(8px)";
+                    requestAnimationFrame(() => {
+                        wrapper.style.transition = "opacity .28s ease, transform .28s ease";
+                        wrapper.style.opacity    = "1";
+                        wrapper.style.transform  = "translateY(0)";
+                    });
+                }
+
+                const clearBtn = document.getElementById("passCheckClearBtn");
+                if (clearBtn) clearBtn.addEventListener("click", clearResult);
+
+                if (expired !== true) highlightVehicleButton("Has Pass");
+
+            } else {
+
+                resultEl.className = "pass-check-result";
+                resultEl.innerHTML = `
+                    <div class="prc-not-found">
+                        <div class="prc-not-found-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        </div>
+                        <div class="prc-not-found-text">
+                            <strong>No pass found</strong>
+                            <span>This vehicle is not on the monthly pass list — log it under its actual vehicle class.</span>
+                        </div>
+                        <button type="button" id="passCheckClearBtn" class="prc-close-btn" title="Close">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>`;
+
+                const clearBtn2 = document.getElementById("passCheckClearBtn");
+                if (clearBtn2) clearBtn2.addEventListener("click", clearResult);
+
             }
 
-            /* Wire close button */
-            const clearBtn = document.getElementById("passCheckClearBtn");
-            if (clearBtn) {
-                clearBtn.addEventListener("click", () => {
-                    resultEl.className = "pass-check-result";
-                    resultEl.innerHTML = "";
-                    input.value = "";
-                });
+            return;
+        }
+
+        /* ── Multi-vehicle batch check ───────────────────────────────
+           1. Normalize every token (same logic as getPassRecord).
+           2. Count how many times each normalised number appeared.
+           3. Deduplicate — one result row per unique number.
+           4. Render a summary panel.
+        ─────────────────────────────────────────────────────────────── */
+        const countMap  = {};   // normalizedNo → how many times typed
+        const orderList = [];   // unique normalised numbers in input order
+
+        tokens.forEach(raw => {
+            const norm = String(raw).trim().toUpperCase().replace(/[\s\-]+/g, "");
+            if (!norm) return;
+            if (!countMap[norm]) {
+                countMap[norm] = 0;
+                orderList.push(norm);
             }
+            countMap[norm]++;
+        });
 
-            if (expired !== true) highlightVehicleButton("Has Pass");
+        /* Summary counts */
+        let withPass = 0, noPass = 0, expiredCount = 0, repeatCount = 0;
 
-        } else {
+        const rows = orderList.map(norm => {
+            const record  = getPassRecord(norm);
+            const count   = countMap[norm];
+            const expired = record ? isPassExpired(record.validTill) : null;
 
-            resultEl.className = "pass-check-result";
-            resultEl.innerHTML = `
-                <div class="prc-not-found">
-                    <div class="prc-not-found-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    </div>
-                    <div class="prc-not-found-text">
-                        <strong>No pass found</strong>
-                        <span>This vehicle is not on the monthly pass list — log it under its actual vehicle class.</span>
-                    </div>
+            if (count > 1) repeatCount++;
+            if (record && expired !== true) withPass++;
+            else if (record && expired === true) expiredCount++;
+            else noPass++;
+
+            return buildBatchRow(norm, norm, count, record);
+        }).join("");
+
+        /* Summary bar */
+        const summaryParts = [];
+        if (withPass)    summaryParts.push(`<span class="pcb-sum-item pcb-sum-active"><i class="bi bi-check-circle-fill"></i> ${withPass} with active pass</span>`);
+        if (expiredCount) summaryParts.push(`<span class="pcb-sum-item pcb-sum-expired"><i class="bi bi-clock-history"></i> ${expiredCount} expired</span>`);
+        if (noPass)      summaryParts.push(`<span class="pcb-sum-item pcb-sum-none"><i class="bi bi-x-circle-fill"></i> ${noPass} no pass</span>`);
+        if (repeatCount) summaryParts.push(`<span class="pcb-sum-item pcb-sum-repeat"><i class="bi bi-arrow-repeat"></i> ${repeatCount} duplicate${repeatCount > 1 ? "s" : ""} in input</span>`);
+
+        resultEl.className = "pass-check-result";
+        resultEl.innerHTML = `
+            <div class="pcb-wrapper" id="pcbWrapper">
+                <div class="pcb-header-row">
+                    <span class="pcb-header-title">
+                        <i class="bi bi-list-check"></i>
+                        Batch Check — ${orderList.length} unique vehicle${orderList.length !== 1 ? "s" : ""}
+                    </span>
                     <button type="button" id="passCheckClearBtn" class="prc-close-btn" title="Close">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
-                </div>`;
+                </div>
+                <div class="pcb-summary-bar">${summaryParts.join("")}</div>
+                <div class="pcb-list">${rows}</div>
+            </div>`;
 
-            const clearBtn2 = document.getElementById("passCheckClearBtn");
-            if (clearBtn2) {
-                clearBtn2.addEventListener("click", () => {
-                    resultEl.className = "pass-check-result";
-                    resultEl.innerHTML = "";
-                    input.value = "";
-                });
-            }
-
+        /* Animate in */
+        const wrapper = document.getElementById("pcbWrapper");
+        if (wrapper) {
+            wrapper.style.opacity = "0";
+            wrapper.style.transform = "translateY(8px)";
+            requestAnimationFrame(() => {
+                wrapper.style.transition = "opacity .25s ease, transform .25s ease";
+                wrapper.style.opacity    = "1";
+                wrapper.style.transform  = "translateY(0)";
+            });
         }
+
+        const clearBtn = document.getElementById("passCheckClearBtn");
+        if (clearBtn) clearBtn.addEventListener("click", clearResult);
 
     };
 

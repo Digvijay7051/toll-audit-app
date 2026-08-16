@@ -988,6 +988,59 @@
   }
 
   /* ── File handling (item 7 — per-file isolation) ── */
+  /* ── PDF → pseudo-workbook ──────────────────────────────────────
+     Extracts all text items from every page of a PDF using pdf.js.
+     Items are clustered into rows by Y position (±ROW_TOL points),
+     then sorted left-to-right within each row, producing a 2-D
+     array identical in shape to what XLSX.utils.sheet_to_json
+     returns with { header:1 }.  A thin XLSX-compatible workbook
+     wrapper is returned so the existing parsers need zero changes.
+  ─────────────────────────────────────────────────────────────────*/
+  async function parsePdfToWorkbook(arrayBuffer) {
+    /* pdf.js needs its own worker; point at the CDN copy */
+    if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js not loaded');
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+    const ROW_TOL = 3;   // points — items within this Y-band are the same row
+
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const allRows = [];
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page    = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const vp      = page.getViewport({ scale: 1 });
+      const pageH   = vp.height;
+
+      /* Convert to { text, x, y } — flip Y so row 0 is at page top */
+      const items = content.items.map(item => ({
+        text: item.str,
+        x:    item.transform[4],
+        y:    pageH - item.transform[5],
+      })).filter(i => i.text.trim() !== '');
+
+      /* Cluster by Y */
+      const bands = [];
+      items.forEach(item => {
+        const band = bands.find(b => Math.abs(b.y - item.y) <= ROW_TOL);
+        if (band) { band.items.push(item); }
+        else       { bands.push({ y: item.y, items: [item] }); }
+      });
+
+      /* Sort bands top-to-bottom, items left-to-right */
+      bands.sort((a, b) => a.y - b.y);
+      bands.forEach(band => {
+        band.items.sort((a, b) => a.x - b.x);
+        allRows.push(band.items.map(i => i.text.trim()));
+      });
+    }
+
+    /* Build a minimal XLSX-compatible workbook from the 2-D array */
+    const ws = XLSX.utils.aoa_to_sheet(allRows);
+    return { SheetNames: ['Sheet1'], Sheets: { Sheet1: ws } };
+  }
+
   function handleFile(file, type) {
     if (!file) return;
     const ids = {
@@ -1001,21 +1054,42 @@
     setText(statId, 'Reading…');
     setClass(statId, 'agent-file-status');
     const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        _files[type] = wb;
-        setText(statId, '✓ Parsed');
-        setClass(statId, 'agent-file-status ok');
-        document.getElementById(cardId)?.classList.add('ready');
-        checkFilesReady();
-      } catch (err) {
-        setText(statId, '✗ ' + err.message);
-        setClass(statId, 'agent-file-status err');
-        /* Other files are unaffected — user can retry just this file */
-      }
-    };
-    reader.readAsArrayBuffer(file);
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      reader.onload = async e => {
+        try {
+          setText(statId, 'Parsing PDF…');
+          const wb = await parsePdfToWorkbook(e.target.result);
+          _files[type] = wb;
+          setText(statId, '✓ PDF Parsed');
+          setClass(statId, 'agent-file-status ok');
+          document.getElementById(cardId)?.classList.add('ready');
+          checkFilesReady();
+        } catch (err) {
+          setText(statId, '✗ ' + err.message);
+          setClass(statId, 'agent-file-status err');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          _files[type] = wb;
+          setText(statId, '✓ Parsed');
+          setClass(statId, 'agent-file-status ok');
+          document.getElementById(cardId)?.classList.add('ready');
+          checkFilesReady();
+        } catch (err) {
+          setText(statId, '✗ ' + err.message);
+          setClass(statId, 'agent-file-status err');
+          /* Other files are unaffected — user can retry just this file */
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
   }
 
   function checkFilesReady() {
