@@ -1093,53 +1093,19 @@ function setupPassCheckWidget() {
 
 /* ===============================
    BULK PASS SEARCH WIDGET
-   "Bulk" tab — paste many vehicle
-   numbers at once, get a table of
-   pass statuses in one shot.
+   Lives inside #bulkSearchModal.
+   One function wires the modal:
+   textarea → Search All → table,
+   copy CSV, and auto-clear on hide.
 =============================== */
 
 function setupBulkSearchWidget() {
 
-    const singleBtn  = document.getElementById("passModeSingleBtn");
-    const bulkBtn    = document.getElementById("passModeBulkBtn");
-    const singlePane = document.getElementById("vpSingleMode");
-    const bulkPane   = document.getElementById("vpBulkMode");
-    const textarea   = document.getElementById("passBulkInput");
-    const searchBtn  = document.getElementById("passBulkSearchBtn");
-    const resultsEl  = document.getElementById("passBulkResults");
+    const textarea  = document.getElementById("bulkSearchInput");
+    const searchBtn = document.getElementById("bulkSearchRunBtn");
+    const resultsEl = document.getElementById("bulkSearchResults");
 
-    if (!singleBtn || !bulkBtn || !singlePane || !bulkPane) return;
-
-    /* ── Mode switcher ── */
-    function switchToSingle() {
-        singlePane.style.display = "";
-        bulkPane.style.display   = "none";
-        singleBtn.classList.add("active");
-        bulkBtn.classList.remove("active");
-        /* Clear both result areas on switch */
-        const singleResult = document.getElementById("passCheckResult");
-        if (singleResult) { singleResult.className = "pass-check-result"; singleResult.innerHTML = ""; }
-        if (resultsEl)    { resultsEl.innerHTML = ""; }
-        const inp = document.getElementById("passCheckInput");
-        if (inp) inp.value = "";
-    }
-
-    function switchToBulk() {
-        singlePane.style.display = "none";
-        bulkPane.style.display   = "";
-        bulkBtn.classList.add("active");
-        singleBtn.classList.remove("active");
-        /* Clear both result areas on switch */
-        const singleResult = document.getElementById("passCheckResult");
-        if (singleResult) { singleResult.className = "pass-check-result"; singleResult.innerHTML = ""; }
-        if (resultsEl)    { resultsEl.innerHTML = ""; }
-        if (textarea)     { textarea.value = ""; textarea.focus(); }
-    }
-
-    singleBtn.addEventListener("click", switchToSingle);
-    bulkBtn.addEventListener("click",   switchToBulk);
-
-    if (!searchBtn || !textarea || !resultsEl) return;
+    if (!textarea || !searchBtn || !resultsEl) return;
 
     /* ── Parse textarea into unique normalised numbers ── */
     function parseNumbers(raw) {
@@ -1152,7 +1118,7 @@ function setupBulkSearchWidget() {
         return unique;
     }
 
-    /* ── Build the results table ── */
+    /* ── Build and render the results table ── */
     function runBulkSearch() {
 
         const numbers = parseNumbers(textarea.value);
@@ -1168,32 +1134,28 @@ function setupBulkSearchWidget() {
             return;
         }
 
-        /* Lookup every number */
         let cntActive = 0, cntExpired = 0, cntNone = 0;
 
         const rows = numbers.map(num => {
-            const record  = getPassRecord(num);
-            const expired = record ? isPassExpired(record.validTill) : null;
+            const record   = getPassRecord(num);
+            const expired  = record ? isPassExpired(record.validTill) : null;
             const isActive = record && expired !== true;
 
             let statusCell, rowCls;
             if (!record) {
-                statusCell = `<td class="pbr-td pbr-status pbr-status-none"><span class="pbr-pill pbr-pill-none"><i class="bi bi-x-circle-fill"></i> No Pass</span></td>`;
-                rowCls = "pbr-row-none";
-                cntNone++;
+                statusCell = `<td class="pbr-td pbr-status"><span class="pbr-pill pbr-pill-none"><i class="bi bi-x-circle-fill"></i> No Pass</span></td>`;
+                rowCls = "pbr-row-none"; cntNone++;
             } else if (isActive) {
-                statusCell = `<td class="pbr-td pbr-status pbr-status-active"><span class="pbr-pill pbr-pill-active"><i class="bi bi-check-circle-fill"></i> Valid Pass</span></td>`;
-                rowCls = "pbr-row-active";
-                cntActive++;
+                statusCell = `<td class="pbr-td pbr-status"><span class="pbr-pill pbr-pill-active"><i class="bi bi-check-circle-fill"></i> Valid Pass</span></td>`;
+                rowCls = "pbr-row-active"; cntActive++;
             } else {
-                statusCell = `<td class="pbr-td pbr-status pbr-status-expired"><span class="pbr-pill pbr-pill-expired"><i class="bi bi-clock-history"></i> Expired</span></td>`;
-                rowCls = "pbr-row-expired";
-                cntExpired++;
+                statusCell = `<td class="pbr-td pbr-status"><span class="pbr-pill pbr-pill-expired"><i class="bi bi-clock-history"></i> Expired</span></td>`;
+                rowCls = "pbr-row-expired"; cntExpired++;
             }
 
-            const validTill    = record ? fmtPassDate(record.validTill)    : "—";
+            const validTill    = record ? fmtPassDate(record.validTill) : "—";
             const vehicleClass = record ? (_escHtml(record.vehicleClass) || "—") : "—";
-            const daysLeft     = record ? remainingDays(record.validTill)   : null;
+            const daysLeft     = record ? remainingDays(record.validTill) : null;
             const daysCell     = daysLeft !== null
                 ? (daysLeft < 0
                     ? `<span class="pbr-days pbr-days-over">${Math.abs(daysLeft)}d ago</span>`
@@ -1221,7 +1183,7 @@ function setupBulkSearchWidget() {
                     <span class="pbr-total">${total} vehicle${total !== 1 ? "s" : ""} checked</span>
                     ${summaryParts.join("")}
                 </div>
-                <button class="pbr-copy-btn" id="passBulkCopyBtn" type="button" title="Copy results as CSV">
+                <button class="pbr-copy-btn" id="bulkSearchCopyBtn" type="button" title="Copy results as CSV">
                     <i class="bi bi-clipboard"></i> Copy CSV
                 </button>
             </div>
@@ -1247,7 +1209,7 @@ function setupBulkSearchWidget() {
         });
 
         /* Wire Copy CSV button */
-        const copyBtn = document.getElementById("passBulkCopyBtn");
+        const copyBtn = document.getElementById("bulkSearchCopyBtn");
         if (copyBtn) {
             copyBtn.addEventListener("click", () => {
                 const lines = ["Vehicle Number,Status,Valid Till,Vehicle Class"];
@@ -1255,34 +1217,42 @@ function setupBulkSearchWidget() {
                     const record  = getPassRecord(num);
                     const expired = record ? isPassExpired(record.validTill) : null;
                     const status  = !record ? "No Pass" : (expired !== true ? "Valid Pass" : "Expired");
-                    const validTill    = record ? (record.validTill || "") : "";
-                    const vehicleClass = record ? (record.vehicleClass || "") : "";
-                    lines.push(`${num},${status},${validTill},${vehicleClass}`);
+                    lines.push(`${num},${status},${record ? (record.validTill || "") : ""},${record ? (record.vehicleClass || "") : ""}`);
                 });
                 const csv = lines.join("\n");
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(csv).then(() => {
-                        copyBtn.innerHTML = `<i class="bi bi-clipboard-check"></i> Copied!`;
-                        setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
-                    }).catch(() => {
-                        copyBtn.innerHTML = `<i class="bi bi-clipboard-x"></i> Failed`;
-                        setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
-                    });
+                    navigator.clipboard.writeText(csv)
+                        .then(() => {
+                            copyBtn.innerHTML = `<i class="bi bi-clipboard-check"></i> Copied!`;
+                            setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
+                        })
+                        .catch(() => {
+                            copyBtn.innerHTML = `<i class="bi bi-clipboard-x"></i> Failed`;
+                            setTimeout(() => { copyBtn.innerHTML = `<i class="bi bi-clipboard"></i> Copy CSV`; }, 2000);
+                        });
                 }
             });
         }
-
     }
 
     searchBtn.addEventListener("click", runBulkSearch);
 
-    /* Ctrl+Enter inside textarea also triggers search */
+    /* Ctrl+Enter inside textarea triggers search */
     textarea.addEventListener("keydown", function (e) {
         if (e.ctrlKey && e.key === "Enter") {
             e.preventDefault();
             runBulkSearch();
         }
     });
+
+    /* Clear textarea + results when modal is hidden so next open is fresh */
+    const modalEl = document.getElementById("bulkSearchModal");
+    if (modalEl) {
+        modalEl.addEventListener("hidden.bs.modal", () => {
+            textarea.value      = "";
+            resultsEl.innerHTML = "";
+        });
+    }
 
 }
 
