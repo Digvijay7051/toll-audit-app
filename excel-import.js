@@ -598,6 +598,11 @@ function recalcReviewTotals(modeName) {
 
 /* ─────────────────────────────────────────────────────────
    COLLECT EDITED MATRICES FROM DOM
+   Two sources, kept strictly separate:
+   1. xl-cell-input on NON-virtual rows → real vehicle counts
+   2. xl-paid-mode-select → already-paid counts (by payment mode)
+   Virtual rows (.xl-paid-virtual-row) are EXCLUDED from source 1
+   to prevent any double-count.
 ───────────────────────────────────────────────────────── */
 function collectEditedMatrices() {
   const result = { violation: null, exemption: null };
@@ -606,11 +611,15 @@ function collectEditedMatrices() {
     const reportCounts = {};
     const vehicleMap   = {};
 
+    /* Source 0 — report count row */
     document.querySelectorAll(`.xl-rc-input[data-mode="${modeName}"]`).forEach(inp => {
       reportCounts[inp.dataset.cat] = parseInt(inp.value, 10) || 0;
     });
 
+    /* Source 1 — real (non-virtual) vehicle rows only */
     document.querySelectorAll(`.xl-cell-input[data-mode="${modeName}"]`).forEach(inp => {
+      /* Skip inputs that live inside a virtual paid row */
+      if (inp.closest("tr.xl-paid-virtual-row")) return;
       const val = parseInt(inp.value, 10) || 0;
       if (val > 0) {
         const { cat, vehicle } = inp.dataset;
@@ -619,10 +628,17 @@ function collectEditedMatrices() {
       }
     });
 
-    /* NOTE: Already-paid counts are already captured above via the
-       xl-cell-input elements in the virtual rows injected by
-       _applyPaidToTable(). Adding them again from the selects here
-       was the cause of the double-count bug — so this loop is removed. */
+    /* Source 2 — already-paid selects (payment mode chosen by user) */
+    document.querySelectorAll(`.xl-paid-mode-select[data-mode="${modeName}"]`).forEach(sel => {
+      const payVehicle = sel.value;   /* e.g. "Paid (ETC)" — empty = skipped */
+      if (!payVehicle) return;
+      const cat   = sel.dataset.cat;
+      const count = parseInt(sel.dataset.count, 10) || 0;
+      if (count > 0) {
+        if (!vehicleMap[payVehicle]) vehicleMap[payVehicle] = {};
+        vehicleMap[payVehicle][cat] = (vehicleMap[payVehicle][cat] || 0) + count;
+      }
+    });
 
     result[modeName.toLowerCase()] = {
       reportCounts,
