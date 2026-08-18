@@ -822,6 +822,54 @@ async function fbLoadLockPin() {
 }
 
 /* ===============================
+   FIRESTORE — I-CODE (cloud sync)
+   Saves/loads the I-CODE for the user
+   to the user's own Firestore doc.
+   Field: iCode (hashed, like lockPin)
+=============================== */
+
+async function fbSaveICode(hashedCode) {
+
+    if (!fbReady || !fbDb || !fbCurrentUid) return false;
+
+    try {
+
+        await fbDb.collection("users").doc(fbCurrentUid).set(
+            { iCode: hashedCode },
+            { merge: true }
+        );
+        return true;
+
+    } catch (err) {
+
+        console.error("[Firebase] Save I-CODE error:", err);
+        return false;
+
+    }
+
+}
+
+async function fbLoadICode() {
+
+    if (!fbReady || !fbDb || !fbCurrentUid) return null;
+
+    try {
+
+        const snap = await fbDb.collection("users").doc(fbCurrentUid).get();
+        if (!snap.exists) return null;
+        return snap.data().iCode || null;
+
+    } catch (err) {
+
+        console.error("[Firebase] Load I-CODE error:", err);
+        return null;
+
+    }
+
+}
+
+
+/* ===============================
    TRAFFIC LOSS REPORT — SAVE
    Path: users/{uid}/tlReports/{dateKey}
    merge:true so partial updates are safe.

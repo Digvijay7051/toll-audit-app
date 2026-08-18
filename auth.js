@@ -25,6 +25,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     setupProfileQuickPin();
 
+    setupProfileICode();
+
+    setupICodeLoginNumpad();
+
     setupPinKeyboardSupport();
 
     const session = getSession();
@@ -286,8 +290,13 @@ function setupAuthForms() {
 
                 setActiveUser(displayName);
 
-                /* Load ALL cloud data (audit + lock PIN + quick PIN) */
+                /* Load ALL cloud data (audit + lock PIN + quick PIN + I-CODE) */
                 await loadAllCloudData(displayName);
+
+                /* Keep I-CODE entry up-to-date */
+                const _eUid = _getLoggedInUid();
+                if (_eUid) saveICodeEntry(_eUid, displayName);
+                if (window._refreshICodeTab) window._refreshICodeTab();
 
                 showWelcomeScreen(displayName);
 
@@ -532,6 +541,11 @@ function setupAuthForms() {
 
             await loadAllCloudData(displayName);
 
+            /* Update I-CODE entry so the login tab shows the correct name */
+            const _gUid = _getLoggedInUid();
+            if (_gUid) saveICodeEntry(_gUid, displayName);
+            if (window._refreshICodeTab) window._refreshICodeTab();
+
             showWelcomeScreen(displayName);
 
             /* Offer PIN setup for new Google users after a short delay */
@@ -684,6 +698,9 @@ function performSignOut() {
 
     clearSession();
 
+    /* I-CODE entry stays on device intentionally so user can log back in.
+       We only wipe it if the user explicitly removes I-CODE from their profile. */
+
     document.getElementById("loginForm").reset();
 
     document.getElementById("signupBox").style.display = "none";
@@ -804,49 +821,69 @@ function setupAuthTabs() {
 
     const tabEmail = document.getElementById("tabEmailBtn");
     const tabPin   = document.getElementById("tabPinBtn");
+    const tabICode = document.getElementById("tabICodeBtn");
     const tabBar   = document.getElementById("authTabBar");
 
     if (!tabEmail || !tabPin) return;
 
-    /* Show PIN tab only if a PIN is set on this device */
+    /* Show tab bar when Quick PIN OR I-CODE is set */
     function refreshTabVisibility() {
-        const hasPinUser = getQuickPinUsername();
-        tabBar.style.display = hasPinUser ? "flex" : "none";
+        const hasPinUser   = getQuickPinUsername();
+        const icodeEntry   = getICodeEntry();
+        const hasICodeUser = icodeEntry && hasICode(icodeEntry.uid);
+        tabBar.style.display = (hasPinUser || hasICodeUser) ? "flex" : "none";
+        /* Show/hide I-CODE tab individually */
+        if (tabICode) tabICode.style.display = hasICodeUser ? "" : "none";
     }
 
     refreshTabVisibility();
 
+    function _hideAllBoxes() {
+        document.getElementById("loginBox").style.display       = "none";
+        document.getElementById("pinLoginBox").style.display    = "none";
+        document.getElementById("icodeLoginBox").style.display  = "none";
+        document.getElementById("signupBox").style.display      = "none";
+        [tabEmail, tabPin, tabICode].forEach(t => t && t.classList.remove("active"));
+    }
+
     tabEmail.addEventListener("click", function () {
+        _hideAllBoxes();
         tabEmail.classList.add("active");
-        tabPin.classList.remove("active");
-        document.getElementById("loginBox").style.display    = "block";
-        document.getElementById("pinLoginBox").style.display = "none";
-        document.getElementById("signupBox").style.display   = "none";
+        document.getElementById("loginBox").style.display = "block";
     });
 
     tabPin.addEventListener("click", function () {
+        _hideAllBoxes();
         tabPin.classList.add("active");
-        tabEmail.classList.remove("active");
-        document.getElementById("loginBox").style.display    = "none";
         document.getElementById("pinLoginBox").style.display = "block";
-        document.getElementById("signupBox").style.display   = "none";
-        /* Show the saved username */
         const u = getQuickPinUsername();
         const lbl = document.getElementById("pinLoginUserLabel");
         if (lbl && u) lbl.textContent = `Hello ${u} 👋  Enter your PIN`;
         resetPinDots();
     });
 
-    /* "Use email instead" link inside PIN box */
-    const useEmailBtn = document.getElementById("pinUseEmailBtn");
-    if (useEmailBtn) {
-        useEmailBtn.addEventListener("click", function () {
-            tabEmail.click();
+    if (tabICode) {
+        tabICode.addEventListener("click", function () {
+            _hideAllBoxes();
+            tabICode.classList.add("active");
+            document.getElementById("icodeLoginBox").style.display = "block";
+            const entry = getICodeEntry();
+            const lbl   = document.getElementById("icodeLoginUserLabel");
+            if (lbl && entry) lbl.textContent = `Hello ${entry.username} 👋  Enter your I-CODE`;
+            _resetICodeDots();
         });
     }
 
+    /* "Use email instead" links */
+    const useEmailBtn = document.getElementById("pinUseEmailBtn");
+    if (useEmailBtn) useEmailBtn.addEventListener("click", () => tabEmail.click());
+
+    const icodeUseEmailBtn = document.getElementById("icodeUseEmailBtn");
+    if (icodeUseEmailBtn) icodeUseEmailBtn.addEventListener("click", () => tabEmail.click());
+
     /* Expose so post-login setup can refresh */
-    window._refreshAuthTabs = refreshTabVisibility;
+    window._refreshAuthTabs  = refreshTabVisibility;
+    window._refreshICodeTab  = refreshTabVisibility;
 
 }
 
@@ -927,6 +964,100 @@ function attemptPinLogin() {
         setTimeout(() => resetPinDots(), 800);
 
     }
+
+}
+
+/* ===============================
+   I-CODE LOGIN NUMPAD
+=============================== */
+
+let _icodeEntry = "";
+
+function _resetICodeDots(isError) {
+    _icodeEntry = "";
+    for (let i = 0; i < 4; i++) {
+        const d = document.getElementById("icd" + i);
+        if (!d) continue;
+        d.className = "pin-dot" + (isError ? " error" : "");
+    }
+    const errEl = document.getElementById("icodeLoginError");
+    if (errEl && !isError) errEl.style.display = "none";
+}
+
+function _updateICodeDots() {
+    for (let i = 0; i < 4; i++) {
+        const d = document.getElementById("icd" + i);
+        if (!d) continue;
+        d.className = "pin-dot" + (i < _icodeEntry.length ? " filled" : "");
+    }
+}
+
+function setupICodeLoginNumpad() {
+
+    document.querySelectorAll(".pin-key[data-idigit]").forEach(btn => {
+        btn.addEventListener("click", function () {
+            if (_icodeEntry.length >= 4) return;
+            _icodeEntry += this.dataset.idigit;
+            _updateICodeDots();
+            if (_icodeEntry.length === 4) _attemptICodeLogin();
+        });
+    });
+
+    const delBtn = document.getElementById("icodeDelBtn");
+    if (delBtn) delBtn.addEventListener("click", () => {
+        _icodeEntry = _icodeEntry.slice(0, -1);
+        _updateICodeDots();
+    });
+
+    const clearBtn = document.getElementById("icodeClearBtn");
+    if (clearBtn) clearBtn.addEventListener("click", () => _resetICodeDots());
+
+}
+
+async function _attemptICodeLogin() {
+
+    const entry = getICodeEntry();   /* { uid, username } */
+    const errEl = document.getElementById("icodeLoginError");
+
+    if (!entry || !entry.uid) {
+        if (errEl) { errEl.textContent = "No I-CODE account found on this device."; errEl.style.display = "block"; }
+        _resetICodeDots(true);
+        setTimeout(() => _resetICodeDots(), 800);
+        return;
+    }
+
+    if (!validateICode(entry.uid, _icodeEntry)) {
+        if (errEl) { errEl.textContent = "Wrong I-CODE. Try again."; errEl.style.display = "block"; }
+        _resetICodeDots(true);
+        setTimeout(() => _resetICodeDots(), 800);
+        return;
+    }
+
+    /* ── Correct code ── re-sign-in via Firebase silently ──
+       Firebase keeps the session token alive on the device.
+       We just need to confirm the UID is still valid. */
+    if (typeof fbAuthReady !== "undefined") await fbAuthReady;
+
+    const fbUser = (typeof fbAuth !== "undefined" && fbAuth) ? fbAuth.currentUser : null;
+
+    /* Check: the signed-in Firebase UID must match the stored I-CODE UID */
+    if (!fbUser || fbUser.uid !== entry.uid) {
+        if (errEl) {
+            errEl.textContent = "Session expired. Please sign in with Google or email first, then use I-CODE.";
+            errEl.style.display = "block";
+        }
+        _resetICodeDots(true);
+        setTimeout(() => _resetICodeDots(), 1200);
+        return;
+    }
+
+    /* All good — restore session and proceed */
+    currentUsername = entry.username;
+    saveSession(entry.username);
+    setActiveUser(entry.username);
+
+    await loadAllCloudData(entry.username);
+    showWelcomeScreen(entry.username);
 
 }
 
@@ -1155,6 +1286,202 @@ function setupProfileQuickPin() {
         });
     }
 
+}
+
+/* ===============================
+   I-CODE PROFILE SECTION
+   Wired inside the avatarModal.
+   Only available when a Firebase user
+   (Google or email) is signed in.
+=============================== */
+
+function setupProfileICode() {
+
+    /* Refresh state whenever the profile modal opens */
+    const avatarModal = document.getElementById("avatarModal");
+    if (avatarModal) {
+        avatarModal.addEventListener("show.bs.modal", _refreshICodeSection);
+    }
+
+    /* Wire numpad */
+    _wireICodeProfileNumpad();
+
+    /* Change / Remove buttons */
+    const changeBtn = document.getElementById("icodeChangeBtn");
+    if (changeBtn) {
+        changeBtn.addEventListener("click", function () {
+            _ipEntry = ""; _ipConfirm = ""; _ipPhase = "enter";
+            _updateIpDots();
+            document.getElementById("icodeSetupArea").style.display  = "";
+            document.getElementById("icodeManageArea").style.display = "none";
+            document.getElementById("icodeStepLabel").textContent    = "STEP 1 — ENTER NEW I-CODE";
+            const errEl = document.getElementById("icodeProfileError");
+            if (errEl) errEl.style.display = "none";
+        });
+    }
+
+    const removeBtn = document.getElementById("icodeRemoveBtn");
+    if (removeBtn) {
+        removeBtn.addEventListener("click", function () {
+            if (!confirm("Remove your I-CODE? You'll need to sign in with Google or email next time.")) return;
+            const uid = _getLoggedInUid();
+            if (uid) {
+                clearICode(uid);
+                clearICodeEntry();
+            }
+            if (window._refreshICodeTab) window._refreshICodeTab();
+            _refreshICodeSection();
+            if (typeof showToast === "function") {
+                showToast("I-CODE Removed", "I-CODE has been cleared from your account.", "success");
+            }
+        });
+    }
+
+}
+
+function _getLoggedInUid() {
+    if (typeof fbAuth !== "undefined" && fbAuth && fbAuth.currentUser) {
+        return fbAuth.currentUser.uid;
+    }
+    return null;
+}
+
+function _refreshICodeSection() {
+
+    const uid       = _getLoggedInUid();
+    const noticeEl  = document.getElementById("icodeProfileNotice");
+    const setupArea = document.getElementById("icodeSetupArea");
+    const manageArea= document.getElementById("icodeManageArea");
+    const errEl     = document.getElementById("icodeProfileError");
+
+    /* If no Firebase user is signed in, show a notice and hide everything */
+    if (!uid) {
+        if (noticeEl) {
+            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Sign in with Google or email to enable it.";
+            noticeEl.style.display = "";
+        }
+        if (setupArea)  setupArea.style.display  = "none";
+        if (manageArea) manageArea.style.display = "none";
+        return;
+    }
+
+    if (noticeEl) noticeEl.style.display = "none";
+
+    if (hasICode(uid)) {
+        if (setupArea)  setupArea.style.display  = "none";
+        if (manageArea) manageArea.style.display = "";
+    } else {
+        if (setupArea)  setupArea.style.display  = "";
+        if (manageArea) manageArea.style.display = "none";
+        _ipEntry = ""; _ipConfirm = ""; _ipPhase = "enter";
+        _updateIpDots();
+        const stepEl = document.getElementById("icodeStepLabel");
+        if (stepEl) stepEl.textContent = "STEP 1 — ENTER NEW I-CODE";
+        if (errEl) errEl.style.display = "none";
+    }
+
+}
+
+let _ipEntry = "", _ipConfirm = "", _ipPhase = "enter";
+
+function _updateIpDots() {
+    const src = _ipPhase === "confirm" ? _ipConfirm : _ipEntry;
+    for (let i = 0; i < 4; i++) {
+        const d = document.getElementById("ipd" + i);
+        if (d) d.className = "pin-dot" + (i < src.length ? " filled" : "");
+    }
+}
+
+function _wireICodeProfileNumpad() {
+
+    document.querySelectorAll("#icodeProfileNumpad [data-ipdigit]").forEach(btn => {
+        btn.addEventListener("click", function () {
+            _handleIpDigit(this.dataset.ipdigit);
+        });
+    });
+
+    const delBtn = document.getElementById("icodeProfileDel");
+    if (delBtn) delBtn.addEventListener("click", () => {
+        if (_ipPhase === "enter") _ipEntry = _ipEntry.slice(0, -1);
+        else _ipConfirm = _ipConfirm.slice(0, -1);
+        _updateIpDots();
+    });
+
+    const clrBtn = document.getElementById("icodeProfileClear");
+    if (clrBtn) clrBtn.addEventListener("click", () => {
+        _ipPhase = "enter"; _ipEntry = ""; _ipConfirm = "";
+        _updateIpDots();
+        const stepEl = document.getElementById("icodeStepLabel");
+        if (stepEl) stepEl.textContent = "STEP 1 — ENTER NEW I-CODE";
+    });
+
+}
+
+function _handleIpDigit(digit) {
+
+    const errEl  = document.getElementById("icodeProfileError");
+    const stepEl = document.getElementById("icodeStepLabel");
+
+    if (_ipPhase === "enter") {
+
+        if (_ipEntry.length >= 4) return;
+        _ipEntry += digit;
+        _updateIpDots();
+
+        if (_ipEntry.length === 4) {
+            setTimeout(() => {
+                _ipPhase = "confirm"; _ipConfirm = "";
+                _updateIpDots();
+                if (stepEl) stepEl.textContent = "STEP 2 — CONFIRM YOUR I-CODE";
+                if (errEl) errEl.style.display = "none";
+            }, 180);
+        }
+
+    } else {
+
+        if (_ipConfirm.length >= 4) return;
+        _ipConfirm += digit;
+        _updateIpDots();
+
+        if (_ipConfirm.length === 4) {
+
+            if (_ipConfirm === _ipEntry) {
+
+                const uid      = _getLoggedInUid();
+                const session  = getSession();
+                const username = session ? session.username : (currentUsername || "");
+
+                if (!uid) {
+                    if (errEl) { errEl.textContent = "No Firebase account found. Sign in with Google or email first."; errEl.style.display = "block"; }
+                    _ipPhase = "enter"; _ipEntry = ""; _ipConfirm = "";
+                    _updateIpDots();
+                    return;
+                }
+
+                saveICode(uid, _ipEntry);
+                saveICodeEntry(uid, username);
+                if (window._refreshICodeTab) window._refreshICodeTab();
+                _refreshICodeSection();
+                if (typeof showToast === "function") {
+                    showToast("I-CODE Set! 🔐", "You can now log in with your 4-digit I-CODE.", "success");
+                }
+
+            } else {
+
+                for (let i = 0; i < 4; i++) {
+                    const d = document.getElementById("ipd" + i);
+                    if (d) d.className = "pin-dot error";
+                }
+                if (errEl) { errEl.textContent = "Codes don't match. Try again."; errEl.style.display = "block"; }
+                setTimeout(() => {
+                    _ipPhase = "enter"; _ipEntry = ""; _ipConfirm = "";
+                    _updateIpDots();
+                    if (stepEl) stepEl.textContent = "STEP 1 — ENTER NEW I-CODE";
+                }, 700);
+
+            }
+        }
+    }
 }
 
 let _qpEntry = "", _qpConfirm = "", _qpPhase = "enter";

@@ -1426,7 +1426,9 @@ function viewHistorySnapshot(dateKey) {
 
     modalBody.innerHTML = html;
 
-    const modal = new bootstrap.Modal(
+    if (typeof bootstrap === "undefined") return;
+
+    const modal = bootstrap.Modal.getOrCreateInstance(
 
         document.getElementById("historyModal")
 

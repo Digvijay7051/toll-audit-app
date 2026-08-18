@@ -1119,9 +1119,12 @@ function deleteHistoryDate(dateKey) {
 
     delete auditDataStore[dateKey];
 
+    /* If the active date was deleted, re-point auditData to a fresh empty
+       bucket WITHOUT re-inserting it into the store immediately — the bucket
+       will be created on demand the next time the user saves or switches dates. */
     if (dateKey === selectedAuditDate) {
 
-        auditData = getOrCreateAuditBucket(dateKey);
+        auditData = createEmptyAuditBucket();
 
     }
 
@@ -1138,6 +1141,13 @@ function deleteHistoryDate(dateKey) {
     if (typeof renderHistoryPanel === "function") {
 
         renderHistoryPanel();
+
+    }
+
+    /* Refresh UI so stat cards / progress / vehicle counts reflect the cleared state */
+    if (typeof refreshUI === "function") {
+
+        refreshUI();
 
     }
 
@@ -1616,13 +1626,67 @@ function getQuickPinUsername() {
 }
 
 /* ===============================
+   I-CODE  (Firebase-UID-tied login code)
+   Unlike Quick PIN (username-based),
+   I-CODE is keyed to the Firebase UID
+   so it only works for verified accounts.
+   Storage key: tollAuditICode_{uid}
+=============================== */
+
+function _icodeKey(uid) {
+    return "tollAuditICode_" + uid;
+}
+
+function saveICode(uid, code) {
+    const hashed = _hashPin(code);   /* reuse same djb2 hash as PINs */
+    localStorage.setItem(_icodeKey(uid), hashed);
+    /* Sync to Firestore so it works on every device */
+    if (typeof fbSaveICode === "function") {
+        fbSaveICode(hashed);
+    }
+}
+
+function validateICode(uid, code) {
+    const stored = localStorage.getItem(_icodeKey(uid));
+    if (!stored) return false;
+    return stored === _hashPin(code);
+}
+
+function hasICode(uid) {
+    return !!localStorage.getItem(_icodeKey(uid));
+}
+
+function clearICode(uid) {
+    localStorage.removeItem(_icodeKey(uid));
+    if (typeof fbSaveICode === "function") {
+        fbSaveICode("");
+    }
+}
+
+/* Returns the stored Firebase UID that has an I-CODE set on this device.
+   We persist the UID→username mapping in a small localStorage entry so
+   we can show "Hello <name>" on the I-CODE tab without re-authenticating. */
+function getICodeEntry() {
+    const raw = localStorage.getItem("tollAuditICodeEntry");
+    return raw ? JSON.parse(raw) : null;
+}
+
+function saveICodeEntry(uid, username) {
+    localStorage.setItem("tollAuditICodeEntry", JSON.stringify({ uid, username }));
+}
+
+function clearICodeEntry() {
+    localStorage.removeItem("tollAuditICodeEntry");
+}
+
+/* ===============================
    LOAD ALL CLOUD DATA
    Single entry-point called after
    every login. Waits for Firebase
    auth to confirm the UID, then
    pulls audit data + lock PIN +
-   quick PIN all from Firestore and
-   merges into local state.
+   quick PIN + I-CODE from Firestore
+   and merges into local state.
 =============================== */
 
 async function loadAllCloudData(username) {
@@ -1632,10 +1696,11 @@ async function loadAllCloudData(username) {
         await fbAuthReady;
     }
 
-    /* 2. Load all audit dates from Firestore userAuditLogs + PIN data in parallel */
-    const [cloudLockPin, cloudQuickPin] = await Promise.all([
+    /* 2. Load PINs + I-CODE from Firestore in parallel */
+    const [cloudLockPin, cloudQuickPin, cloudICode] = await Promise.all([
         typeof fbLoadLockPin  === "function" ? fbLoadLockPin()  : Promise.resolve(null),
-        typeof fbLoadQuickPin === "function" ? fbLoadQuickPin() : Promise.resolve(null)
+        typeof fbLoadQuickPin === "function" ? fbLoadQuickPin() : Promise.resolve(null),
+        typeof fbLoadICode    === "function" ? fbLoadICode()    : Promise.resolve(null)
     ]);
 
     /* 3. Merge all Firestore audit dates — reuses the same loader as loadAuditData() */
@@ -1657,6 +1722,19 @@ async function loadAllCloudData(username) {
             localStorage.setItem(_pinKey(username), cloudQuickPin);
             if (window._refreshAuthTabs) window._refreshAuthTabs();
         }
+    }
+
+    /* 6. Restore I-CODE — keyed to Firebase UID */
+    const uid = (typeof fbAuth !== "undefined" && fbAuth && fbAuth.currentUser)
+        ? fbAuth.currentUser.uid : null;
+    if (cloudICode && uid) {
+        const localHash = localStorage.getItem(_icodeKey(uid));
+        if (localHash !== cloudICode) {
+            localStorage.setItem(_icodeKey(uid), cloudICode);
+        }
+        /* Always keep the ICodeEntry fresh after cloud sync */
+        saveICodeEntry(uid, username);
+        if (window._refreshICodeTab) window._refreshICodeTab();
     }
 
 }

@@ -103,6 +103,9 @@
               <button class="auth-tab" id="tabPinBtn" type="button">
                 <i class="bi bi-grid-3x3-gap-fill"></i> Quick PIN
               </button>
+              <button class="auth-tab" id="tabICodeBtn" type="button">
+                <i class="bi bi-shield-lock-fill"></i> I-CODE
+              </button>
             </div>
 
             <!-- LOGIN BOX — Email/Password -->
@@ -172,6 +175,41 @@
                 <button class="pin-key pin-key-del"   id="pinDelBtn"   type="button"><i class="bi bi-backspace-fill"></i></button>
               </div>
               <button type="button" id="pinUseEmailBtn" class="btn-forgot" style="margin-top:8px;">
+                <i class="bi bi-envelope"></i> Use email instead
+              </button>
+            </div>
+
+            <!-- LOGIN BOX — I-CODE -->
+            <div id="icodeLoginBox" style="display:none;">
+              <div class="icode-login-header">
+                <div class="icode-login-badge"><i class="bi bi-shield-lock-fill"></i></div>
+                <div>
+                  <div class="icode-login-title" id="icodeLoginUserLabel">I-CODE Login</div>
+                  <div class="icode-login-sub">Enter your 4-digit I-CODE to continue</div>
+                </div>
+              </div>
+              <div class="pin-dots" id="icodeDots">
+                <span class="pin-dot" id="icd0"></span>
+                <span class="pin-dot" id="icd1"></span>
+                <span class="pin-dot" id="icd2"></span>
+                <span class="pin-dot" id="icd3"></span>
+              </div>
+              <div id="icodeLoginError" class="auth-msg auth-msg--error" style="display:none;"></div>
+              <div class="pin-numpad">
+                <button class="pin-key" data-idigit="1" type="button">1</button>
+                <button class="pin-key" data-idigit="2" type="button">2</button>
+                <button class="pin-key" data-idigit="3" type="button">3</button>
+                <button class="pin-key" data-idigit="4" type="button">4</button>
+                <button class="pin-key" data-idigit="5" type="button">5</button>
+                <button class="pin-key" data-idigit="6" type="button">6</button>
+                <button class="pin-key" data-idigit="7" type="button">7</button>
+                <button class="pin-key" data-idigit="8" type="button">8</button>
+                <button class="pin-key" data-idigit="9" type="button">9</button>
+                <button class="pin-key pin-key-clear" id="icodeClearBtn" type="button"><i class="bi bi-x-circle"></i></button>
+                <button class="pin-key" data-idigit="0" type="button">0</button>
+                <button class="pin-key pin-key-del" id="icodeDelBtn" type="button"><i class="bi bi-backspace-fill"></i></button>
+              </div>
+              <button type="button" id="icodeUseEmailBtn" class="btn-forgot" style="margin-top:8px;">
                 <i class="bi bi-envelope"></i> Use email instead
               </button>
             </div>
@@ -1220,6 +1258,53 @@
                     <button type="button" class="btn btn-outline-primary" id="avatarUploadUrlBtn">Use URL</button>
                 </div>
                 <div id="avatarUploadStatus" class="small mt-2"></div>
+
+                <hr class="my-3">
+
+                <!-- ── I-CODE SECTION ── -->
+                <div class="profile-section-label"><i class="bi bi-shield-lock-fill"></i> I-CODE
+                  <span class="icode-profile-badge">NEW</span>
+                </div>
+                <p class="text-muted small mb-2">
+                  I-CODE is a 4-digit code tied to your <strong>Google / Firebase account</strong>.<br>
+                  Once set, use it for instant login — no email needed.
+                </p>
+                <div id="icodeProfileNotice" class="icode-notice" style="display:none;"></div>
+                <div id="icodeSetupArea">
+                  <div class="pin-setup-step mb-2" id="icodeStepLabel">STEP 1 — ENTER NEW I-CODE</div>
+                  <div class="pin-dots mb-2" id="icodeProfileDots">
+                    <span class="pin-dot" id="ipd0"></span>
+                    <span class="pin-dot" id="ipd1"></span>
+                    <span class="pin-dot" id="ipd2"></span>
+                    <span class="pin-dot" id="ipd3"></span>
+                  </div>
+                  <div id="icodeProfileError" class="text-danger small mb-2" style="display:none;"></div>
+                  <div class="pin-numpad pin-numpad--sm" id="icodeProfileNumpad">
+                    <button class="pin-key" data-ipdigit="1" type="button">1</button>
+                    <button class="pin-key" data-ipdigit="2" type="button">2</button>
+                    <button class="pin-key" data-ipdigit="3" type="button">3</button>
+                    <button class="pin-key" data-ipdigit="4" type="button">4</button>
+                    <button class="pin-key" data-ipdigit="5" type="button">5</button>
+                    <button class="pin-key" data-ipdigit="6" type="button">6</button>
+                    <button class="pin-key" data-ipdigit="7" type="button">7</button>
+                    <button class="pin-key" data-ipdigit="8" type="button">8</button>
+                    <button class="pin-key" data-ipdigit="9" type="button">9</button>
+                    <button class="pin-key pin-key-clear" id="icodeProfileClear" type="button"><i class="bi bi-x-circle"></i></button>
+                    <button class="pin-key" data-ipdigit="0" type="button">0</button>
+                    <button class="pin-key pin-key-del" id="icodeProfileDel" type="button"><i class="bi bi-backspace-fill"></i></button>
+                  </div>
+                </div>
+                <div id="icodeManageArea" style="display:none;">
+                  <div class="icode-active-chip"><i class="bi bi-shield-check-fill"></i> I-CODE is active</div>
+                  <div class="qp-manage-row mt-2">
+                    <button class="btn btn-sm btn-outline-primary" id="icodeChangeBtn" type="button">
+                      <i class="bi bi-pencil"></i> Change I-CODE
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" id="icodeRemoveBtn" type="button">
+                      <i class="bi bi-trash"></i> Remove I-CODE
+                    </button>
+                  </div>
+                </div>
 
                 <hr class="my-3">
                 <div class="profile-section-label"><i class="bi bi-grid-3x3-gap-fill"></i> Quick Login PIN</div>

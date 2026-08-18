@@ -145,7 +145,7 @@ input  { font-family: inherit; }
 }
 
 /* ── Flip wrapper ── */
-.card-flip-wrapper { position: relative; z-index: 5; width: 100%; max-width: 420px; }
+.card-flip-wrapper { position: relative; z-index: 5; width: 100%; max-width: 420px; margin: auto; }
 .card-flip-inner   { width: 100%; }
 .card-flip-inner.flipped .card-flip-front { display: none; }
 .card-flip-back    { display: none; }
@@ -155,7 +155,7 @@ input  { font-family: inherit; }
 .gate-screen {
   position: fixed; inset: 0; z-index: 1500;
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden; padding: 20px;
+  overflow-y: auto; overflow-x: hidden; padding: 20px;
   background: var(--asphalt);
 }
 
@@ -713,7 +713,7 @@ main { min-height: 100vh; background: var(--asphalt); }
   border-radius: 0; border: 1px solid transparent;
   font-size: 11px; font-weight: 600; letter-spacing: .04em;
   white-space: nowrap; font-family: var(--font-mono); text-transform: uppercase;
-  transition: background .2s, color .2s;
+  transition: background .2s, color .2s, opacity .35s ease;
 }
 .save-status-chip.ss-saving  { background: var(--yellow-soft); color: var(--yellow); border-color: rgba(217,164,0,.3); }
 .save-status-chip.ss-local   { background: var(--blue-soft); color: var(--blue); border-color: rgba(59,130,212,.3); }
@@ -1986,3 +1986,345 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
   font-size: 11px; font-family: var(--font-mono); transition: background .12s, color .12s;
 }
 .audit-log-date-btn:hover, .audit-log-date-btn.active { background: var(--yellow-soft); color: var(--yellow); border-color: rgba(217,164,0,.3); }
+
+/* ══════════════════════════════════════════════════════════
+   HAMBURGER BUTTON & SIDEBAR BACKDROP
+   (Mobile — shown on screens < 992px)
+══════════════════════════════════════════════════════════ */
+
+/* Hamburger: hidden on desktop, visible on mobile */
+.topbar-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s;
+}
+.topbar-hamburger:hover { border-color: var(--yellow); color: var(--yellow); }
+
+/* Backdrop overlay behind the sidebar on mobile */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1099;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility .25s ease;
+  pointer-events: none;
+}
+.sidebar-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT — 992px (tablet/desktop breakpoint)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 991.98px) {
+
+  /* Show hamburger */
+  .topbar-hamburger { display: flex; }
+
+  /* Sidebar: off-screen fixed drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 270px;
+    max-width: 85vw;
+    height: 100vh;
+    z-index: 1100;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s;
+    box-shadow: none;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+  }
+  .sidebar.show {
+    transform: translateX(0);
+    box-shadow: 6px 0 32px rgba(0,0,0,.55);
+  }
+
+  /* Main column: full width */
+  .col-lg-2.sidebar   { flex: 0 0 auto; width: 270px; }
+  .col-lg-10          { flex: 0 0 auto; width: 100% !important; max-width: 100% !important; }
+
+  /* Ensure sidebar--collapsed doesn't re-hide collapsible on mobile when drawer is open */
+  .sidebar.show.sidebar--collapsed .sidebar-collapsible {
+    max-height: 2000px;
+    opacity: 1;
+    margin-top: 16px;
+    pointer-events: auto;
+  }
+
+  /* Hide desktop sidebar collapse button on mobile — use hamburger instead */
+  .sidebar-collapse-btn { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT — 768px (large phones / small tablets)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 767.98px) {
+
+  /* ── Main inner padding ── */
+  .main-inner { padding: 12px 12px; }
+
+  /* ── Topbar ── */
+  .topbar {
+    height: auto;
+    min-height: 52px;
+    padding: 8px 12px;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .topbar-title-block { gap: 5px; }
+  .topbar-app-name    { font-size: 13px; }
+  .topbar-audit-date  { font-size: 10px; }
+
+  /* Hide day/night label text on very small screens — keep icon only */
+  .theme-ctrl-text { display: none; }
+  .theme-btn       { padding: 5px 7px; gap: 5px; }
+
+  /* Profile: hide name on small screens */
+  .topbar-profile-name { display: none; }
+
+  /* ── Dashboard hero ── */
+  .hero-body {
+    padding: 12px 14px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .hero-title    { font-size: 18px; letter-spacing: 1.5px; }
+  .hero-gate-glyph { width: 26px; height: 20px; }
+  .hero-stats    { width: 100%; }
+  .hero-stat     { flex: 1; min-width: 0; padding: 8px 8px; }
+  .hero-stat-val { font-size: 20px; }
+  .hero-stat-lbl { font-size: 8px; }
+  .hero-gantry-strip {
+    padding: 6px 12px;
+    font-size: 9px;
+    gap: 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  /* ── Stat cards ── */
+  .stat-cards { grid-template-columns: repeat(2,1fr); }
+  .stat-card-value { font-size: 26px; }
+  .stat-card       { padding: 14px 10px; }
+
+  /* ── Vehicle section ── */
+  .veh-section { padding: 12px 10px 14px; }
+  .veh-section-head { font-size: 9px; gap: 7px; margin-bottom: 10px; }
+
+  /* Vehicle grid: 3 cols on mobile */
+  .veh-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .vehicle-btn { min-height: 72px; padding: 8px 4px; font-size: 10px; gap: 5px; }
+  .veh-icon { font-size: 20px; }
+
+  /* Status grid: 3 cols */
+  .status-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  /* ── Verify Pass ── */
+  .vp-bar { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px; }
+  .vp-bar-left { display: none; }
+  .vp-search-wrap { min-width: 0; }
+  .vp-input { font-size: 12px; padding: 9px 10px; }
+  .vp-search-btn { padding: 9px 14px; font-size: 12px; }
+  .vp-bulk-open-btn { font-size: 10px; padding: 3px 8px; }
+
+  /* ── Pending audit banner ── */
+  .pending-audit-banner { flex-direction: column; gap: 8px; padding: 10px 12px; }
+  .pending-audit-actions { width: 100%; justify-content: flex-start; }
+
+  /* ── Report Setup card ── */
+  .card-header { padding: 10px 12px; font-size: 12px; }
+
+  /* ── Counts + history grid — already stacked at 980px ── */
+  .th-feed { max-height: 320px; }
+
+  /* ── Auth/Welcome card ── */
+  .auth-card     { max-width: 100%; }
+  .welcome-card  { max-width: 100%; }
+  .gate-screen   { padding: 12px; align-items: flex-start; padding-top: clamp(14px, 6vw, 40px); }
+  .auth-card-body,
+  .welcome-card-body { padding: 20px 18px 18px; }
+  .brand-row { margin-bottom: 18px; }
+  .wordmark  { font-size: 22px; letter-spacing: 2px; }
+
+  /* ── Modals ── */
+  .modal-dialog { margin: 8px; }
+  .modal-dialog.modal-lg { margin: 8px; max-width: calc(100vw - 16px); }
+
+  /* ── Toast ── */
+  #toastContainer {
+    bottom: 12px;
+    right: 8px;
+    left: 8px;
+    align-items: stretch;
+  }
+  .ta-toast { min-width: 0; max-width: 100%; }
+
+  /* ── Lock box ── */
+  .lock-box { padding: 24px 16px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT — 480px (small phones)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 479.98px) {
+
+  /* Hero stats: 2×2 grid */
+  .hero-stats { display: grid; grid-template-columns: 1fr 1fr; }
+  .hero-stat  { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .hero-stat:nth-child(2n) { border-right: none; }
+  .hero-stat:nth-child(n+3) { border-bottom: none; }
+
+  /* Stat cards: 2 cols keep */
+  .stat-card-value { font-size: 22px; }
+
+  /* Vehicle grid: 3 cols still fine; on very narrow do 2 */
+  .veh-grid        { grid-template-columns: repeat(2, 1fr); }
+  .vehicle-btn     { min-height: 66px; font-size: 9px; }
+
+  /* Main inner */
+  .main-inner { padding: 8px 8px; }
+
+  /* Topbar brand: hide icon square on tiny screens */
+  .topbar-brand-icon { display: none; }
+
+  /* Auth card padding tighter */
+  .auth-card-body,
+  .welcome-card-body { padding: 16px 14px 14px; }
+  .wordmark  { font-size: 20px; }
+  .pin-key   { height: 44px; font-size: 16px; }
+
+  /* Progress text */
+  .progress-bar { font-size: 10px; }
+
+  /* Pending banner buttons: stack */
+  .pending-audit-actions { flex-direction: column; }
+  .pending-audit-actions .btn { width: 100%; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT — 360px (very small phones)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 359.98px) {
+  .topbar-app-name { display: none; }
+  .topbar-separator { display: none; }
+  .veh-grid { grid-template-columns: repeat(2, 1fr); }
+  .main-inner { padding: 6px; }
+  .veh-section { padding: 8px 6px 10px; }
+  .hero-stat-val { font-size: 18px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   WEB / DESKTOP LAYOUT POLISH
+   (screens ≥ 992px keep sidebar fixed in normal flow)
+══════════════════════════════════════════════════════════ */
+@media (min-width: 992px) {
+  .topbar-hamburger { display: none !important; }
+  .sidebar-backdrop { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+
+  /* Sidebar in normal flow, not fixed */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .col-lg-2.sidebar {
+    width: 16.6667%;
+    flex: 0 0 auto;
+  }
+  .col-lg-10 {
+    flex: 0 0 auto;
+    width: 83.3333%;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SAFE AREA — iPhone notch / home bar support
+══════════════════════════════════════════════════════════ */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #toastContainer {
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .gate-screen {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   I-CODE — Auth login box + Profile section styles
+══════════════════════════════════════════════════════════ */
+
+/* I-CODE auth tab — teal/violet accent */
+#tabICodeBtn { display: none; }   /* hidden until an I-CODE is stored */
+#tabICodeBtn.active { border-bottom-color: var(--violet) !important; color: var(--violet) !important; }
+
+/* I-CODE login header block */
+.icode-login-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  background: var(--violet-soft);
+  border: 1px solid rgba(124,92,216,.3);
+  border-left: 3px solid var(--violet);
+}
+.icode-login-badge {
+  width: 38px; height: 38px; flex-shrink: 0;
+  background: var(--violet); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.icode-login-title {
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  color: var(--ink); text-transform: uppercase; letter-spacing: 1px;
+}
+.icode-login-sub {
+  font-size: 11px; color: var(--ink-dim); margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+/* Profile section: "NEW" badge next to section label */
+.icode-profile-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: .1em;
+  background: var(--violet); color: #fff;
+  padding: 1px 6px; border-radius: 0;
+  font-family: var(--font-mono); text-transform: uppercase;
+  margin-left: 6px; vertical-align: middle;
+}
+
+/* Warning/info notice in profile section */
+.icode-notice {
+  font-size: 12px; font-weight: 500; color: var(--ink-dim);
+  background: var(--yellow-soft); border: 1px solid rgba(217,164,0,.3);
+  border-left: 3px solid var(--yellow);
+  padding: 8px 10px; margin-bottom: 12px;
+  font-family: var(--font-base);
+}
+
+/* "I-CODE is active" green chip */
+.icode-active-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--green-soft); color: var(--green);
+  border: 1px solid rgba(60,143,92,.35);
+  padding: 7px 14px; font-size: 12px; font-weight: 700;
+  font-family: var(--font-display); text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.icode-active-chip i { font-size: 14px; }
