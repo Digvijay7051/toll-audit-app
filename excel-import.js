@@ -168,20 +168,52 @@ function parseAuditExcel(file) {
 /* ─────────────────────────────────────────────────────────
    EXTRACT VIOLATION + EXEMPTION MATRICES
 ───────────────────────────────────────────────────────── */
-/* Helper: a parsed result is "valid" if:
-   (a) col-header row was found (colHeaderFound=true) — structure detected, OR
-   (b) at least one reportCount > 0, OR
-   (c) at least one vehicleRow with a non-zero count.
-
-   Using colHeaderFound means a Violation block where SheetJS reads
-   all numeric cells as empty (merged-cell / format edge-case) is still
-   recognised as a real block rather than silently discarded. */
 function _isValidParse(m) {
   if (!m) return false;
   if (m.colHeaderFound) return true;
   const hasRC = Object.values(m.reportCounts || {}).some(v => v > 0);
   const hasVR = (m.vehicleRows || []).some(r => Object.values(r.counts || {}).some(v => v > 0));
   return hasRC || hasVR;
+}
+
+/* ─────────────────────────────────────────────────────────
+   DIAGNOSTIC — shows raw parsed data in browser console
+   AND as a collapsible panel in the review modal.
+   Enabled by appending ?xldiag=1 to the page URL, OR by
+   setting window.XL_DEBUG = true in DevTools console.
+───────────────────────────────────────────────────────── */
+function _buildDiagHtml(violation, exemption, rawRows) {
+  const urlDiag = typeof location !== "undefined" && location.search.includes("xldiag=1");
+  if (!urlDiag && !window.XL_DEBUG) return "";
+
+  function modeSection(label, matrix) {
+    if (!matrix) return `<b>${label}:</b> null<br>`;
+    const rows = (matrix.vehicleRows || []).map(r =>
+      `  ${r.vehicle}: ${JSON.stringify(r.counts)}`).join("<br>");
+    const rc = JSON.stringify(matrix.reportCounts || {});
+    return `<b>${label} reportCounts:</b> ${rc}<br>
+            <b>${label} vehicleRows (${matrix.vehicleRows?.length}):</b><br>${rows}<br>`;
+  }
+
+  const sheetDump = rawRows ? Object.entries(rawRows).map(([name, rows]) =>
+    `<b>Sheet "${name}" (${rows.length} rows):</b><br>` +
+    rows.slice(0, 60).map((r, i) =>
+      `[${i}] ${r.map(c => String(c).slice(0,20)).join(" | ")}`
+    ).join("<br>")
+  ).join("<hr>") : "(no raw rows)";
+
+  return `<details style="margin:10px 0;border:1px solid #f59e0b;border-radius:4px;background:#1a1200;padding:8px 12px;">
+    <summary style="cursor:pointer;color:#f59e0b;font-family:monospace;font-size:11px;font-weight:700;">
+      🔍 DIAGNOSTIC — Raw Parse Output (xldiag mode)
+    </summary>
+    <div style="font-family:monospace;font-size:11px;line-height:1.7;color:#e5e7eb;margin-top:8px;">
+      ${modeSection("Violation", violation)}
+      <hr style="border-color:#333">
+      ${modeSection("Exemption", exemption)}
+      <hr style="border-color:#333">
+      ${sheetDump}
+    </div>
+  </details>`;
 }
 
 function _extractBothModes(wb) {
@@ -517,6 +549,7 @@ function buildImportReviewHtml(violation, exemption) {
     : 0;
 
   return `
+    ${_buildDiagHtml(violation, exemption, window._xlLastRawRows)}
     <ul class="xl-tab-nav" id="xlTabNav">
       <li class="xl-tab-item">
         <button class="xl-tab-btn xl-tab-active" data-tab="Violation">
