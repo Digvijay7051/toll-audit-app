@@ -1,6 +1,6 @@
 /* ==========================================================
    Toll Audit Assistant
-   excel-import.js  v6
+   excel-import.js  v7
 
    Excel / PDF Report Upload → Auto-Audit → Review/Edit → Inject
    ──────────────────────────────────────────────────────────
@@ -15,12 +15,15 @@
      Row: "Exemption"                         ← next mode heading
      … (same structure)
 
-   v6 changes:
-     - Fixed: Strategy 3 now correctly handles Exemption-before-Violation order
-     - Fixed: _splitByHeadings caps each block properly regardless of heading order
-     - Fixed: Strategy 3 guard uses combined AND check — never overwrites a valid parse
-     - Added: PDF import via pdf.js text extraction → same review/edit UI
-     - File input now accepts .xlsx, .xls, .pdf
+   v7 fixes:
+     - _isValidParse: now uses colHeaderFound flag — accepts a
+       structurally-correct block even if all counts are 0 (fixes
+       Violation-not-loading when SheetJS misreads merged-cell numbers)
+     - _parseMatrix: returns colHeaderFound:true when col-header row
+       was successfully located
+     - _splitByHeadings: bidirectional cap (v6 fix retained)
+     - Strategy 3: combined AND guard (v6 fix retained)
+     - PDF import (v6 feature retained)
 ========================================================== */
 
 /* ─────────────────────────────────────────────────────────
@@ -147,6 +150,11 @@ function parseAuditExcel(file) {
           cellFormula: false,
           cellDates: false
         });
+        /* Store raw rows for diagnostics (XL_DEBUG mode) */
+        window._xlLastRawRows = {};
+        wb.SheetNames.forEach(n => {
+          window._xlLastRawRows[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+        });
         resolve(_extractBothModes(wb));
       } catch (err) {
         resolve({ ok: false, error: "Excel parse error: " + err.message });
@@ -160,10 +168,17 @@ function parseAuditExcel(file) {
 /* ─────────────────────────────────────────────────────────
    EXTRACT VIOLATION + EXEMPTION MATRICES
 ───────────────────────────────────────────────────────── */
-/* Helper: a parsed result is "valid" only if it has at least
-   one reportCount > 0 OR at least one vehicleRow with counts. */
+/* Helper: a parsed result is "valid" if:
+   (a) col-header row was found (colHeaderFound=true) — structure detected, OR
+   (b) at least one reportCount > 0, OR
+   (c) at least one vehicleRow with a non-zero count.
+
+   Using colHeaderFound means a Violation block where SheetJS reads
+   all numeric cells as empty (merged-cell / format edge-case) is still
+   recognised as a real block rather than silently discarded. */
 function _isValidParse(m) {
   if (!m) return false;
+  if (m.colHeaderFound) return true;
   const hasRC = Object.values(m.reportCounts || {}).some(v => v > 0);
   const hasVR = (m.vehicleRows || []).some(r => Object.values(r.counts || {}).some(v => v > 0));
   return hasRC || hasVR;
@@ -196,13 +211,10 @@ function _extractBothModes(wb) {
   }
 
   /* ── Strategy 3 (MAIN): one sheet has BOTH modes stacked ──
-     Only run if at least one mode is still missing — never overwrites
-     a mode that was already successfully found in strategies 1/2.
-     This prevents a combined-sheet from silently replacing a correctly
-     named-sheet parse. */
+     Only runs when at least one mode is still missing.
+     Never overwrites a mode already found by strategies 1/2. */
   if (!_isValidParse(violation) || !_isValidParse(exemption)) {
     wb.SheetNames.forEach(name => {
-      /* Skip this sheet entirely if both modes are already valid */
       if (_isValidParse(violation) && _isValidParse(exemption)) return;
 
       const rows = toRows(wb.Sheets[name]);
@@ -236,7 +248,6 @@ function _extractBothModes(wb) {
     };
   }
 
-  /* Return whatever we have — even if one mode is missing */
   return { ok: true, violation: violation || null, exemption: exemption || null };
 }
 
@@ -250,11 +261,9 @@ function _splitByHeadings(rows) {
   let vStart = -1, eStart = -1;
 
   rows.forEach((row, i) => {
-    /* First non-empty cell in this row */
     const first = row.map(c => _normalizeKey(String(c))).find(c => c !== "");
     if (!first) return;
 
-    /* Must match exactly (or start with) the mode word and be short */
     const isV = first === "violation" ||
                 (first.startsWith("violation") && first.length < 25);
     const isE = first === "exemption" ||
@@ -267,17 +276,15 @@ function _splitByHeadings(rows) {
   _dbg("splitByHeadings → vStart:", vStart, "eStart:", eStart);
 
   /* Cap each block so it doesn't bleed into the other mode's section.
-     This handles both orderings: V-then-E and E-then-V. */
+     Handles both orderings: V-then-E and E-then-V. */
   let vBlock = [], eBlock = [];
 
   if (vStart >= 0) {
-    /* vBlock ends where eStart begins (if eStart comes after vStart) */
     const vEnd = (eStart >= 0 && eStart > vStart) ? eStart : undefined;
     vBlock = rows.slice(vStart, vEnd);
   }
 
   if (eStart >= 0) {
-    /* eBlock ends where vStart begins (if vStart comes after eStart) */
     const eEnd = (vStart >= 0 && vStart > eStart) ? vStart : undefined;
     eBlock = rows.slice(eStart, eEnd);
   }
@@ -291,6 +298,8 @@ function _splitByHeadings(rows) {
    1. Find col-header row (≥2 XL_COL_MAP matches)
    2. Find report-counts row (row right after col-headers)
    3. Collect data rows until "Total"
+   Returns colHeaderFound:true when the structure is detected,
+   so _isValidParse accepts it even if all counts are 0.
 ───────────────────────────────────────────────────────── */
 function _parseMatrix(rows, lbl) {
   if (!rows || rows.length < 3) return null;
@@ -328,13 +337,9 @@ function _parseMatrix(rows, lbl) {
     const row  = rows[ri];
     const fc   = _normalizeKey(String(row[0] ?? ""));
 
-    /* skip completely blank rows */
     if (row.every(c => String(c).trim() === "")) continue;
-
-    /* stop if we hit a known vehicle label */
     if (fc !== "" && XL_ROW_MAP[fc] !== undefined) break;
 
-    /* check if ANY category column has a numeric value (including 0) */
     const hasNumericVal = validCols.some(ci => {
       const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
       return raw !== "" && !isNaN(Number(raw));
@@ -348,7 +353,6 @@ function _parseMatrix(rows, lbl) {
       validCols.forEach(ci => {
         const raw = String(row[ci] ?? "").replace(/,/g, "").trim();
         const val = Number(raw);
-        /* store even zeros — they are valid report counts */
         if (raw !== "" && !isNaN(val)) reportCounts[colIdxToCat[ci]] = val;
       });
       _dbg(`[${lbl}] reportCounts`, reportCounts);
@@ -384,7 +388,8 @@ function _parseMatrix(rows, lbl) {
   }
 
   _dbg(`[${lbl}] done — rc:`, reportCounts, "rows:", vehicleRows.length);
-  return { reportCounts, vehicleRows };
+  /* colHeaderFound:true tells _isValidParse this block has a valid structure */
+  return { colHeaderFound: true, reportCounts, vehicleRows };
 }
 
 /* ─────────────────────────────────────────────────────────
