@@ -459,3 +459,101 @@ body.light-theme .xl-source-badge {
   background: rgba(220, 38, 38, .08);
   border-color: rgba(220, 38, 38, .25);
 }
+
+/* ── Two-panel layout (Violation + Exemption side by side) ── */
+.xl-two-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 768px) {
+  .xl-two-panel { grid-template-columns: 1fr; }
+}
+
+.xl-mode-panel {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.xl-mode-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.xl-mode-header-violation { border-top: 2px solid var(--red); }
+.xl-mode-header-exemption  { border-top: 2px solid var(--green); }
+
+.xl-mode-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.xl-mode-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.xl-status-ok    { color: var(--green) !important; }
+.xl-status-error { color: var(--red)   !important; }
+
+.xl-mode-upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter .12s;
+  flex-shrink: 0;
+}
+.xl-mode-upload-btn:hover { filter: brightness(1.12); }
+
+.xl-mode-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 480px;
+  padding: 0;
+}
+
+.xl-mode-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  gap: 6px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+.xl-mode-empty i { font-size: 28px; margin-bottom: 4px; }
+.xl-mode-empty-sub {
+  font-size: 10px;
+  color: var(--ink-faint);
+  opacity: .7;
+}
+

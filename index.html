@@ -418,9 +418,8 @@
                     <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
                 </button>
                 <button class="sb-btn sb-import" id="xlImportBtn" type="button">
-                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel / PDF Audit
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Audit Report
                 </button>
-                <input type="file" id="xlImportFileInput" accept=".xlsx,.xls,.pdf" style="display:none;">
             </div>
         </div>
 
@@ -1710,7 +1709,7 @@
           <div class="xl-import-icon"><i class="bi bi-file-earmark-arrow-up-fill"></i></div>
           <div>
             <h5 class="modal-title" id="xlImportModalLabel">Import Audit Report</h5>
-            <div class="xl-import-subtitle">Excel (.xlsx) or PDF — Review and edit before saving</div>
+            <div class="xl-import-subtitle">Upload Violation &amp; Exemption files separately — Excel or PDF</div>
           </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1720,7 +1719,7 @@
       <div class="modal-body xl-import-body" id="xlImportReviewBody">
         <div class="xl-import-empty">
           <i class="bi bi-cloud-arrow-up"></i>
-          <p>Upload Excel (.xlsx / .xls) or PDF file to begin</p>
+          <p>Click "Import Audit Report" to begin</p>
         </div>
       </div>
 
@@ -1729,13 +1728,13 @@
         <span class="xl-import-status" id="xlImportStatus"></span>
         <div class="xl-import-footer-note">
           <i class="bi bi-pencil-square"></i>
-          You can edit any cell above before confirming.
+          Dono ya ek mode upload karke Confirm karo.
         </div>
         <div class="xl-import-footer-actions">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             <i class="bi bi-x-circle"></i> Cancel
           </button>
-          <button type="button" class="btn xl-import-confirm-btn" id="xlImportConfirmBtn">
+          <button type="button" class="btn xl-import-confirm-btn" id="xlImportConfirmBtn" disabled>
             <i class="bi bi-check-circle-fill"></i> Confirm &amp; Load Audit
           </button>
         </div>
@@ -2060,7 +2059,7 @@
 <script src="motion.js?v=4"></script>
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
-<script src="excel-import.js?v=9"></script>
+<script src="excel-import.js?v=10"></script>
 <script src="agent.js?v=4"></script>
 <script src="assistant.js?v=2"></script>
 
