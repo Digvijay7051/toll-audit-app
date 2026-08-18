@@ -1640,8 +1640,8 @@ function _icodeKey(uid) {
 function saveICode(uid, code) {
     const hashed = _hashPin(code);   /* reuse same djb2 hash as PINs */
     localStorage.setItem(_icodeKey(uid), hashed);
-    /* Sync to Firestore so it works on every device */
-    if (typeof fbSaveICode === "function") {
+    /* Sync to Firestore only for Firebase users (uid doesn't start with "user_") */
+    if (!uid.startsWith("user_") && typeof fbSaveICode === "function") {
         fbSaveICode(hashed);
     }
 }
@@ -1658,7 +1658,8 @@ function hasICode(uid) {
 
 function clearICode(uid) {
     localStorage.removeItem(_icodeKey(uid));
-    if (typeof fbSaveICode === "function") {
+    /* Only clear Firestore for Firebase users */
+    if (!uid.startsWith("user_") && typeof fbSaveICode === "function") {
         fbSaveICode("");
     }
 }

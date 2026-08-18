@@ -1037,22 +1037,28 @@ async function _attemptICodeLogin() {
         return;
     }
 
-    /* ── Correct code ── re-sign-in via Firebase silently ──
-       Firebase keeps the session token alive on the device.
-       We just need to confirm the UID is still valid. */
-    if (typeof fbAuthReady !== "undefined") await fbAuthReady;
+    /* ── Correct code ─────────────────────────────────────────
+       Two cases:
+       A) Firebase user  (uid does NOT start with "user_")
+          — confirm Firebase session still active before proceeding
+       B) Local user  (uid starts with "user_")
+          — no Firebase session needed; just restore localStorage session
+    ────────────────────────────────────────────────────────── */
+    const isLocalUser = entry.uid.startsWith("user_");
 
-    const fbUser = (typeof fbAuth !== "undefined" && fbAuth) ? fbAuth.currentUser : null;
-
-    /* Check: the signed-in Firebase UID must match the stored I-CODE UID */
-    if (!fbUser || fbUser.uid !== entry.uid) {
-        if (errEl) {
-            errEl.textContent = "Session expired. Please sign in with Google or email first, then use I-CODE.";
-            errEl.style.display = "block";
+    if (!isLocalUser) {
+        /* Firebase user — verify the session is still alive */
+        if (typeof fbAuthReady !== "undefined") await fbAuthReady;
+        const fbUser = (typeof fbAuth !== "undefined" && fbAuth) ? fbAuth.currentUser : null;
+        if (!fbUser || fbUser.uid !== entry.uid) {
+            if (errEl) {
+                errEl.textContent = "Firebase session expired. Please sign in with Google or email first.";
+                errEl.style.display = "block";
+            }
+            _resetICodeDots(true);
+            setTimeout(() => _resetICodeDots(), 1200);
+            return;
         }
-        _resetICodeDots(true);
-        setTimeout(() => _resetICodeDots(), 1200);
-        return;
     }
 
     /* All good — restore session and proceed */
@@ -1346,23 +1352,33 @@ function setupProfileICode() {
 
 }
 
-/* _getLoggedInUid — checks both fbAuth.currentUser AND the globally
-   tracked fbCurrentUid (set by onAuthStateChanged) so we never miss
-   a valid session regardless of timing. */
+/* _getLoggedInUid — returns a stable ID for the current user.
+   Priority:
+     1. Firebase auth UID (Google / email login) — cloud-syncable
+     2. fbCurrentUid global (set by onAuthStateChanged, avoids timing issues)
+     3. Username from localStorage session (local accounts) — prefixed "user_"
+   This allows I-CODE to work for ALL account types, not just Firebase users. */
 function _getLoggedInUid() {
     if (typeof fbAuth !== "undefined" && fbAuth && fbAuth.currentUser) {
         return fbAuth.currentUser.uid;
     }
-    /* Fallback to the UID tracked by onAuthStateChanged in firebase.js */
     if (typeof fbCurrentUid !== "undefined" && fbCurrentUid) {
         return fbCurrentUid;
+    }
+    /* Local-only session — use username as a stable device-local key */
+    if (typeof getSession === "function") {
+        const s = getSession();
+        if (s && s.username) return "user_" + s.username;
+    }
+    if (typeof currentUsername !== "undefined" && currentUsername) {
+        return "user_" + currentUsername;
     }
     return null;
 }
 
-/* _refreshICodeSection — purely synchronous, reads the UID that
-   onAuthStateChanged has already stored in fbCurrentUid.
-   Never call await inside — the caller chooses when to invoke it. */
+/* _refreshICodeSection — purely synchronous.
+   Shows the setup/manage numpad for ANY logged-in user
+   (Firebase or local). Never call await inside. */
 function _refreshICodeSection() {
 
     const uid        = _getLoggedInUid();
@@ -1372,8 +1388,9 @@ function _refreshICodeSection() {
     const errEl      = document.getElementById("icodeProfileError");
 
     if (!uid) {
+        /* Nobody is logged in — shouldn't normally reach here */
         if (noticeEl) {
-            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Please sign in with Google or email first.";
+            noticeEl.textContent = "⚠️ Please log in first to set up an I-CODE.";
             noticeEl.style.display = "";
         }
         if (setupArea)  setupArea.style.display  = "none";
