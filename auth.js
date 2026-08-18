@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let displayName = session.username;
 
         /* Wait for Firebase auth state to settle, then get fresh displayName
-           and pull ALL cloud data (audit + lock PIN + quick PIN) */
+           and pull ALL cloud data (audit + lock PIN + quick PIN + I-CODE) */
         if (typeof fbAuthReady !== "undefined") {
 
             const fbUser = await fbAuthReady;
@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         showAuthScreen();
 
     }
+
+    /* Refresh the I-CODE profile section now that auth state is known —
+       this makes the section correct before the user opens the modal */
+    _refreshICodeSection();
 
 });
 
@@ -1346,7 +1350,14 @@ function _getLoggedInUid() {
     return null;
 }
 
-function _refreshICodeSection() {
+/* Async version — waits for Firebase auth to settle before checking UID.
+   This is the one called from modal open and DOMContentLoaded. */
+async function _refreshICodeSection() {
+
+    /* Wait for Firebase auth state to be known (resolves in <200ms typically) */
+    if (typeof fbAuthReady !== "undefined") {
+        await fbAuthReady;
+    }
 
     const uid       = _getLoggedInUid();
     const noticeEl  = document.getElementById("icodeProfileNotice");
@@ -1354,10 +1365,10 @@ function _refreshICodeSection() {
     const manageArea= document.getElementById("icodeManageArea");
     const errEl     = document.getElementById("icodeProfileError");
 
-    /* If no Firebase user is signed in, show a notice and hide everything */
+    /* If no Firebase user is signed in, show a notice and hide numpad */
     if (!uid) {
         if (noticeEl) {
-            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Sign in with Google or email to enable it.";
+            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Sign in with Google or email first to enable it.";
             noticeEl.style.display = "";
         }
         if (setupArea)  setupArea.style.display  = "none";
