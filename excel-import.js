@@ -619,17 +619,10 @@ function collectEditedMatrices() {
       }
     });
 
-    /* Already-paid selects → add to corresponding paid vehicle */
-    document.querySelectorAll(`.xl-paid-mode-select[data-mode="${modeName}"]`).forEach(sel => {
-      const payVehicle = sel.value;
-      if (!payVehicle) return;
-      const cat   = sel.dataset.cat;
-      const count = parseInt(sel.dataset.count, 10) || 0;
-      if (count > 0) {
-        if (!vehicleMap[payVehicle]) vehicleMap[payVehicle] = {};
-        vehicleMap[payVehicle][cat] = (vehicleMap[payVehicle][cat] || 0) + count;
-      }
-    });
+    /* NOTE: Already-paid counts are already captured above via the
+       xl-cell-input elements in the virtual rows injected by
+       _applyPaidToTable(). Adding them again from the selects here
+       was the cause of the double-count bug — so this loop is removed. */
 
     result[modeName.toLowerCase()] = {
       reportCounts,
