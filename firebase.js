@@ -74,13 +74,20 @@ function initFirebase() {
 
         console.log("[Firebase] Initialized ✓");
 
-        /* Track signed-in user — resolve the authReady promise on first fire */
+        /* Track signed-in user — resolve the authReady promise on first fire.
+           Also refresh the I-CODE profile section so it always shows correctly
+           regardless of auth timing (cold start vs warm reload). */
         let _firstAuthFire = true;
         fbAuth.onAuthStateChanged((user) => {
             fbCurrentUid = user ? user.uid : null;
             if (_firstAuthFire) {
                 _firstAuthFire = false;
                 _authReadyResolve(user);
+            }
+            /* Notify auth.js — safe to call even before DOMContentLoaded
+               because _refreshICodeSection guards against missing elements */
+            if (typeof _refreshICodeSection === "function") {
+                _refreshICodeSection();
             }
         });
 

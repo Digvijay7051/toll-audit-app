@@ -1301,10 +1301,13 @@ function setupProfileQuickPin() {
 
 function setupProfileICode() {
 
-    /* Refresh state whenever the profile modal opens */
+    /* Refresh state whenever the profile modal opens.
+       Small delay lets any in-flight Firebase auth settle first. */
     const avatarModal = document.getElementById("avatarModal");
     if (avatarModal) {
-        avatarModal.addEventListener("show.bs.modal", _refreshICodeSection);
+        avatarModal.addEventListener("show.bs.modal", () => {
+            setTimeout(_refreshICodeSection, 60);
+        });
     }
 
     /* Wire numpad */
@@ -1343,32 +1346,34 @@ function setupProfileICode() {
 
 }
 
+/* _getLoggedInUid — checks both fbAuth.currentUser AND the globally
+   tracked fbCurrentUid (set by onAuthStateChanged) so we never miss
+   a valid session regardless of timing. */
 function _getLoggedInUid() {
     if (typeof fbAuth !== "undefined" && fbAuth && fbAuth.currentUser) {
         return fbAuth.currentUser.uid;
     }
+    /* Fallback to the UID tracked by onAuthStateChanged in firebase.js */
+    if (typeof fbCurrentUid !== "undefined" && fbCurrentUid) {
+        return fbCurrentUid;
+    }
     return null;
 }
 
-/* Async version — waits for Firebase auth to settle before checking UID.
-   This is the one called from modal open and DOMContentLoaded. */
-async function _refreshICodeSection() {
+/* _refreshICodeSection — purely synchronous, reads the UID that
+   onAuthStateChanged has already stored in fbCurrentUid.
+   Never call await inside — the caller chooses when to invoke it. */
+function _refreshICodeSection() {
 
-    /* Wait for Firebase auth state to be known (resolves in <200ms typically) */
-    if (typeof fbAuthReady !== "undefined") {
-        await fbAuthReady;
-    }
+    const uid        = _getLoggedInUid();
+    const noticeEl   = document.getElementById("icodeProfileNotice");
+    const setupArea  = document.getElementById("icodeSetupArea");
+    const manageArea = document.getElementById("icodeManageArea");
+    const errEl      = document.getElementById("icodeProfileError");
 
-    const uid       = _getLoggedInUid();
-    const noticeEl  = document.getElementById("icodeProfileNotice");
-    const setupArea = document.getElementById("icodeSetupArea");
-    const manageArea= document.getElementById("icodeManageArea");
-    const errEl     = document.getElementById("icodeProfileError");
-
-    /* If no Firebase user is signed in, show a notice and hide numpad */
     if (!uid) {
         if (noticeEl) {
-            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Sign in with Google or email first to enable it.";
+            noticeEl.textContent = "⚠️ I-CODE is only available for Google / Firebase accounts. Please sign in with Google or email first.";
             noticeEl.style.display = "";
         }
         if (setupArea)  setupArea.style.display  = "none";

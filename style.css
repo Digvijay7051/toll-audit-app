@@ -1083,18 +1083,19 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
    VEHICLE TILES — flat bordered
 ══════════════════════════════════════ */
 .veh-grid {
-  display: grid; grid-template-columns: repeat(8,1fr); gap: 8px;
+  display: grid;
+  /* Default: auto-fill — fills the row with as many tiles as fit */
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
 }
-@media (max-width:1400px) { .veh-grid { grid-template-columns: repeat(7,1fr); } }
-@media (max-width:1200px) { .veh-grid { grid-template-columns: repeat(6,1fr); } }
-@media (max-width:992px)  { .veh-grid { grid-template-columns: repeat(5,1fr); } }
-@media (max-width:768px)  { .veh-grid { grid-template-columns: repeat(4,1fr); } }
-@media (max-width:540px)  { .veh-grid { grid-template-columns: repeat(3,1fr); } }
+/* Desktop: allow bigger tiles */
+@media (min-width: 1400px) { .veh-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); } }
 
 .status-grid {
-  display: grid; grid-template-columns: repeat(5,1fr); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px;
 }
-@media (max-width:600px) { .status-grid { grid-template-columns: repeat(3,1fr); } }
+/* Ensure at least 3 cols on all phones — overridden by breakpoint rules below */
+@media (max-width: 600px) { .status-grid { grid-template-columns: repeat(3, 1fr); } }
 
 .vehicle-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1997,16 +1998,18 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
   display: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--ink);
   border-radius: 0;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
   flex-shrink: 0;
   transition: border-color .15s, color .15s;
+  /* min touch target */
+  touch-action: manipulation;
 }
 .topbar-hamburger:hover { border-color: var(--yellow); color: var(--yellow); }
 
@@ -2015,8 +2018,9 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
   position: fixed;
   inset: 0;
   z-index: 1099;
-  background: rgba(0,0,0,.55);
+  background: rgba(0,0,0,.6);
   backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   opacity: 0;
   visibility: hidden;
   transition: opacity .25s ease, visibility .25s ease;
@@ -2029,7 +2033,37 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
 }
 
 /* ══════════════════════════════════════════════════════════
-   RESPONSIVE LAYOUT — 992px (tablet/desktop breakpoint)
+   DESKTOP / LARGE TABLET (≥ 992px)
+   Sidebar in normal flow, sticky
+══════════════════════════════════════════════════════════ */
+@media (min-width: 992px) {
+  .topbar-hamburger { display: none !important; }
+  .sidebar-backdrop { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+
+  /* Sidebar in normal sticky flow */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    min-height: 100vh;
+  }
+  .col-lg-2.sidebar {
+    width: 16.6667%;
+    flex: 0 0 auto;
+  }
+  .col-lg-10 {
+    flex: 0 0 auto;
+    width: 83.3333%;
+  }
+
+  /* Vehicle grid: more columns on large screens */
+  .veh-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLET BREAKPOINT (≤ 991.98px)
+   Sidebar becomes a slide-in drawer
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 991.98px) {
 
@@ -2041,23 +2075,25 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
     position: fixed;
     top: 0;
     left: 0;
-    width: 270px;
-    max-width: 85vw;
-    height: 100vh;
+    width: 280px;
+    max-width: 88vw;
+    height: 100%;
+    height: 100dvh;
     z-index: 1100;
     transform: translateX(-100%);
     transition: transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s;
     box-shadow: none;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     border-right: 1px solid var(--line);
   }
   .sidebar.show {
     transform: translateX(0);
-    box-shadow: 6px 0 32px rgba(0,0,0,.55);
+    box-shadow: 8px 0 40px rgba(0,0,0,.65);
   }
 
   /* Main column: full width */
-  .col-lg-2.sidebar   { flex: 0 0 auto; width: 270px; }
+  .col-lg-2.sidebar   { flex: 0 0 auto; width: 280px; }
   .col-lg-10          { flex: 0 0 auto; width: 100% !important; max-width: 100% !important; }
 
   /* Ensure sidebar--collapsed doesn't re-hide collapsible on mobile when drawer is open */
@@ -2070,107 +2106,162 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
 
   /* Hide desktop sidebar collapse button on mobile — use hamburger instead */
   .sidebar-collapse-btn { display: none; }
+
+  /* Vehicle grid: auto-fill on tablet */
+  .veh-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 7px; }
+  .status-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; }
 }
 
 /* ══════════════════════════════════════════════════════════
-   RESPONSIVE LAYOUT — 768px (large phones / small tablets)
+   LARGE PHONE / SMALL TABLET (≤ 767.98px)
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 767.98px) {
 
+  /* ── Body: prevent horizontal overflow ── */
+  body { overflow-x: hidden; }
+
   /* ── Main inner padding ── */
-  .main-inner { padding: 12px 12px; }
+  .main-inner { padding: 10px; }
 
   /* ── Topbar ── */
   .topbar {
     height: auto;
     min-height: 52px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
+    margin-bottom: 12px;
   }
-  .topbar-title-block { gap: 5px; }
-  .topbar-app-name    { font-size: 13px; }
+  .topbar-left  { gap: 7px; }
+  .topbar-right { gap: 6px; }
+  .topbar-title-block { gap: 4px; }
+  .topbar-app-name    { font-size: 13px; letter-spacing: 1.5px; }
   .topbar-audit-date  { font-size: 10px; }
+  .topbar-separator   { display: none; }
 
-  /* Hide day/night label text on very small screens — keep icon only */
+  /* Hide day/night label text — keep icon+toggle only */
   .theme-ctrl-text { display: none; }
-  .theme-btn       { padding: 5px 7px; gap: 5px; }
+  .theme-btn       { padding: 5px 7px; gap: 4px; }
 
-  /* Profile: hide name on small screens */
+  /* Profile chip: hide name on small screens */
   .topbar-profile-name { display: none; }
+
+  /* ── Auth screen card ── */
+  .gate-screen {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: clamp(12px, 5vw, 36px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .card-flip-wrapper { max-width: 100%; }
+  .auth-card,
+  .welcome-card  { max-width: 100%; }
+  .auth-card-body,
+  .welcome-card-body { padding: 18px 16px 16px; }
+  .brand-row     { margin-bottom: 16px; }
+  .wordmark      { font-size: 22px; letter-spacing: 2px; }
+  .tagline       { font-size: 11px; }
+
+  /* ── Auth tabs ── */
+  .auth-tab-bar { margin-bottom: 16px; }
+  .auth-tab     { font-size: 11px; padding: 8px 6px; gap: 4px; }
+  .auth-tab i   { font-size: 12px; }
+
+  /* ── PIN numpad keys — bigger touch targets ── */
+  .pin-key { height: 50px; font-size: 18px; }
+  .pin-numpad { gap: 7px; }
 
   /* ── Dashboard hero ── */
   .hero-body {
-    padding: 12px 14px 10px;
+    padding: 12px 12px 10px;
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  .hero-title    { font-size: 18px; letter-spacing: 1.5px; }
-  .hero-gate-glyph { width: 26px; height: 20px; }
-  .hero-stats    { width: 100%; }
-  .hero-stat     { flex: 1; min-width: 0; padding: 8px 8px; }
+  .hero-left  { width: 100%; }
+  .hero-title { font-size: 17px; letter-spacing: 1.5px; }
+  .hero-gate-glyph { width: 24px; height: 18px; }
+  .hero-sub   { font-size: 9px; }
+  .hero-stats { width: 100%; }
+  .hero-stat  { flex: 1; min-width: 0; padding: 8px 6px; }
   .hero-stat-val { font-size: 20px; }
   .hero-stat-lbl { font-size: 8px; }
   .hero-gantry-strip {
-    padding: 6px 12px;
+    padding: 5px 10px;
     font-size: 9px;
     gap: 10px;
     flex-wrap: nowrap;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
+  /* hide the less important gantry items */
+  .gantry-lane { display: none; }
 
-  /* ── Stat cards ── */
-  .stat-cards { grid-template-columns: repeat(2,1fr); }
+  /* ── Stat cards — 2 cols ── */
+  .stat-cards  { grid-template-columns: repeat(2, 1fr); }
+  .stat-card   { padding: 14px 8px; }
   .stat-card-value { font-size: 26px; }
-  .stat-card       { padding: 14px 10px; }
+  .stat-card-label { font-size: 9px; }
+
+  /* ── Progress ── */
+  .progress      { height: 20px; }
+  .progress-bar  { font-size: 10px; }
+
+  /* ── Next category button ── */
+  #nextCategoryBtn { font-size: 11px; padding: 8px 14px; width: 100%; justify-content: center; }
 
   /* ── Vehicle section ── */
-  .veh-section { padding: 12px 10px 14px; }
-  .veh-section-head { font-size: 9px; gap: 7px; margin-bottom: 10px; }
+  .veh-section   { padding: 10px 8px 12px; }
+  .veh-section-head { font-size: 9px; gap: 6px; margin-bottom: 10px; }
 
-  /* Vehicle grid: 3 cols on mobile */
-  .veh-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .vehicle-btn { min-height: 72px; padding: 8px 4px; font-size: 10px; gap: 5px; }
-  .veh-icon { font-size: 20px; }
+  /* Vehicle grid: 3 cols */
+  .veh-grid    { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .vehicle-btn { min-height: 70px; padding: 8px 4px; font-size: 10px; gap: 5px; }
+  .veh-icon    { font-size: 20px; }
 
   /* Status grid: 3 cols */
   .status-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
 
   /* ── Verify Pass ── */
-  .vp-bar { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px; }
+  .vp-bar { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; }
   .vp-bar-left { display: none; }
-  .vp-search-wrap { min-width: 0; }
-  .vp-input { font-size: 12px; padding: 9px 10px; }
-  .vp-search-btn { padding: 9px 14px; font-size: 12px; }
+  .vp-search-wrap { min-width: 0; flex-wrap: wrap; }
+  .vp-input   { font-size: 12px; padding: 9px 10px; }
+  .vp-search-btn { padding: 9px 12px; font-size: 12px; }
   .vp-bulk-open-btn { font-size: 10px; padding: 3px 8px; }
 
   /* ── Pending audit banner ── */
-  .pending-audit-banner { flex-direction: column; gap: 8px; padding: 10px 12px; }
-  .pending-audit-actions { width: 100%; justify-content: flex-start; }
+  .pending-audit-banner  { flex-direction: column; gap: 8px; padding: 10px 12px; }
+  .pending-audit-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .pending-audit-actions .btn { flex: 1; min-width: 0; justify-content: center; }
 
   /* ── Report Setup card ── */
-  .card-header { padding: 10px 12px; font-size: 12px; }
+  .card-header  { padding: 10px 12px; font-size: 12px; }
+  .card-body    { padding: 12px; }
+  /* Report table — compact */
+  .card .table  { font-size: 12px; }
+  .card .table td, .card .table th { padding: 6px 8px; }
 
-  /* ── Counts + history grid — already stacked at 980px ── */
-  .th-feed { max-height: 320px; }
-
-  /* ── Auth/Welcome card ── */
-  .auth-card     { max-width: 100%; }
-  .welcome-card  { max-width: 100%; }
-  .gate-screen   { padding: 12px; align-items: flex-start; padding-top: clamp(14px, 6vw, 40px); }
-  .auth-card-body,
-  .welcome-card-body { padding: 20px 18px 18px; }
-  .brand-row { margin-bottom: 18px; }
-  .wordmark  { font-size: 22px; letter-spacing: 2px; }
+  /* ── Counts + history feed ── */
+  .th-feed          { max-height: 300px; }
+  .txn-card-body    { padding: 8px 10px; gap: 6px; }
+  .txn-vehicle      { font-size: 11px; }
+  .th-export-btns   { gap: 3px; }
+  .th-export-btn    { padding: 4px 8px; font-size: 10px; }
 
   /* ── Modals ── */
-  .modal-dialog { margin: 8px; }
-  .modal-dialog.modal-lg { margin: 8px; max-width: calc(100vw - 16px); }
+  .modal-dialog      { margin: 6px; }
+  .modal-dialog.modal-lg  { margin: 6px; max-width: calc(100vw - 12px); }
+  .modal-dialog.modal-xl  { margin: 6px; max-width: calc(100vw - 12px); }
+  .modal-content     { font-size: 13px; }
+  .modal-header      { padding: 12px 14px !important; }
+  .modal-body        { padding: 14px !important; }
+  .modal-footer      { padding: 10px 14px !important; }
 
-  /* ── Toast ── */
+  /* ── Toast — full-width at bottom ── */
   #toastContainer {
-    bottom: 12px;
+    bottom: 10px;
     right: 8px;
     left: 8px;
     align-items: stretch;
@@ -2178,101 +2269,158 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
   .ta-toast { min-width: 0; max-width: 100%; }
 
   /* ── Lock box ── */
-  .lock-box { padding: 24px 16px; }
+  .lock-box  { padding: 24px 14px; }
+  .lock-box h4 { font-size: 16px; }
 }
 
 /* ══════════════════════════════════════════════════════════
-   RESPONSIVE LAYOUT — 480px (small phones)
+   SMALL PHONE (≤ 479.98px)
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 479.98px) {
 
-  /* Hero stats: 2×2 grid */
+  /* ── Main ── */
+  .main-inner { padding: 8px; }
+
+  /* ── Topbar ── */
+  .topbar { padding: 6px 8px; gap: 5px; }
+  .topbar-brand-icon { display: none; }
+  .topbar-app-name   { font-size: 12px; letter-spacing: 1px; }
+  .topbar-audit-date { font-size: 10px; }
+
+  /* ── Auth card ── */
+  .gate-screen { padding: 8px; padding-top: clamp(10px, 4vw, 28px); }
+  .auth-card-body,
+  .welcome-card-body { padding: 14px 12px 12px; }
+  .wordmark  { font-size: 20px; letter-spacing: 2px; }
+  .tagline   { font-size: 10px; }
+  .logo-badge { width: 40px; height: 40px; }
+
+  /* ── Auth tabs ── */
+  .auth-tab { font-size: 10px; padding: 7px 4px; gap: 3px; }
+  .auth-tab i { display: none; } /* hide icons on very small screens, text only */
+
+  /* ── PIN numpad ── */
+  .pin-key   { height: 46px; font-size: 16px; }
+  .pin-numpad { gap: 5px; margin: 10px 0 4px; }
+
+  /* ── Hero stats: 2×2 grid ── */
   .hero-stats { display: grid; grid-template-columns: 1fr 1fr; }
   .hero-stat  { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .hero-stat:nth-child(2n) { border-right: none; }
   .hero-stat:nth-child(n+3) { border-bottom: none; }
 
-  /* Stat cards: 2 cols keep */
+  /* ── Stat cards: 2 cols ── */
+  .stat-cards      { grid-template-columns: repeat(2, 1fr); }
   .stat-card-value { font-size: 22px; }
+  .stat-card       { padding: 12px 6px; }
+  .stat-card-label { font-size: 8px; letter-spacing: .06em; }
 
-  /* Vehicle grid: 3 cols still fine; on very narrow do 2 */
-  .veh-grid        { grid-template-columns: repeat(2, 1fr); }
-  .vehicle-btn     { min-height: 66px; font-size: 9px; }
+  /* ── Vehicle grid: 3 cols ── */
+  .veh-grid    { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .vehicle-btn { min-height: 66px; font-size: 9px; gap: 4px; }
+  .veh-icon    { font-size: 18px; }
 
-  /* Main inner */
-  .main-inner { padding: 8px 8px; }
+  /* ── Status grid: 3 cols ── */
+  .status-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
 
-  /* Topbar brand: hide icon square on tiny screens */
-  .topbar-brand-icon { display: none; }
-
-  /* Auth card padding tighter */
-  .auth-card-body,
-  .welcome-card-body { padding: 16px 14px 14px; }
-  .wordmark  { font-size: 20px; }
-  .pin-key   { height: 44px; font-size: 16px; }
-
-  /* Progress text */
-  .progress-bar { font-size: 10px; }
-
-  /* Pending banner buttons: stack */
+  /* ── Pending actions: stack ── */
   .pending-audit-actions { flex-direction: column; }
   .pending-audit-actions .btn { width: 100%; }
+
+  /* ── Transaction history ── */
+  .txn-num     { font-size: 10px; padding: 1px 5px; }
+  .txn-vehicle { font-size: 11px; }
+  .txn-time    { font-size: 10px; }
 }
 
 /* ══════════════════════════════════════════════════════════
-   RESPONSIVE LAYOUT — 360px (very small phones)
+   VERY SMALL PHONE (≤ 359.98px)  — e.g. iPhone SE 1st gen
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 359.98px) {
-  .topbar-app-name { display: none; }
-  .topbar-separator { display: none; }
-  .veh-grid { grid-template-columns: repeat(2, 1fr); }
+
   .main-inner { padding: 6px; }
-  .veh-section { padding: 8px 6px 10px; }
-  .hero-stat-val { font-size: 18px; }
+
+  /* Topbar: minimal info */
+  .topbar { padding: 5px 6px; }
+  .topbar-app-name  { display: none; }
+  .topbar-separator { display: none; }
+  .topbar-audit-date { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Hero */
+  .hero-title    { font-size: 14px; letter-spacing: 1px; }
+  .hero-stat-val { font-size: 16px; }
+  .hero-stat-lbl { font-size: 7px; }
+  .hero-stat     { padding: 6px 4px; }
+
+  /* Stat cards */
+  .stat-card-value { font-size: 20px; }
+  .stat-card       { padding: 10px 6px; }
+
+  /* Vehicle tiles */
+  .veh-section  { padding: 7px 5px 9px; }
+  .veh-grid     { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+  .vehicle-btn  { min-height: 60px; font-size: 9px; gap: 4px; }
+  .veh-icon     { font-size: 16px; }
+  .status-grid  { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+
+  /* Auth card */
+  .auth-card-body,
+  .welcome-card-body { padding: 12px 10px 10px; }
+  .wordmark { font-size: 18px; letter-spacing: 1.5px; }
+  .logo-badge { width: 36px; height: 36px; }
+  .pin-key  { height: 42px; font-size: 14px; }
+  .pin-numpad { gap: 4px; }
 }
 
 /* ══════════════════════════════════════════════════════════
-   WEB / DESKTOP LAYOUT POLISH
-   (screens ≥ 992px keep sidebar fixed in normal flow)
+   SAFE AREA — iPhone notch / Dynamic Island / home bar
 ══════════════════════════════════════════════════════════ */
-@media (min-width: 992px) {
-  .topbar-hamburger { display: none !important; }
-  .sidebar-backdrop { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
-
-  /* Sidebar in normal flow, not fixed */
-  .sidebar {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-  }
-  .col-lg-2.sidebar {
-    width: 16.6667%;
-    flex: 0 0 auto;
-  }
-  .col-lg-10 {
-    flex: 0 0 auto;
-    width: 83.3333%;
-  }
-}
-
-/* ══════════════════════════════════════════════════════════
-   SAFE AREA — iPhone notch / home bar support
-══════════════════════════════════════════════════════════ */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
+@supports (padding: max(0px)) {
   #toastContainer {
     bottom: max(12px, env(safe-area-inset-bottom));
+    right: max(8px, env(safe-area-inset-right));
   }
   .gate-screen {
+    padding-left:  max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
+  .sidebar {
+    padding-top:  env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+  }
+  .topbar {
+    padding-top:   max(7px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOUCH / POINTER ENHANCEMENTS
+   Better tap targets, remove hover-only states on touch
+══════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+  /* Ensure all interactive elements have a minimum 44px touch target */
+  .vehicle-btn  { min-height: 64px; }
+  .pin-key      { min-height: 48px; }
+  .sb-btn       { min-height: 40px; }
+  .th-export-btn { padding: 8px 12px; }
+  .vp-search-btn { padding: 12px 18px; }
+  .vp-paste-btn  { width: 44px; height: 44px; }
+  .txn-action-btn { width: 34px; height: 34px; }
+
+  /* Remove hover-only background effects on touch */
+  .vehicle-btn:hover  { background: var(--panel-2); color: var(--ink-dim); border-color: var(--line); }
+  .sb-btn:hover       { background: transparent; color: var(--ink-dim); border-left-color: transparent; }
+  .stat-card:hover    { background: var(--panel); }
+  .stat-card:hover::before { opacity: 0; }
 }
 
 /* ══════════════════════════════════════════════════════════
    I-CODE — Auth login box + Profile section styles
 ══════════════════════════════════════════════════════════ */
 
-/* I-CODE auth tab — teal/violet accent */
+/* I-CODE auth tab — violet accent */
 #tabICodeBtn { display: none; }   /* hidden until an I-CODE is stored */
 #tabICodeBtn.active { border-bottom-color: var(--violet) !important; color: var(--violet) !important; }
 
