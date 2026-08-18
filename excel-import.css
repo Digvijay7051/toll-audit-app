@@ -436,3 +436,26 @@ body.light-theme .xl-paid-mode-select {
   border-color: var(--line);
   color: var(--ink);
 }
+
+/* ── PDF source badge (shown in modal header after PDF import) ── */
+.xl-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(220, 38, 38, .12);
+  border: 1px solid rgba(220, 38, 38, .3);
+  color: #dc2626;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 0;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+body.light-theme .xl-source-badge {
+  background: rgba(220, 38, 38, .08);
+  border-color: rgba(220, 38, 38, .25);
+}

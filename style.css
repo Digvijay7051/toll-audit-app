@@ -1683,6 +1683,17 @@ body.dark-theme .theme-btn        { border-color: rgba(217,164,0,.4); }
 }
 .th-truncated-note i { font-size: 12px; }
 
+/* Load More button */
+.txn-load-more-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px; margin: 0;
+  background: var(--panel-2); border: none; border-top: 1px solid var(--line-soft);
+  color: var(--blue); font-size: 13px; font-family: var(--font-mono);
+  cursor: pointer; transition: background .15s;
+}
+.txn-load-more-btn:hover { background: var(--blue-soft); }
+.txn-load-more-btn .txn-load-more-count { color: var(--muted); font-size: 11px; }
+
 /* Transaction cards — ledger style */
 .txn-card {
   border-radius: 0;

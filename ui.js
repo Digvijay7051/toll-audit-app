@@ -429,9 +429,11 @@ let historyFilter = {
 
 };
 
-/* Maximum transactions shown in history list at one time.
-   Keeps DOM small for large audits (1 lakh+ txns). */
-const TXN_PAGE_SIZE = 300;
+/* How many transactions to render per page (Load More) */
+const TXN_PAGE_SIZE = 100;
+
+/* Current page multiplier — reset to 1 whenever filter changes */
+let txnPage = 1;
 
 function renderTransactionHistory() {
 
@@ -479,20 +481,20 @@ function renderTransactionHistory() {
         "Forcefully":"#991b1b","Fake Exemption":"#4c1d95","Fake Violation":"#7f1d1d"
     };
 
-    /* Show newest first, cap at TXN_PAGE_SIZE for performance */
+    /* Show newest first; display up to txnPage * TXN_PAGE_SIZE entries */
     const reversed = filtered.slice().reverse();
-    const visible  = reversed.slice(0, TXN_PAGE_SIZE);
-    const hidden   = reversed.length - visible.length;
+    const visibleCount = txnPage * TXN_PAGE_SIZE;
+    const visible  = reversed.slice(0, visibleCount);
+    const remaining = reversed.length - visible.length;
 
     /* Build into a DocumentFragment — single DOM insertion = no layout thrashing */
     const frag = document.createDocumentFragment();
 
-    if (hidden > 0) {
-        const info = document.createElement("div");
-        info.className = "th-truncated-note";
-        info.innerHTML = `<i class="bi bi-info-circle"></i> Showing latest ${TXN_PAGE_SIZE} of ${reversed.length} transactions`;
-        frag.appendChild(info);
-    }
+    /* Count note always at top */
+    const countNote = document.createElement("div");
+    countNote.className = "th-truncated-note";
+    countNote.innerHTML = `<i class="bi bi-info-circle"></i> Showing ${visible.length} of ${reversed.length} transactions`;
+    frag.appendChild(countNote);
 
     visible.forEach(transaction => {
 
@@ -533,6 +535,17 @@ function renderTransactionHistory() {
         frag.appendChild(card);
 
     });
+
+    if (remaining > 0) {
+        const loadMoreBtn = document.createElement("button");
+        loadMoreBtn.className = "txn-load-more-btn";
+        loadMoreBtn.innerHTML = `<i class="bi bi-chevron-down"></i> Load ${Math.min(remaining, TXN_PAGE_SIZE)} more  <span class="txn-load-more-count">(${remaining} remaining)</span>`;
+        loadMoreBtn.addEventListener("click", function () {
+            txnPage += 1;
+            renderTransactionHistory();
+        });
+        frag.appendChild(loadMoreBtn);
+    }
 
     /* Single DOM write */
     container.innerHTML = "";
@@ -620,6 +633,7 @@ function setupHistoryFilter() {
         searchInput.addEventListener("input", function () {
 
             historyFilter.text = this.value;
+            txnPage = 1;
 
             renderTransactionHistory();
 
@@ -632,6 +646,7 @@ function setupHistoryFilter() {
         vehicleSelect.addEventListener("change", function () {
 
             historyFilter.vehicle = this.value;
+            txnPage = 1;
 
             renderTransactionHistory();
 

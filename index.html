@@ -418,9 +418,9 @@
                     <i class="bi bi-cloud-arrow-down-fill"></i> Backup / Restore
                 </button>
                 <button class="sb-btn sb-import" id="xlImportBtn" type="button">
-                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel Audit
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel / PDF Audit
                 </button>
-                <input type="file" id="xlImportFileInput" accept=".xlsx,.xls" style="display:none;">
+                <input type="file" id="xlImportFileInput" accept=".xlsx,.xls,.pdf" style="display:none;">
             </div>
         </div>
 
@@ -1709,8 +1709,8 @@
         <div class="xl-import-header-left">
           <div class="xl-import-icon"><i class="bi bi-file-earmark-arrow-up-fill"></i></div>
           <div>
-            <h5 class="modal-title" id="xlImportModalLabel">Import Excel Audit Report</h5>
-            <div class="xl-import-subtitle">Review and edit before saving to the app</div>
+            <h5 class="modal-title" id="xlImportModalLabel">Import Audit Report</h5>
+            <div class="xl-import-subtitle">Excel (.xlsx) or PDF — Review and edit before saving</div>
           </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1720,7 +1720,7 @@
       <div class="modal-body xl-import-body" id="xlImportReviewBody">
         <div class="xl-import-empty">
           <i class="bi bi-cloud-arrow-up"></i>
-          <p>Upload your Excel file to begin</p>
+          <p>Upload Excel (.xlsx / .xls) or PDF file to begin</p>
         </div>
       </div>
 
@@ -2041,6 +2041,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=="undefined"){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";}</script>
 <!-- Firebase Compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -2059,7 +2060,7 @@
 <script src="motion.js?v=4"></script>
 <script src="analytics.js?v=3"></script>
 <script src="traffic-loss.js?v=3"></script>
-<script src="excel-import.js?v=1"></script>
+<script src="excel-import.js?v=6"></script>
 <script src="agent.js?v=4"></script>
 <script src="assistant.js?v=2"></script>
 

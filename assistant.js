@@ -1037,7 +1037,7 @@ ${recentAppEventsText()}`;
         const parts = [];
 
         /* ALL vehicle numbers — matchAll for bulk support */
-        const VEH_RE = /[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi;
+        const VEH_RE = /\b[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{1,4}\b/gi;
         const allMatches = [...userText.matchAll(VEH_RE)];
         const seen = new Set();
 
@@ -1214,21 +1214,23 @@ ${recentAppEventsText()}`;
        LLM only formats/explains, never invents data.
     ═══════════════════════════════════════════════ */
 
-    /* Detect if message is PURELY a vehicle number query
-       (bulk or single) — no open-ended question attached */
-    function isPureVehicleQuery(msg) {
-        /* Strip all vehicle numbers and spaces/punctuation */
-        const stripped = msg
-            .replace(/[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi, '')
-            .replace(/[\s,;|\/\n\r]+/g, '')
-            .trim();
-        /* If nothing meaningful left → pure vehicle query */
-        return stripped.length < 8;
+    /* Improved Indian vehicle number regex:
+       - Requires exactly 2 state letters
+       - 1-2 district digits
+       - 1-3 series letters (required, not optional — avoids partial matches)
+       - 1-4 number digits
+       - Word boundaries prevent partial-word grabs */
+    const VEH_RE = /\b[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{1,4}\b/gi;
+
+    /* Detect if message contains vehicle numbers at all */
+    function hasVehicleNumbers(msg) {
+        VEH_RE.lastIndex = 0;
+        return VEH_RE.test(msg);
     }
 
     /* Handle bulk/single vehicle lookup with 100% local data */
     function handleVehicleQuery(msg) {
-        const VEH_RE = /[A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{0,3}[\s\-]?\d{1,4}/gi;
+        VEH_RE.lastIndex = 0;
         const allMatches = [...msg.matchAll(VEH_RE)];
         const seen = new Set();
         const found = [], notFound = [];
@@ -1292,9 +1294,9 @@ ${recentAppEventsText()}`;
         }
         if (SUMMARY_RE.test(msg))  return executeTool('getPassListSummary', {});
 
-        /* Pure vehicle query → always local, never LLM
-           This prevents ANY hallucination on pass data */
-        if (isPureVehicleQuery(msg)) {
+        /* Vehicle query → always handled locally — no hallucination on pass data.
+           Handles both pure bulk lists and queries with extra words ("check karo"). */
+        if (hasVehicleNumbers(msg)) {
             const result = handleVehicleQuery(msg);
             if (result) return result;
         }

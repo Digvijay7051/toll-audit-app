@@ -1,8 +1,8 @@
 /* ==========================================================
    Toll Audit Assistant
-   excel-import.js  v5
+   excel-import.js  v6
 
-   Excel Report Upload → Auto-Audit → Review/Edit → Inject
+   Excel / PDF Report Upload → Auto-Audit → Review/Edit → Inject
    ──────────────────────────────────────────────────────────
    Excel layout (single sheet or two sheets):
      Row: "Violation"                         ← mode heading
@@ -15,13 +15,12 @@
      Row: "Exemption"                         ← next mode heading
      … (same structure)
 
-   v5 changes:
-     - Removed dangerous Strategy-4 fallback (was feeding full sheet as Violation)
-     - _splitByHeadings: first-filled-cell === mode word (robust, ignores defval empties)
-     - Parser: report-count row accepts "Actual Class after Validate" OR blank first cell
-     - Tab UI: Violation | Exemption tabs instead of stacked blocks
-     - Already Paid select → instant Col Total live update
-     - Col Total always visible (not cut off)
+   v6 changes:
+     - Fixed: Strategy 3 now correctly handles Exemption-before-Violation order
+     - Fixed: _splitByHeadings caps each block properly regardless of heading order
+     - Fixed: Strategy 3 guard uses combined AND check — never overwrites a valid parse
+     - Added: PDF import via pdf.js text extraction → same review/edit UI
+     - File input now accepts .xlsx, .xls, .pdf
 ========================================================== */
 
 /* ─────────────────────────────────────────────────────────
@@ -197,29 +196,36 @@ function _extractBothModes(wb) {
   }
 
   /* ── Strategy 3 (MAIN): one sheet has BOTH modes stacked ──
-     Always run this for every sheet — it will only overwrite
-     violation/exemption if the split produces a better (valid) result. */
-  wb.SheetNames.forEach(name => {
-    const rows = toRows(wb.Sheets[name]);
-    _dbg("Strategy3 scanning sheet:", name, "totalRows:", rows.length);
-    const { vBlock, eBlock } = _splitByHeadings(rows);
-    _dbg("  vBlock:", vBlock.length, "eBlock:", eBlock.length);
+     Only run if at least one mode is still missing — never overwrites
+     a mode that was already successfully found in strategies 1/2.
+     This prevents a combined-sheet from silently replacing a correctly
+     named-sheet parse. */
+  if (!_isValidParse(violation) || !_isValidParse(exemption)) {
+    wb.SheetNames.forEach(name => {
+      /* Skip this sheet entirely if both modes are already valid */
+      if (_isValidParse(violation) && _isValidParse(exemption)) return;
 
-    if (vBlock.length > 3) {
-      const vParsed = _parseMatrix(vBlock, "Violation");
-      if (_isValidParse(vParsed) && !_isValidParse(violation)) {
-        violation = vParsed;
-        _dbg("  → violation set from vBlock");
+      const rows = toRows(wb.Sheets[name]);
+      _dbg("Strategy3 scanning sheet:", name, "totalRows:", rows.length);
+      const { vBlock, eBlock } = _splitByHeadings(rows);
+      _dbg("  vBlock:", vBlock.length, "eBlock:", eBlock.length);
+
+      if (!_isValidParse(violation) && vBlock.length > 3) {
+        const vParsed = _parseMatrix(vBlock, "Violation");
+        if (_isValidParse(vParsed)) {
+          violation = vParsed;
+          _dbg("  → violation set from vBlock");
+        }
       }
-    }
-    if (eBlock.length > 3) {
-      const eParsed = _parseMatrix(eBlock, "Exemption");
-      if (_isValidParse(eParsed) && !_isValidParse(exemption)) {
-        exemption = eParsed;
-        _dbg("  → exemption set from eBlock");
+      if (!_isValidParse(exemption) && eBlock.length > 3) {
+        const eParsed = _parseMatrix(eBlock, "Exemption");
+        if (_isValidParse(eParsed)) {
+          exemption = eParsed;
+          _dbg("  → exemption set from eBlock");
+        }
       }
-    }
-  });
+    });
+  }
 
   _dbg("Final → V:", violation, "E:", exemption);
 
@@ -260,9 +266,23 @@ function _splitByHeadings(rows) {
 
   _dbg("splitByHeadings → vStart:", vStart, "eStart:", eStart);
 
-  const vEnd   = (eStart >= 0 && eStart > vStart) ? eStart : undefined;
-  const vBlock = vStart >= 0 ? rows.slice(vStart, vEnd) : [];
-  const eBlock = eStart >= 0 ? rows.slice(eStart)       : [];
+  /* Cap each block so it doesn't bleed into the other mode's section.
+     This handles both orderings: V-then-E and E-then-V. */
+  let vBlock = [], eBlock = [];
+
+  if (vStart >= 0) {
+    /* vBlock ends where eStart begins (if eStart comes after vStart) */
+    const vEnd = (eStart >= 0 && eStart > vStart) ? eStart : undefined;
+    vBlock = rows.slice(vStart, vEnd);
+  }
+
+  if (eStart >= 0) {
+    /* eBlock ends where vStart begins (if vStart comes after eStart) */
+    const eEnd = (vStart >= 0 && vStart > eStart) ? vStart : undefined;
+    eBlock = rows.slice(eStart, eEnd);
+  }
+
+  _dbg("splitByHeadings → vBlock:", vBlock.length, "eBlock:", eBlock.length);
   return { vBlock, eBlock };
 }
 
@@ -679,6 +699,115 @@ function _validateBeforeConfirm() {
 }
 
 /* ─────────────────────────────────────────────────────────
+   PDF IMPORT
+   Uses pdf.js (loaded globally as pdfjsLib).
+   Extracts text with positions, bins into rows, feeds the
+   same _splitByHeadings + _parseMatrix pipeline as Excel.
+───────────────────────────────────────────────────────── */
+async function parseAuditPDF(file) {
+  if (typeof pdfjsLib === "undefined") {
+    return { ok: false, error: "PDF library not loaded. Refresh the page." };
+  }
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    const allRows = [];
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page    = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      /* Group text items by y-position (±3px tolerance) */
+      const yMap = new Map();
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5] / 3) * 3;
+        if (!yMap.has(y)) yMap.set(y, []);
+        yMap.get(y).push({ x: item.transform[4], text: item.str.trim() });
+      });
+
+      /* Sort y descending (PDF y=0 is at bottom, rows top-to-bottom = descending) */
+      Array.from(yMap.keys())
+        .sort((a, b) => b - a)
+        .forEach(y => {
+          const texts = yMap.get(y)
+            .sort((a, b) => a.x - b.x)
+            .map(i => i.text)
+            .filter(t => t !== "");
+          if (texts.length > 0) allRows.push(texts);
+        });
+    }
+
+    if (allRows.length === 0) {
+      return { ok: false, error: "PDF mein koi text nahi mila. Scanned/image PDF supported nahi hai — text-based PDF use karo." };
+    }
+
+    _dbg("PDF rows extracted:", allRows.length);
+
+    const { vBlock, eBlock } = _splitByHeadings(allRows);
+    _dbg("PDF vBlock:", vBlock.length, "eBlock:", eBlock.length);
+
+    let violation = null, exemption = null;
+
+    if (vBlock.length > 3) violation = _parseMatrix(vBlock, "Violation");
+    if (eBlock.length > 3) exemption = _parseMatrix(eBlock, "Exemption");
+
+    /* Fallback: entire doc as single Violation matrix */
+    if (!_isValidParse(violation) && !_isValidParse(exemption)) {
+      const v = _parseMatrix(allRows, "Violation");
+      if (_isValidParse(v)) violation = v;
+    }
+
+    if (!violation && !exemption) {
+      return {
+        ok: false,
+        error: "PDF se audit matrix parse nahi hua. Ensure karo ki 'Violation'/'Exemption' headings aur CAR/LCV column headers clearly hain PDF mein."
+      };
+    }
+
+    return { ok: true, violation: violation || null, exemption: exemption || null, source: "pdf" };
+  } catch (err) {
+    return { ok: false, error: "PDF parse error: " + err.message };
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   SHARED REVIEW WIRING (Excel + PDF)
+───────────────────────────────────────────────────────── */
+function _showReview(parsed, modal, reviewBody, statusEl) {
+  modal._xlParsed = parsed;
+
+  /* Show PDF badge in modal title when source is PDF */
+  const titleEl = document.getElementById("xlImportModalLabel");
+  if (titleEl) {
+    if (parsed.source === "pdf") {
+      titleEl.innerHTML = `Import Audit Report <span class="xl-source-badge"><i class="bi bi-filetype-pdf"></i> PDF</span>`;
+    } else {
+      titleEl.textContent = "Import Audit Report";
+    }
+  }
+
+  if (reviewBody) reviewBody.innerHTML = buildImportReviewHtml(parsed.violation, parsed.exemption);
+
+  _wireTabSwitching();
+
+  ["Violation", "Exemption"].forEach(m => {
+    const tbl = document.getElementById(`xlRevTable_${m}`);
+    if (tbl) tbl.addEventListener("input", () => recalcReviewTotals(m));
+  });
+
+  document.querySelectorAll(".xl-paid-mode-select").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const m = sel.dataset.mode;
+      _applyPaidToTable(m);
+      recalcReviewTotals(m);
+    });
+  });
+
+  if (statusEl) statusEl.textContent = "";
+}
+
+/* ─────────────────────────────────────────────────────────
    INIT
 ───────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", () => {
@@ -704,13 +833,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const reviewBody = document.getElementById("xlImportReviewBody");
       const statusEl   = document.getElementById("xlImportStatus");
+      const isPDF      = /\.pdf$/i.test(file.name);
 
       if (reviewBody)
-        reviewBody.innerHTML = `<div class="xl-loading"><i class="bi bi-hourglass-split"></i> Excel parse ho raha hai…</div>`;
+        reviewBody.innerHTML = `<div class="xl-loading"><i class="bi bi-hourglass-split"></i> ${isPDF ? "PDF" : "Excel"} parse ho raha hai…</div>`;
       if (statusEl) statusEl.textContent = "";
       getModal()?.show();
 
-      const parsed = await parseAuditExcel(file);
+      const parsed = isPDF ? await parseAuditPDF(file) : await parseAuditExcel(file);
       fileInput.value = "";
 
       if (!parsed.ok) {
@@ -719,28 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      modal._xlParsed = parsed;
-      if (reviewBody) reviewBody.innerHTML = buildImportReviewHtml(parsed.violation, parsed.exemption);
-
-      /* Wire tabs */
-      _wireTabSwitching();
-
-      /* Wire live recalc on cell input */
-      ["Violation", "Exemption"].forEach(m => {
-        const tbl = document.getElementById(`xlRevTable_${m}`);
-        if (tbl) tbl.addEventListener("input", () => recalcReviewTotals(m));
-      });
-
-      /* Wire Already Paid select → instant col total update */
-      document.querySelectorAll(".xl-paid-mode-select").forEach(sel => {
-        sel.addEventListener("change", () => {
-          const m = sel.dataset.mode;
-          _applyPaidToTable(m);
-          recalcReviewTotals(m);
-        });
-      });
-
-      if (statusEl) statusEl.textContent = "";
+      _showReview(parsed, modal, reviewBody, statusEl);
     });
   }
 
